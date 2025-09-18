@@ -62,6 +62,7 @@ nav:
     - Testing Architecture: architecture/testing-architecture.md
     - API Architecture: architecture/api-architecture.md
     - Gateway (Envoy): architecture/gateway-envoy.md
+    - Workflow (Flowable): architecture/workflow-flowable.md
     - Migrations: architecture/migrations.md
     - Coding Standards: architecture/coding-standards.md
     - Source Tree & Layout: architecture/source-tree.md

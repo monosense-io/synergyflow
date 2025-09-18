@@ -1,0 +1,67 @@
+---
+# DragonflyDB StatefulSet (single-replica with persistence). Adjust sizing and storage to your environment.
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dragonfly
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: dragonfly
+  namespace: dragonfly
+spec:
+  serviceName: dragonfly
+  replicas: 1
+  selector:
+    matchLabels: { app: dragonfly }
+  template:
+    metadata:
+      labels: { app: dragonfly }
+    spec:
+      containers:
+        - name: dragonfly
+          image: docker.dragonflydb.io/dragonflydb/dragonfly:latest
+          args: ["--dbnum=16", "--save_schedule=", "--requirepass=$(DF_PASSWORD)"]
+          env:
+            - name: DF_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: dragonfly-secret, key: password }
+          ports:
+            - containerPort: 6379
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          resources:
+            requests: { cpu: "500m", memory: "1Gi" }
+            limits: { cpu: "2", memory: "4Gi" }
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels: { app: dragonfly }
+                topologyKey: kubernetes.io/hostname
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 50Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dragonfly
+  namespace: dragonfly
+spec:
+  selector: { app: dragonfly }
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+

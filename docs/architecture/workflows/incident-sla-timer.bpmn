@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             id="Defs"
+             targetNamespace="http://synergyflow/workflows">
+  <process id="incident-sla" name="Incident SLA Timer" isExecutable="true">
+    <startEvent id="start" name="Start">
+      <timerEventDefinition>
+        <timeDuration>PT0S</timeDuration>
+      </timerEventDefinition>
+    </startEvent>
+    <intermediateCatchEvent id="warn">
+      <timerEventDefinition>
+        <timeDuration>PT30M</timeDuration>
+      </timerEventDefinition>
+    </intermediateCatchEvent>
+    <serviceTask id="notifyWarn" name="SLA Warning"/>
+    <intermediateCatchEvent id="breach">
+      <timerEventDefinition>
+        <timeDuration>PT1H</timeDuration>
+      </timerEventDefinition>
+    </intermediateCatchEvent>
+    <serviceTask id="notifyBreach" name="SLA Breach"/>
+    <endEvent id="end" name="End"/>
+    <sequenceFlow id="f1" sourceRef="start" targetRef="warn"/>
+    <sequenceFlow id="f2" sourceRef="warn" targetRef="notifyWarn"/>
+    <sequenceFlow id="f3" sourceRef="notifyWarn" targetRef="breach"/>
+    <sequenceFlow id="f4" sourceRef="breach" targetRef="notifyBreach"/>
+    <sequenceFlow id="f5" sourceRef="notifyBreach" targetRef="end"/>
+  </process>
+</definitions>
+

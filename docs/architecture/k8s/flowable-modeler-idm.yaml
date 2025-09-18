@@ -1,0 +1,113 @@
+---
+# Flowable IDM (identity) and Modeler (BPMN editor) for admin users only.
+# Protect access via Envoy Gateway + external auth (OIDC) and network policies.
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: flowable-admin
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flowable-idm
+  namespace: flowable-admin
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: flowable-idm }
+  template:
+    metadata:
+      labels: { app: flowable-idm }
+    spec:
+      containers:
+        - name: idm
+          image: flowable/flowable-idm:latest
+          env:
+            - name: SERVER_PORT
+              value: "8080"
+            - name: FLOWABLE_REST_APP_ADMIN_USER
+              valueFrom:
+                secretKeyRef: { name: flowable-admin, key: admin-username }
+            - name: FLOWABLE_REST_APP_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: flowable-admin, key: admin-password }
+          ports:
+            - containerPort: 8080
+          resources:
+            requests: { cpu: "200m", memory: "512Mi" }
+            limits: { cpu: "1", memory: "1Gi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: flowable-idm
+  namespace: flowable-admin
+spec:
+  selector: { app: flowable-idm }
+  ports:
+    - port: 80
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flowable-modeler
+  namespace: flowable-admin
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: flowable-modeler }
+  template:
+    metadata:
+      labels: { app: flowable-modeler }
+    spec:
+      containers:
+        - name: modeler
+          image: flowable/flowable-modeler:latest
+          env:
+            - name: SERVER_PORT
+              value: "8080"
+            - name: FLOWABLE_MODELER_APP_IDM_URL
+              value: "http://flowable-idm.flowable-admin.svc.cluster.local"
+          ports:
+            - containerPort: 8080
+          resources:
+            requests: { cpu: "200m", memory: "512Mi" }
+            limits: { cpu: "1", memory: "1Gi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: flowable-modeler
+  namespace: flowable-admin
+spec:
+  selector: { app: flowable-modeler }
+  ports:
+    - port: 80
+      targetPort: 8080
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: flowable-admin
+  namespace: flowable-admin
+spec:
+  parentRefs:
+    - name: synergyflow-gw
+      namespace: edge
+  hostnames:
+    - flowable-admin.synergyflow.example.com
+  rules:
+    - matches:
+        - path: { type: PathPrefix, value: /idm }
+      backendRefs:
+        - name: flowable-idm
+          port: 80
+    - matches:
+        - path: { type: PathPrefix, value: /modeler }
+      backendRefs:
+        - name: flowable-modeler
+          port: 80
+  # Protect with external auth / JWT at Envoy Gateway (configured on the GatewayClass/controller).
+

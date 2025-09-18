@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             id="Defs"
+             targetNamespace="http://synergyflow/workflows">
+  <process id="cab-approval" name="CAB Approval" isExecutable="true">
+    <startEvent id="start" name="Start"/>
+    <userTask id="cabTask" name="CAB Approval"/>
+    <exclusiveGateway id="gw" name="Approved?"/>
+    <endEvent id="approved" name="Approved"/>
+    <endEvent id="rejected" name="Rejected"/>
+    <sequenceFlow id="f1" sourceRef="start" targetRef="cabTask"/>
+    <sequenceFlow id="f2" sourceRef="cabTask" targetRef="gw"/>
+    <sequenceFlow id="f3" sourceRef="gw" targetRef="approved">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${approved}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="f4" sourceRef="gw" targetRef="rejected">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${!approved}]]></conditionExpression>
+    </sequenceFlow>
+  </process>
+</definitions>
+

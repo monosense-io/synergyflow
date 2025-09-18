@@ -14,7 +14,7 @@ links:
 
 - PostgreSQL OLTP (partitioned event_publication)
 - MinIO object storage (attachments, artifacts)
-- Redis cache/session
+- DragonflyDB (Redis‑compatible) for cache/session
 
 ## Partitioning & Retention
 

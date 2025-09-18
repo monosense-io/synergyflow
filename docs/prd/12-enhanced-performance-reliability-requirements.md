@@ -42,7 +42,7 @@ status: Draft
 **Internal Scale Horizontal Scaling**:
 
 - Stateless application design across 3+ nodes/racks within a single data center
-- Session storage in Redis (persistent, not in-memory)
+- Session storage in DragonflyDB (persistent, not in-memory)
 - Database primary with 2+ read replicas across racks (sync standby where feasible)
 - CDN for static assets and file downloads with global distribution
 - Event publication registry partitioning with automated cleanup
@@ -58,11 +58,11 @@ status: Draft
 
 **Multi-Layer Caching Strategy**:
 
-- **Application-level**: Service catalog, user profiles, team assignments (Redis)
+- **Application-level**: Service catalog, user profiles, team assignments (DragonflyDB)
 - **Database-level**: Frequently accessed queries, dashboard data with intelligent cache warming
 - **HTTP-level**: Static resources, API responses with geo-distributed CDN
 - **Module-level**: Cross-module query results with event-driven cache invalidation
-- **Session-level**: Persistent sessions in Redis
+- **Session-level**: Persistent sessions in DragonflyDB
 
 ## Review Checklist
 

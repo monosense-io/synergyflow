@@ -56,4 +56,4 @@ flowchart TB
 ## Boundaries
 
 - Product boundary: monolith with event-driven modules; API Gateway front door.
-- Data boundary: PostgreSQL (OLTP), MinIO (objects), Redis (cache/session).
+- Data boundary: PostgreSQL (OLTP), MinIO (objects), DragonflyDB (cache/session).

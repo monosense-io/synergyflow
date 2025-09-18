@@ -14,7 +14,7 @@ links:
 - Single Kubernetes cluster in one data center
 - HA across nodes/racks (no multi‑AZ dependency)
 - Envoy Gateway (Gateway API) for L7 ingress; CloudNative‑PG primary + sync
-  standby; Redis (Cluster/Sentinel); MinIO (erasure coding)
+  standby; DragonflyDB (Redis‑compatible); MinIO (erasure coding)
 
 ## DR
 

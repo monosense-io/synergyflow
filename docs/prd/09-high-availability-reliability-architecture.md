@@ -52,7 +52,7 @@ status: Draft
 **Availability Components**:
 - **Application Layer**: Stateless application pods in single Kubernetes cluster with health checks
 - **Database Layer**: CloudNative-PG primary + synchronous standby across racks with automated failover
-- **Cache Layer**: Redis 7.x (Cluster/Sentinel) for HA caching and sessions
+- **Cache Layer**: DragonflyDB (Redis‑compatible) for HA caching and sessions
 - **Load Balancing**: NGINX/HAProxy L7 load balancer with health check endpoints
 - **Storage Layer**: MinIO with erasure coding across nodes/racks; optional remote replication to DR site
 
@@ -80,8 +80,8 @@ RACK A                                   RACK B
 **Failover Mechanisms**:
 - **Database Failover**: Managed by CloudNative-PG (<30 seconds)
 - **Application Failover**: Load balancer health checks with 10-second intervals
-- **Cache Failover**: Redis Sentinel/Cluster for automatic failover
-- **Session Management**: Persistent sessions in Redis for seamless failover
+- **Cache Failover**: Kubernetes HA with anti‑affinity and persistence for DragonflyDB
+- **Session Management**: Persistent sessions in DragonflyDB for seamless failover
 
 ### 9.2 Disaster Recovery Strategy
 

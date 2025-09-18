@@ -94,7 +94,7 @@ links:
 ### Database & Containers
 
 - Avoid H2 and other in‑memory DBs for tests.
-- Use Testcontainers exclusively for DB and infra dependencies (PostgreSQL, Redis, MinIO, Kafka, etc.).
+- Use Testcontainers exclusively for DB and infra dependencies (PostgreSQL, DragonflyDB/Redis, MinIO, Kafka, etc.).
 - Tests must be self‑contained and parallelizable; container lifecycle managed per
   test suite with reusable containers where possible.
 

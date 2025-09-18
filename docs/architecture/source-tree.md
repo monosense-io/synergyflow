@@ -110,7 +110,7 @@ Conventions
 - Use Lombok for boilerplate (@Value/@Builder/@RequiredArgsConstructor, @Slf4j).
 - Use MapStruct for DTO ↔ domain ↔ entity mappings (componentModel="spring").
 - Event classes as immutable Java records with `version` and `Instant createdAt`.
-- Tests use Testcontainers (PostgreSQL/Redis/MinIO/Kafka); avoid H2.
+- Tests use Testcontainers (PostgreSQL/DragonflyDB (Redis‑compatible)/MinIO/Kafka); avoid H2.
 
 Validation
 

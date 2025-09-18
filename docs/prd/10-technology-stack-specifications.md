@@ -99,13 +99,13 @@ spring.modulith.default-async-termination=true
     - Point-in-time recovery (PITR) with 30-day retention
     - Continuous archiving to object storage
     - Regular backup validation and restore testing
-- **Redis 7.x (Cluster/Sentinel)**: Distributed in-memory datastore for caching and sessions
-  - Session storage with automatic failover
-  - Query result caching with cross-node/rack replication
-  - Rate limiting counters with distributed consistency
-  - Real-time data for dashboards with pub/sub patterns
+- **DragonflyDB (Redis‑compatible)**: High‑performance in‑memory datastore for caching and sessions
+  - Drop‑in compatible with Redis protocol and Spring Data Redis
+  - Session storage (Spring Session) with persistence; pod anti‑affinity for HA
+  - Query result caching; counters; pub/sub
+  - Rate‑limit counters (app‑side; edge limits handled by Envoy)
   - **Event Publication Cache**: Cache for frequent event publication queries
-  - **Module State Cache**: Cross-module query result caching with TTL
+  - **Module State Cache**: Cross‑module query result caching with TTL
   - **Notification Preferences**: User and team notification settings cache
 
 **Object Storage**:

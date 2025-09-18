@@ -53,12 +53,14 @@ Change Management: A structured approach to managing changes in the IT infrastru
 Key capabilities:
 
 - Visual workflow builder for change processes (submission → approval → implementation → review)
+  using Flowable Modeler (BPMN 2.0)
 - Change calendar to prevent scheduling conflicts
 - Standard change templates, risk assessment, and CAB approvals
 
 Acceptance Criteria:
 
 - Visual workflow builder supports steps, conditions, and approvals; workflows are versioned
+  and deployed to the embedded Flowable engine
 - Calendar prevents conflicts (blackout windows, CI conflicts) with warnings and blocks as configured
 - Approval gating enforces CAB sign-off by risk level; all decisions audit logged
 - Mandatory rollback plan for medium/high-risk changes prior to approval

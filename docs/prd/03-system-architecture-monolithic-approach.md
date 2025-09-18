@@ -167,7 +167,7 @@ package io.monosense.synergyflow.workflow;
 ```
 
 - **Workflow Engine** (`itsm.workflow`)
-  - Business rules engine, state machine management
+  - Flowable 7.x BPMN engine for process orchestration
   - ITIL process orchestration and custom workflow builder
   - Event listeners: All domain events for workflow triggers
   - **Architecture**: Pure event listener - no direct module dependencies

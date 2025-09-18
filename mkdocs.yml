@@ -85,7 +85,6 @@ nav:
   - UX:
     - UX Overview: ux/README.md
   - ADRs:
-    - 0010 Adopt Envoy Gateway (K8s Gateway API): adrs/0010-envoy-gateway-adoption-k8s-gateway-api.md
     - Overview: adrs/README.md
     - 0001 Event-Only Inter-Module Communication: adrs/0001-event-only-inter-module-communication.md
     - 0002 Only 'user' as Shared Module: adrs/0002-user-as-only-shared-foundation-module.md
@@ -96,3 +95,6 @@ nav:
     - 0007 API Gateway Placement: adrs/0007-api-gateway-placement-scope.md
     - 0008 Mobile Push Egress: adrs/0008-mobile-push-egress-policy.md
     - 0009 DB Migration Policy: adrs/0009-db-migration-schema-evolution.md
+    - 0010 Adopt Envoy Gateway (K8s Gateway API): adrs/0010-envoy-gateway-adoption-k8s-gateway-api.md
+    - 0011 Cache Store — DragonflyDB over Redis: adrs/0011-cache-store-dragonflydb-over-redis.md
+    - 0012 Workflow Orchestration — Flowable 7.x: adrs/0012-workflow-orchestration-flowable-7.md

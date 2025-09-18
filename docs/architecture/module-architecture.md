@@ -32,6 +32,12 @@ links:
 
 - Change↔CMDB: ChangeImpactAssessmentRequestedEvent → ChangeImpactAssessedEvent (approval gating)
 
+## Workflow Engine (Flowable)
+
+- The `workflow` module embeds Flowable 7.x (BPMN/DMN/CMMN) to orchestrate ITIL flows.
+- Domain events start/advance processes; timers drive SLAs and escalations.
+- Administrative users design workflows via Flowable Modeler; deployments are versioned.
+
 ## Compliance
 
 - ApplicationModules.verify() must pass in CI.

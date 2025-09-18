@@ -14,6 +14,11 @@ links:
 - @ApplicationModuleTest with PublishedEvents/AssertablePublishedEvents
 - Scenario-driven tests for cross-module flows
 
+## Workflow Tests (Flowable)
+
+- Process definition tests using Flowable Spring test support
+- Verify timers, user tasks, and event-driven transitions
+
 ## Architecture Tests
 
 - ApplicationModules.verify() in CI

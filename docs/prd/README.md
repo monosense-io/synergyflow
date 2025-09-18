@@ -29,4 +29,6 @@
 - [26. DB Schema Delta (Additions & Changes)](26-db-schema-delta-additions-changes.md)
 - [27. Architecture Decision Records (ADR)](27-architecture-decision-records-adr.md)
 
-- Original full PRD exists at repository root (ITSM_PRD.md). Note: it is not included in the MkDocs site; the sharded PRD in this folder is the navigable source of truth.
+Original full PRD exists at repository root (ITSM_PRD.md).
+Note: it is not included in the MkDocs site;
+the sharded PRD in this folder is the navigable source of truth.

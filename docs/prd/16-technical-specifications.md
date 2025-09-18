@@ -12,6 +12,7 @@ status: Draft
 ### 16.1 Database Schema Requirements
 
 **Core Entities**:
+
 - Users, Teams, Roles (user management)
 - Tickets, Comments, Attachments (service management)
 - Services, SLAs, Categories (service catalog)
@@ -25,6 +26,7 @@ status: Draft
 - Reports, Dashboards, Analytics (reporting framework)
 
 **Performance Requirements**:
+
 - Primary key auto-increment for all entities
 - Composite indexes for frequent query patterns
 - Partitioning for audit and historical tables
@@ -34,12 +36,14 @@ status: Draft
 ### 16.2 API Specifications
 
 **REST API Standards**:
+
 - Base URL: `/api/v1/`
 - HTTP methods: GET (read), POST (create), PUT (update), DELETE (remove)
 - Response format: JSON with consistent error structure
 - Status codes: 200 (success), 201 (created), 400 (bad request), 401 (unauthorized), 403 (forbidden), 404 (not found), 500 (server error)
 
 **Authentication**:
+
 - JWT tokens with 8-hour expiration
 - Refresh token mechanism
 - Role-based claims in token payload
@@ -50,6 +54,7 @@ status: Draft
 **Design System (ADS‑Inspired, JIRA‑like)**:
 
 **Token & UI Infrastructure**:
+
 ```
 src/
 ├── app/                         # Next.js App Router (layouts, route groups)
@@ -62,6 +67,7 @@ src/
 ```
 
 **Implementation Architecture**:
+
 - **Token Processing**: Style Dictionary → CSS variables (tokens.css) + Tailwind theme extension
 - **Color System**: Semantic palette with contrast validation; dark mode variants
 - **Typography & Spacing**: 4px scale; heading/body scales mapped to ADS levels
@@ -70,27 +76,32 @@ src/
 - **Icons**: lucide-react + optional custom SVG set; accessible `<Icon name="..." />` component
 
 **Enterprise Component Library**:
+
 - **DataTable**: Virtualized, inline edit, bulk actions, CSV/XLSX export
 - **FormWizard**: Multi-step with conditional logic and async validation (Zod + RHF)
 - **DashboardGrid**: Drag/drop widgets with layout persistence
 - **Navigation**: Left-nav + breadcrumbs + context actions, keyboard accessible
 
 **Accessibility (WCAG 2.1 AA)**:
+
 - Color contrast validated; focus rings; proper roles/labels
 - Radix primitives/shadcn patterns for ARIA correctness
 - Automated axe/PA11Y tests in CI
 
 **Performance**:
+
 - Next.js Server Components, streaming responses
 - Tailwind JIT; route-level caching and ISR where safe
 - Virtualization for large data sets
 
 **Development Workflow**:
+
 - Storybook for React; per-component a11y checks
 - @testing-library/react + Playwright for e2e
 - Token docs auto-generated from JSON
 
 **User Experience Requirements**:
+
 - SSR + selective hydration; optimistic UI with rollback
 - Prefetching and incremental streaming for heavy views
 - Keyboard navigation and screen reader support throughout
@@ -224,19 +235,9 @@ export function DataTable({ rows }: { rows: any[] }) {
   );
 }
 ```
- 
-
- 
-
-
-
-
-
-
-
- 
 
 ## Review Checklist
+
 - Content complete and consistent with PRD
 - Acceptance criteria traceable to tests (where applicable)
 - Data model references validated (where applicable)
@@ -245,6 +246,7 @@ export function DataTable({ rows }: { rows: any[] }) {
 - Owner reviewed and status updated
 
 ## Traceability
+
 - Features → Data Model: see 18-data-model-overview.md
 - Features → Events: see 03-system-architecture-monolithic-approach.md
 - Features → Security: see 13-security-compliance-framework.md

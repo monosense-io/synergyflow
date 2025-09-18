@@ -10,6 +10,7 @@ status: Draft
 ## 26. DB Schema Delta (Additions & Changes)
 
 Alter tables (columns)
+
 ```sql
 -- Problem correlation key
 ALTER TABLE problems ADD COLUMN IF NOT EXISTS correlation_key varchar;
@@ -34,6 +35,7 @@ ALTER TABLE articles
 ```
 
 New tables
+
 ```sql
 -- CMDB core
 CREATE TABLE IF NOT EXISTS configuration_items (
@@ -84,8 +86,8 @@ CREATE TABLE IF NOT EXISTS blackout_windows (
 );
 ```
 
-
 ## Review Checklist
+
 - Content complete and consistent with PRD
 - Acceptance criteria traceable to tests (where applicable)
 - Data model references validated (where applicable)
@@ -94,6 +96,7 @@ CREATE TABLE IF NOT EXISTS blackout_windows (
 - Owner reviewed and status updated
 
 ## Traceability
+
 - Features → Data Model: see 18-data-model-overview.md
 - Features → Events: see 03-system-architecture-monolithic-approach.md
 - Features → Security: see 13-security-compliance-framework.md

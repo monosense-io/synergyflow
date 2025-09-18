@@ -10,13 +10,15 @@ links:
 ---
 
 ## Module Tests
+
 - @ApplicationModuleTest with PublishedEvents/AssertablePublishedEvents
 - Scenario-driven tests for cross-module flows
 
 ## Architecture Tests
+
 - ApplicationModules.verify() in CI
 - Boundary violation tests; event contract checks
 
 ## NFR Tests
-- Load, failover, DR drills per Sizing Appendix
 
+- Load, failover, DR drills per Sizing Appendix

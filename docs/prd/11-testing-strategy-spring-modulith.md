@@ -10,9 +10,11 @@ status: Draft
 ## 11. Testing Strategy (Spring Modulith)
 
 ### 11.1 Module Isolation Testing
+
 **Objective**: Test individual modules in isolation with proper Spring Modulith patterns
 
 **Testing Patterns**:
+
 ```java
 @ApplicationModuleTest
 @RequiredArgsConstructor
@@ -74,6 +76,7 @@ class IncidentManagementTests {
 ```
 
 **Requirements (Spring Modulith Certified)**:
+
 - Module isolation with `@ApplicationModuleTest` (mandatory for each module)
 - Event publication verification with `PublishedEvents` and `AssertablePublishedEvents`
 - Cross-module interaction testing with `Scenario` API and proper timeout handling
@@ -84,6 +87,7 @@ class IncidentManagementTests {
 - Module health monitoring via `/actuator/modulith` endpoint
 
 **Acceptance Criteria**:
+
 - Each module has comprehensive isolated tests (>95% coverage)
 - Event publishing and consumption verified with fluent assertions
 - SLA-based scenario testing with realistic timeout values
@@ -93,9 +97,11 @@ class IncidentManagementTests {
 - Event publication registry performance tested under load (2000+ TPS)
 
 ### 11.2 Application Module Verification
+
 **Objective**: Ensure architectural compliance with Spring Modulith principles
 
 **Verification Patterns**:
+
 ```java
 class ModularityTests {
     
@@ -116,13 +122,14 @@ class ModularityTests {
 ```
 
 **Requirements**:
+
 - Automatic detection of module boundary violations
 - Module dependency cycle detection
 - Documentation generation for module relationships
 - Architectural compliance validation
 
-
 ## Review Checklist
+
 - Content complete and consistent with PRD
 - Acceptance criteria traceable to tests (where applicable)
 - Data model references validated (where applicable)
@@ -131,6 +138,7 @@ class ModularityTests {
 - Owner reviewed and status updated
 
 ## Traceability
+
 - Features → Data Model: see 18-data-model-overview.md
 - Features → Events: see 03-system-architecture-monolithic-approach.md
 - Features → Security: see 13-security-compliance-framework.md

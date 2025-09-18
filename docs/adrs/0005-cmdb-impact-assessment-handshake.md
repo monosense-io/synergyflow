@@ -9,11 +9,13 @@ links:
 ---
 
 Decision
+
 - Change publishes ChangeImpactAssessmentRequestedEvent; CMDB responds with ChangeImpactAssessedEvent.
 
 Rationale
+
 - Preserve zero-dependency policy while enabling synchronous-like gating via eventual consistency.
 
 Consequences
-- Approval flow must await assessment event (with timeout/retry paths).
 
+- Approval flow must await assessment event (with timeout/retry paths).

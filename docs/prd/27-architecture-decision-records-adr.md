@@ -28,6 +28,7 @@ status: Draft
 - Status: Accepted (Doc v8.0, 2025‑09‑03).
 
 ## Review Checklist
+
 - Content complete and consistent with PRD
 - Acceptance criteria traceable to tests (where applicable)
 - Data model references validated (where applicable)
@@ -36,6 +37,7 @@ status: Draft
 - Owner reviewed and status updated
 
 ## Traceability
+
 - Features → Data Model: see 18-data-model-overview.md
 - Features → Events: see 03-system-architecture-monolithic-approach.md
 - Features → Security: see 13-security-compliance-framework.md

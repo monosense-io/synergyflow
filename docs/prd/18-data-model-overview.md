@@ -12,6 +12,7 @@ status: Draft
 ### 18.1 Core Entities
 
 **User Management**:
+
 ```sql
 users: id, username, email, full_name, active, created_at
 teams: id, name, description, parent_team_id, created_at
@@ -20,6 +21,7 @@ roles: id, name, permissions, created_at
 ```
 
 **ITIL Process Entities (Separate Bounded Contexts)**:
+
 ```sql
 -- Incident Management Module
 incidents: id, title, description, severity, status, affected_service_id,
@@ -46,12 +48,14 @@ service_requests: id, service_id, title, description, status, priority,
 ```
 
 **Service Catalog**:
+
 ```sql
 services: id, name, description, category, status, sla_id, form_schema(jsonb), created_at
 slas: id, name, response_time, resolution_time, availability, created_at
 ```
 
 **Knowledge Base**:
+
 ```sql
 articles: id, title, content, category, status, owner_id, expires_at, created_by, created_at
 article_tags: article_id, tag_id
@@ -59,6 +63,7 @@ tags: id, name, color, created_at
 ```
 
 **CMDB**:
+
 ```sql
 configuration_items: id, ci_type, name, env, owner_id, status, created_at, updated_at
 ci_relationships: id, source_ci_id, relationship_type, target_ci_id, created_at
@@ -67,6 +72,7 @@ ci_snapshots: id, ci_id, snapshot_at, data(jsonb)
 ```
 
 **Routing & Skills**:
+
 ```sql
 skills: id, name, description
 user_skills: user_id, skill_id, level
@@ -75,18 +81,21 @@ escalation_policies: id, name, levels(jsonb), active
 ```
 
 **Preferences & Notifications**:
+
 ```sql
 user_preferences: user_id, theme, locale, quiet_hours(jsonb)
 notification_preferences: principal_type, principal_id, channel, event_type, enabled
 ```
 
 **Change Calendar**:
+
 ```sql
 change_calendar: id, name, timezone
 blackout_windows: id, calendar_id, starts_at, ends_at, scope(jsonb)
 ```
 
 **Asset Management**:
+
 ```sql
 assets: id, asset_tag, name, type, status, location, cost, acquired_date
 suppliers: id, name, contact_info, contract_id, performance_rating
@@ -94,6 +103,7 @@ contracts: id, supplier_id, start_date, end_date, value, terms
 ```
 
 **Event Management**:
+
 ```sql
 events: id, source, type, severity, status, correlation_id, created_at
 monitors: id, name, target, thresholds, enabled, created_at
@@ -101,6 +111,7 @@ alerts: id, monitor_id, event_id, notification_sent, acknowledged_at
 ```
 
 **Release Management**:
+
 ```sql
 releases: id, name, version, status, planned_date, actual_date, created_by
 builds: id, release_id, version, artifacts, build_status, created_at
@@ -108,6 +119,7 @@ environments: id, name, type, status, configuration, last_deployed
 ```
 
 **Workflow Orchestration**:
+
 ```sql
 workflows: id, name, definition, version, active, created_at
 workflow_instances: id, workflow_id, status, current_step, created_at
@@ -115,6 +127,7 @@ business_rules: id, name, conditions, actions, priority, active
 ```
 
 **Event Publication Registry (Spring Modulith)**:
+
 ```sql
 -- Spring Modulith JDBC Event Publication Registry with Production Optimizations
 CREATE TABLE event_publication (
@@ -154,6 +167,7 @@ CREATE TABLE event_publication_archive (
 ```
 
 **Performance Indexes**:
+
 ```sql
 -- Critical performance indexes for ITIL processes
 CREATE INDEX idx_incidents_status_team ON incidents(status, team_id, created_at);
@@ -175,8 +189,8 @@ CREATE INDEX idx_event_publications_cleanup ON event_publication(completion_date
     WHERE completion_date IS NOT NULL AND completion_date < (NOW() - INTERVAL '7 days');
 ```
 
-
 ## Review Checklist
+
 - Content complete and consistent with PRD
 - Acceptance criteria traceable to tests (where applicable)
 - Data model references validated (where applicable)
@@ -185,6 +199,7 @@ CREATE INDEX idx_event_publications_cleanup ON event_publication(completion_date
 - Owner reviewed and status updated
 
 ## Traceability
+
 - Features → Data Model: see 18-data-model-overview.md
 - Features → Events: see 03-system-architecture-monolithic-approach.md
 - Features → Security: see 13-security-compliance-framework.md

@@ -13,12 +13,14 @@ links:
 ---
 
 ## Scope & Constraints
+
 - Documentation‑only specification of the repository layout. Do not scaffold code here.
 - Backend must comply with Spring Modulith boundaries and validations.
 - Package naming MUST start with `io.monosense.synergyflow`.
 
 ## Repository Layout (Top‑Level)
-```
+
+```text
 synergyflow-backend/        # Spring Modulith monolith (no code here, structure spec below)
 synergyflow-frontend/       # Next.js 14 app (no code here, structure spec below)
 docs/                       # Documentation (PRD, Architecture, ADRs)
@@ -29,13 +31,15 @@ mkdocs.yml                  # Docs site config
 ## Backend Source Tree (Spring Modulith)
 
 Key rules
+
 - One monolith project with modules (bounded contexts) mapped to Java packages.
 - Each module declares `package-info.java` with `@ApplicationModule` and optional `@NamedInterface("api")` for external tooling.
 - ITIL modules have zero direct dependencies between each other (ADR‑0001). Only `team → user::api` is allowed (ADR‑0002).
 - Tests validate boundaries via `ApplicationModules.verify()` and `@ApplicationModuleTest`.
 
 Proposed structure
-```
+
+```text
 synergyflow-backend/
   src/
     main/
@@ -102,12 +106,14 @@ synergyflow-backend/
 ```
 
 Conventions
+
 - Use Lombok for boilerplate (@Value/@Builder/@RequiredArgsConstructor, @Slf4j).
 - Use MapStruct for DTO ↔ domain ↔ entity mappings (componentModel="spring").
 - Event classes as immutable Java records with `version` and `Instant createdAt`.
 - Tests use Testcontainers (PostgreSQL/Redis/MinIO/Kafka); avoid H2.
 
 Validation
+
 - `ApplicationModules.verify()` executed in CI.
 - Modulith actuator `/actuator/modulith` enabled for runtime visual inspection.
 - High‑level architecture tests assert no forbidden dependencies (e.g., change ↔ cmdb direct calls).
@@ -115,12 +121,14 @@ Validation
 ## Frontend Source Tree (Next.js 14)
 
 Principles
+
 - App Router with RSC; use client components only where necessary.
 - Feature‑first organization under `features/`.
 - Shared UI components in `components/ui` (shadcn/ui), core components in `components/core`.
 
 Proposed structure
-```
+
+```text
 synergyflow-frontend/
   app/
     (marketing)/
@@ -152,12 +160,14 @@ synergyflow-frontend/
 ```
 
 Tooling & Standards
+
 - TypeScript strict; ESLint + Prettier; Tailwind + shadcn/ui.
 - API access via fetch/axios with interceptors; TanStack Query for caching.
 - Auth via NextAuth (OIDC/SAML proxied); RBAC on routes.
 - Accessibility: WCAG 2.1 AA; keyboard/focus management.
 
 ## Getting Started (Doc‑Only)
+
 - Create the directories above when ready to scaffold code; follow Coding Standards and Module Architecture docs.
 - Add `package-info.java` to each backend module with `@ApplicationModule` to enable Modulith verification.
 - Add `@NamedInterface("api")` subpackages only where explicitly allowed.

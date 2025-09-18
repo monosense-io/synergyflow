@@ -9,11 +9,14 @@ links:
 ---
 
 Decision
-- Spring Cloud Gateway as ingress for REST/GraphQL/Webhooks; internal/external routes; centralized auth, rate limiting, and observability.
+
+- Spring Cloud Gateway as ingress for REST/GraphQL/Webhooks; internal/external
+  routes; centralized auth, rate limiting, and observability.
 
 Rationale
+
 - Consistent security and policy enforcement; single front door.
 
 Consequences
-- Gateway HA must match app SLOs; careful route ownership and versioning.
 
+- Gateway HA must match app SLOs; careful route ownership and versioning.

@@ -11,10 +11,12 @@ links:
 ---
 
 ## Purpose
+
 Define external actors and systems interacting with SynergyFlow and clarify the product boundary.
 
 ## Context Diagram (Logical)
-```
+
+```text
 Users (End Users, Agents, Managers)
    │ Web / Mobile
    ▼
@@ -25,6 +27,7 @@ Integration Adapters (LDAP/AD, SMTP/IMAP, Monitoring, SIEM/SOAR, ERP/CRM/HR)
 ```
 
 ## Context Diagram (Mermaid)
+
 ```mermaid
 flowchart TB
   Users[Users\n(End Users, Agents, Managers)] -->|Web / Mobile| UI[UI / API Gateway]
@@ -42,6 +45,7 @@ flowchart TB
 ```
 
 ## External Systems
+
 - Identity: LDAP/AD, SAML/OIDC (SSO)
 - Email: SMTP (outbound), IMAP/POP3 (inbound ticket creation)
 - Monitoring: Nagios, Zabbix, custom webhooks
@@ -50,5 +54,6 @@ flowchart TB
 - Mobile Push: FCM/APNs via outbound egress
 
 ## Boundaries
+
 - Product boundary: monolith with event-driven modules; API Gateway front door.
 - Data boundary: PostgreSQL (OLTP), MinIO (objects), Redis (cache/session).

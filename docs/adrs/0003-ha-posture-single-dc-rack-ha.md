@@ -9,11 +9,13 @@ links:
 ---
 
 Decision
+
 - Single DC deployment with HA across nodes/racks; CloudNative‑PG primary + sync standby.
 
 Rationale
+
 - Practical on-prem constraints; reliable failover without multi‑AZ.
 
 Consequences
-- DR requires optional remote site; egress/firewall rules for external services.
 
+- DR requires optional remote site; egress/firewall rules for external services.

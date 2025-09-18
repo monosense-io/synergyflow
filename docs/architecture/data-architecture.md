@@ -11,15 +11,17 @@ links:
 ---
 
 ## Stores
+
 - PostgreSQL OLTP (partitioned event_publication)
 - MinIO object storage (attachments, artifacts)
 - Redis cache/session
 
 ## Partitioning & Retention
+
 - event_publication partitioned by month; 7‑day active retention with archive
 - Logs: 30‑day hot, 6–12 months warm, long‑term archive per policy
 
 ## Schema Evolution
+
 - Versioned migrations under migrations/ (V001..)
 - Rollback guidance inline in each migration
-

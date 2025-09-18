@@ -10,13 +10,15 @@ links:
 ---
 
 ## Topology
+
 - Single Kubernetes cluster in one data center
 - HA across nodes/racks (no multi‑AZ dependency)
 - NGINX/HAProxy L7 LB, CloudNative‑PG primary + sync standby, Redis (Cluster/Sentinel), MinIO (erasure coding)
 
 ## DR
+
 - Optional remote DR site (cold/warm); PostgreSQL WAL + MinIO replication
 
 ## Performance Targets
-- 2000+ TPS event publication registry; 350 concurrent users baseline
 
+- 2000+ TPS event publication registry; 350 concurrent users baseline

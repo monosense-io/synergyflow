@@ -12,6 +12,7 @@ status: Draft
 ### 5.1 External System Integration
 
 **Integration Types**:
+
 - **Authentication**: LDAP/Active Directory, SAML, OAuth 2.0, OpenID Connect for federated identity
 - **Security**: SIEM/SOAR integration for security operations and incident response
 - **Monitoring**: Integration with system monitoring tools (Nagios, Zabbix, etc.)
@@ -22,6 +23,7 @@ status: Draft
 - **Message Broker**: Enterprise message queuing for reliable async processing
 
 **API Standards**:
+
 - RESTful APIs with OpenAPI 3.0 specification
 - Webhook support for real-time updates
 - Rate limiting: 600 requests/minute per client; 120 requests/minute per user
@@ -45,8 +47,8 @@ status: Draft
 **Outbox Pattern (JDBC)**: Transactional event persistence and externalization via JDBC event store
 **Saga Pattern**: Long-running transaction management for complex business processes
 
-
 ## Review Checklist
+
 - Content complete and consistent with PRD
 - Acceptance criteria traceable to tests (where applicable)
 - Data model references validated (where applicable)
@@ -55,6 +57,7 @@ status: Draft
 - Owner reviewed and status updated
 
 ## Traceability
+
 - Features → Data Model: see 18-data-model-overview.md
 - Features → Events: see 03-system-architecture-monolithic-approach.md
 - Features → Security: see 13-security-compliance-framework.md

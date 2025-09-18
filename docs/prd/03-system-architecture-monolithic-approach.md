@@ -50,6 +50,7 @@ package io.monosense.synergyflow.incident;
 
 import org.springframework.modulith.ApplicationModule;
 ```
+
 - **Incident Management** (`itsm.incident`)
   - Incident logging, categorization, priority/urgency matrix
   - SLA countdown timers and breach notifications
@@ -64,6 +65,7 @@ package io.monosense.synergyflow.problem;
 
 import org.springframework.modulith.ApplicationModule;
 ```
+
 - **Problem Management** (`itsm.problem`)
   - Root cause analysis workflows and Known Error Database (KEDB)
   - Problem record creation from incident patterns
@@ -77,6 +79,7 @@ package io.monosense.synergyflow.change;
 
 import org.springframework.modulith.ApplicationModule;
 ```
+
 - **Change Management** (`itsm.change`)
   - Change Advisory Board (CAB) approval workflows
   - Risk assessment and change calendar management
@@ -91,6 +94,7 @@ package io.monosense.synergyflow.knowledge;
 
 import org.springframework.modulith.ApplicationModule;
 ```
+
 - **Knowledge Management** (`itsm.knowledge`)
   - Article creation, approval workflows, full-text search
   - AI-powered article suggestions and usage analytics
@@ -125,6 +129,7 @@ import org.springframework.modulith.NamedInterface;
 @ApplicationModule
 package io.monosense.synergyflow.user;
 ```
+
 - **User Management** (`itsm.user`)
   - Authentication, user profiles, LDAP integration
   - Published events: `UserCreatedEvent`, `UserActivatedEvent`, `UserDeactivatedEvent`
@@ -151,7 +156,8 @@ package io.monosense.synergyflow.team.api;
 
 import org.springframework.modulith.NamedInterface;
 ```
-  - **Dependencies**: User API for identity resolution only
+
+- **Dependencies**: User API for identity resolution only
 
 **Infrastructure Modules**
 
@@ -159,6 +165,7 @@ import org.springframework.modulith.NamedInterface;
 @ApplicationModule
 package io.monosense.synergyflow.workflow;
 ```
+
 - **Workflow Engine** (`itsm.workflow`)
   - Business rules engine, state machine management
   - ITIL process orchestration and custom workflow builder
@@ -169,6 +176,7 @@ package io.monosense.synergyflow.workflow;
 @ApplicationModule  
 package io.monosense.synergyflow.notification;
 ```
+
 - **Notification System** (`itsm.notification`)
   - Multi-channel delivery (email, Telegram, in-app)
   - Notification rules engine and user preferences
@@ -182,6 +190,7 @@ package io.monosense.synergyflow.integration;
 
 import org.springframework.modulith.ApplicationModule;
 ```
+
 - **External Integration** (`itsm.integration`)
   - System adapters (LDAP, monitoring, email)
   - API gateway patterns and webhook handling
@@ -193,6 +202,7 @@ import org.springframework.modulith.ApplicationModule;
 ### 3.3 Event-Driven Inter-Module Communication
 
 **Domain Event Patterns**:
+
 ```java
 // Example: Incident Management publishes events with proper aggregate pattern
 @Service
@@ -264,6 +274,7 @@ public class NotificationEventHandler {
 ```
 
 **Change↔CMDB Impact Assessment Events**:
+
 ```java
 // Event contracts for impact assessment handshake
 public record ChangeImpactAssessmentRequestedEvent(
@@ -310,6 +321,7 @@ class CmdbImpactHandler {
 ```
 
 **Cross-Module Integration Events**:
+
 - `IncidentCreatedEvent` → Triggers SLA timers, team notifications, knowledge suggestions
 - `ChangeApprovedEvent` → Updates CMDB, schedules deployment, notifies teams
 - `SlaBreachedEvent` → Escalates incident, notifies management, updates metrics
@@ -318,6 +330,7 @@ class CmdbImpactHandler {
 - `ChangeImpactAssessedEvent` → CMDB provides impact results to Change Management for approval gating
 
 **Event Design Patterns**:
+
 ```java
 // Domain event with proper payload design and routing
 @Externalized("itsm.incident.created::#{#this.getTeamId()}")
@@ -365,6 +378,7 @@ public class ProblemEventHandler {
 ```
 
 **Event Externalization Configuration**:
+
 ```java
 @Configuration
 @ConditionalOnProperty("spring.modulith.events.externalization.enabled")
@@ -435,6 +449,7 @@ public class EventPublicationConfig {
     }
 }
 ```
+
 - **JDBC-based Event Store**: Automatic event publication persistence with performance optimization
 - **Reliable Delivery**: Failed event handlers automatically retried on restart
 - **Event Completion Tracking**: Publications marked complete after successful processing  
@@ -443,8 +458,8 @@ public class EventPublicationConfig {
 - **Production Cleanup**: Automated cleanup of completed events to maintain performance
 - **Event Replay**: Capability to resubmit failed events for reliability
 
-
 ## Review Checklist
+
 - Content complete and consistent with PRD
 - Acceptance criteria traceable to tests (where applicable)
 - Data model references validated (where applicable)
@@ -453,6 +468,7 @@ public class EventPublicationConfig {
 - Owner reviewed and status updated
 
 ## Traceability
+
 - Features → Data Model: see 18-data-model-overview.md
 - Features → Events: see 03-system-architecture-monolithic-approach.md
 - Features → Security: see 13-security-compliance-framework.md

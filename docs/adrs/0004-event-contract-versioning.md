@@ -9,11 +9,13 @@ links:
 ---
 
 Decision
+
 - Version events; favor additive changes; route by version if needed; deprecate with overlap.
 
 Rationale
+
 - Preserve backward compatibility while evolving schemas.
 
 Consequences
-- Consumers must tolerate unknown fields; sunset plan required.
 
+- Consumers must tolerate unknown fields; sunset plan required.

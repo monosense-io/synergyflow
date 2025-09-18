@@ -12,12 +12,14 @@ status: Draft
 ### 20.1 Deployment Architecture
 
 **Production Environment**:
+
 - Application server: 4 CPU cores, 8GB RAM minimum
 - Database server: 8 CPU cores, 16GB RAM, SSD storage
 - Cache server: 2 CPU cores, 4GB RAM
 - Object storage: 1TB initial capacity with auto-scaling
 
 **Development Environment**:
+
 - Docker Compose setup for local development
 - H2 database for unit testing
 - Test data generators for development workflows
@@ -26,6 +28,7 @@ status: Draft
 ### 20.2 Monitoring & Observability
 
 **Spring Modulith Actuator Integration**:
+
 ```properties
 # Enable modulith actuator endpoint
 management.endpoints.web.exposure.include=modulith,health,metrics,info
@@ -34,6 +37,7 @@ management.endpoint.health.show-details=always
 ```
 
 **Module Boundary Monitoring**:
+
 ```java
 @Component
 @RequiredArgsConstructor
@@ -62,6 +66,7 @@ public class ModuleHealthMonitor {
 ```
 
 **Application Monitoring**:
+
 - Spring Boot Actuator endpoints with module health checks
 - Micrometer metrics collection with module interaction tracking
 - Distributed tracing with correlation IDs and module boundaries
@@ -69,14 +74,15 @@ public class ModuleHealthMonitor {
 - `/actuator/modulith` endpoint for runtime architecture inspection
 
 **Alerting Strategy**:
+
 - SLA breach notifications with module context
 - System health alerts including module dependency failures
 - Security incident notifications with module boundary violations
 - Performance degradation warnings with module-specific metrics
 - Architectural compliance alerts for module boundary violations
 
-
 ## Review Checklist
+
 - Content complete and consistent with PRD
 - Acceptance criteria traceable to tests (where applicable)
 - Data model references validated (where applicable)
@@ -85,6 +91,7 @@ public class ModuleHealthMonitor {
 - Owner reviewed and status updated
 
 ## Traceability
+
 - Features → Data Model: see 18-data-model-overview.md
 - Features → Events: see 03-system-architecture-monolithic-approach.md
 - Features → Security: see 13-security-compliance-framework.md

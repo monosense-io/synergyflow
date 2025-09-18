@@ -10,7 +10,9 @@ status: Draft
 ## 15. Detailed Implementation Roadmap (Updated with Verification Gates)
 
 ### Phase 0: Spring Modulith Foundation (Weeks 1-4)
+
 **Architecture Setup & Verification**:
+
 - Spring Modulith project structure with proper dependency management
 - Module boundary definitions with zero-coupling design
 - Event publication registry with production optimizations
@@ -18,6 +20,7 @@ status: Draft
 - Architectural compliance gates at each milestone
 
 **Week 1-2 Deliverables**:
+
 ```java
 @Modulithic(systemName = "SynergyFlow", sharedModules = {"user"})
 @SpringBootApplication  
@@ -35,6 +38,7 @@ public class SynergyFlowApplication {
 ```
 
 **Week 3-4 Deliverables**:
+
 ```java
 // Module verification test (MANDATORY before any implementation)
 class ArchitecturalComplianceTests {
@@ -56,6 +60,7 @@ class ArchitecturalComplianceTests {
 ```
 
 **Essential Dependencies (Gradle Kotlin DSL)**:
+
 ```kotlin
 // build.gradle.kts
 val springModulithVersion: String by project // gradle.properties
@@ -81,6 +86,7 @@ dependencies {
 ```
 
 **Architectural Validation Requirements (MANDATORY)**:
+
 - ✅ `ApplicationModules.verify()` passes in CI/CD pipeline
 - ✅ Event publication registry handles 2000+ TPS with <100ms latency
 - ✅ `/actuator/modulith` endpoint operational with health checks
@@ -91,7 +97,9 @@ dependencies {
 - ✅ Module boundary security compliance verified
 
 ### Phase 1: Core ITIL Modules (Weeks 5-12)
+
 **Core Features**:
+
 - Incident management module with `@ApplicationModuleListener` event handling
 - User authentication and team management modules  
 - Event-driven notification system using pure event listeners
@@ -99,6 +107,7 @@ dependencies {
 - Knowledge base module with AI-powered article suggestions
 
 **Spring Modulith Deliverables**:
+
 ```java
 // Module isolation testing
 @ApplicationModuleTest
@@ -109,6 +118,7 @@ class IncidentManagementTests {
     }
 }
 ```
+
 - **Module Structure**: Complete `@ApplicationModule` boundaries with proper dependencies
 - **Event Patterns**: `@ApplicationModuleListener` with transaction isolation
 - **Testing**: `@ApplicationModuleTest` for each module with event verification
@@ -116,7 +126,9 @@ class IncidentManagementTests {
 - **Documentation**: Module canvases and dependency diagrams generated
 
 ### Phase 2: Extended ITIL Modules (Weeks 13-20)
+
 **Enhanced Features**:
+
 - Problem management with automatic incident correlation via events
 - Change management with CAB approval event workflows
 - CMDB with CI relationship change event propagation
@@ -124,6 +136,7 @@ class IncidentManagementTests {
 - Multi-channel notifications with Telegram bot integration
 
 **Spring Modulith Deliverables**:
+
 ```java
 // Cross-module integration testing
 @ApplicationModuleTest
@@ -136,6 +149,7 @@ class ProblemManagementTests {
     }
 }
 ```
+
 - **Event Correlation**: Pattern-based automatic problem creation from incidents
 - **Workflow Integration**: Event-driven approval processes with state transitions
 - **CMDB Events**: CI relationship changes trigger impact analysis events
@@ -143,7 +157,9 @@ class ProblemManagementTests {
 - **Caching**: Event-driven cache invalidation patterns
 
 ### Phase 3: Advanced Integration & Analytics (Weeks 21-28)
+
 **Extended Features**:
+
 - External system integrations with Spring Modulith event externalization
 - Real-time analytics dashboard with event streaming patterns
 - Advanced automation rules triggered by event correlation patterns
@@ -151,6 +167,7 @@ class ProblemManagementTests {
 - Mobile-responsive optimizations with PWA capabilities
 
 **Spring Modulith Deliverables**:
+
 ```java
 // Event externalization configuration
 @Configuration
@@ -164,6 +181,7 @@ class EventExternalizationConfig {
     }
 }
 ```
+
 - **Event Externalization**: Kafka/RabbitMQ integration with `@Externalized` events
 - **Actuator Integration**: `/actuator/modulith` endpoint for runtime module inspection
 - **Observability**: Distributed tracing with Spring Modulith observability
@@ -173,6 +191,7 @@ class EventExternalizationConfig {
 ### Phase 4: REALISTIC Implementation Roadmap (36 Weeks Total - Updated)
 
 **ARCHITECTURAL FOUNDATION (Weeks 1-6) - Enhanced**
+
 - [ ] **Week 1-2: Spring Modulith Setup**
   - [ ] Create Spring Boot project with `@Modulithic(systemName="SynergyFlow")` annotation
   - [ ] Add Spring Modulith BOM dependency management for version consistency
@@ -196,6 +215,7 @@ class EventExternalizationConfig {
   - [ ] Configure `/actuator/modulith` endpoint for monitoring
 
 **CORE ITIL MODULES (Weeks 7-18)**
+
 - [ ] **Week 7-10: Primary Process Modules**
   - [ ] Implement incident management with event-only cross-module communication
   - [ ] Create service catalog with request fulfillment workflows
@@ -218,6 +238,7 @@ class EventExternalizationConfig {
   - [ ] **MILESTONE**: Cross-module integration tests 100% event-driven
 
 **INTEGRATION & QUALITY (Weeks 19-30)**  
+
 - [ ] **Week 19-22: External Integrations**
   - [ ] Configure event externalization with `@Externalized` annotations
   - [ ] Setup LDAP integration with user provisioning events
@@ -244,6 +265,7 @@ class EventExternalizationConfig {
   - [ ] **MILESTONE**: Module boundary security compliance validated
 
 **PRODUCTION DEPLOYMENT (Weeks 31-36)**
+
 - [ ] **Week 31-33: Production Preparation**  
   - [ ] Configure production event externalization and cleanup jobs
   - [ ] Setup comprehensive monitoring with `/actuator/modulith` endpoint
@@ -256,8 +278,8 @@ class EventExternalizationConfig {
   - [ ] Fine-tune module interactions and SLA compliance
   - [ ] Complete user training and documentation
 
-
 ## Review Checklist
+
 - Content complete and consistent with PRD
 - Acceptance criteria traceable to tests (where applicable)
 - Data model references validated (where applicable)
@@ -266,6 +288,7 @@ class EventExternalizationConfig {
 - Owner reviewed and status updated
 
 ## Traceability
+
 - Features → Data Model: see 18-data-model-overview.md
 - Features → Events: see 03-system-architecture-monolithic-approach.md
 - Features → Security: see 13-security-compliance-framework.md

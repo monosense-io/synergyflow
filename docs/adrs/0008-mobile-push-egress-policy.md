@@ -9,11 +9,13 @@ links:
 ---
 
 Decision
+
 - Allow outbound egress to FCM/APNs; document proxies/firewalls; monitor delivery.
 
 Rationale
+
 - Required for push notifications in on‑prem deployments.
 
 Consequences
-- Maintain allowlists; monitor for outages; provide fallback notification channels.
 
+- Maintain allowlists; monitor for outages; provide fallback notification channels.

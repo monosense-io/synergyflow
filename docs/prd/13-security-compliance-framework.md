@@ -12,12 +12,14 @@ status: Draft
 ### 13.1 Authentication & Authorization
 
 **Authentication Methods**:
+
 - Primary: LDAP/Active Directory integration
 - Fallback: Local user accounts with strong password policies
 - API access: JWT tokens with configurable expiration
 - Multi-factor authentication for administrative accounts
 
 **Authorization Model**:
+
 - Role-based access control (RBAC) with hierarchical permissions
 - Team-based data isolation
 - Field-level security for sensitive information
@@ -29,6 +31,7 @@ status: Draft
 ### 13.2 Data Protection
 
 **Encryption**:
+
 - Data at rest: Storage-level encryption (e.g., LUKS/cloud provider) + application/pgcrypto column encryption for sensitive fields
 - Data in transit: TLS 1.3 for all communications
 - File storage: MinIO server-side encryption
@@ -36,11 +39,13 @@ status: Draft
 - Event payload encryption: Sensitive data encrypted before serialization in event store
 
 **Module Security Boundaries**:
+
 - Cross-module access control enforced at Spring Modulith boundaries with `@ApplicationModule(allowedDependencies)`
 - Event payload sanitization to prevent sensitive data leakage across module boundaries
 - Named interface security with `@NamedInterface` annotations for controlled API access
 - Module-level audit logging for compliance tracking and boundary violation detection
 - **Event Security Patterns**:
+
   ```java
   // Secure event payload design
   @Externalized("itsm.incident.created::#{#this.getTeamId()}")
@@ -59,7 +64,9 @@ status: Draft
       }
   }
   ```
+
 - **Module API Security**:
+
   ```java
   @NamedInterface("api")
   @Secured("ROLE_TEAM_ADMIN")
@@ -70,6 +77,7 @@ status: Draft
   ```
 
 **Compliance Requirements**:
+
 - Data retention policies with automated cleanup
 - Right to deletion for user data (GDPR compliance)
 - Audit logging with tamper-proof storage
@@ -83,6 +91,7 @@ status: Draft
 ### 13.3 Security Monitoring
 
 **Security Controls**:
+
 - Input validation and sanitization
 - SQL injection prevention (parameterized queries)
 - XSS protection with content security policy
@@ -90,6 +99,7 @@ status: Draft
 - Rate limiting: 120 requests/minute per user
 
 **Monitoring & Alerting**:
+
 - Failed authentication attempt monitoring
 - Unusual access pattern detection
 - Privilege escalation alerts
@@ -105,9 +115,11 @@ status: Draft
 - **Cross-Module Data Flow**: Audit trails for inter-module communications via event publication registry
 
 ### 13.4 Secret Management
+
 **Objective**: Secure storage and management of application secrets and credentials
 
 **Requirements**:
+
 - Integration with enterprise-grade secret stores (HashiCorp Vault, AWS Secrets Manager, Azure Key Vault)
 - Automatic secret rotation with zero-downtime application updates
 - Least-privilege access patterns with service-specific secret scoping
@@ -115,6 +127,7 @@ status: Draft
 - Audit logging for all secret access and rotation events
 
 **Secret Categories**:
+
 - Database credentials with automatic rotation support
 - External API keys and tokens for third-party integrations
 - Encryption keys for data protection and event payload security
@@ -122,6 +135,7 @@ status: Draft
 - Email and notification service authentication tokens
 
 **Acceptance Criteria**:
+
 - Zero hardcoded secrets in application configuration or code
 - Automatic secret retrieval during application startup
 - Secret rotation without application restart or downtime
@@ -130,6 +144,7 @@ status: Draft
 - Development environment uses separate secret scope from production
 
 **Spring Modulith Integration**:
+
 ```java
 @Configuration
 @ConditionalOnProperty("app.secrets.vault.enabled")
@@ -153,6 +168,7 @@ public class SecretManagementConfig {
 ```
 
 - **Spring Modulith Security Integration**:
+
   ```java
   @Component
   public class ModuleBoundarySecurityMonitor {
@@ -175,8 +191,8 @@ public class SecretManagementConfig {
   }
   ```
 
-
 ## Review Checklist
+
 - Content complete and consistent with PRD
 - Acceptance criteria traceable to tests (where applicable)
 - Data model references validated (where applicable)
@@ -185,6 +201,7 @@ public class SecretManagementConfig {
 - Owner reviewed and status updated
 
 ## Traceability
+
 - Features → Data Model: see 18-data-model-overview.md
 - Features → Events: see 03-system-architecture-monolithic-approach.md
 - Features → Security: see 13-security-compliance-framework.md

@@ -1,6 +1,8 @@
 # Event Catalog
 
-This catalog summarizes key domain events, producers, consumers, and intent. See [System Architecture (Monolithic Approach)](prd/03-system-architecture-monolithic-approach.md) for code examples and patterns.
+This catalog summarizes key domain events, producers, consumers, and intent.
+See [System Architecture (Monolithic Approach)](prd/03-system-architecture-monolithic-approach.md)
+for code examples and patterns.
 
 ## Core Events
 
@@ -76,5 +78,6 @@ This catalog summarizes key domain events, producers, consumers, and intent. See
   - Intent: Record mobile app interactions for analytics
 
 Notes
+
 - Routing keys and headers: see EventExternalizationConfig in the Architecture shard.
 - SLAs and latency targets: see 12-enhanced-performance-reliability-requirements.md.

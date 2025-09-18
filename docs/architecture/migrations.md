@@ -9,11 +9,13 @@ links:
 ---
 
 Overview
+
 - Versioned SQL migrations under `migrations/` named `V###__description.sql`.
 - Non-destructive by default; phased rollouts when altering existing structures.
 - Rollback guidance recorded inline per migration.
 
 Current Migrations
+
 - V001__problems_add_correlation_key.sql
 - V002__changes_add_rollback_fields.sql
 - V003__services_add_form_schema.sql
@@ -25,7 +27,7 @@ Current Migrations
 - V009__change_calendar.sql
 
 Operational Notes
+
 - Validate migrations against Testcontainers PostgreSQL in CI; avoid H2.
 - Indexing strategy aligns with PRD 18 (Data Model Overview) performance indexes.
 - Document any destructive changes in a superseding ADR prior to execution.
-

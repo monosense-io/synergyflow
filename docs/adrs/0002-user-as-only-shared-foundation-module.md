@@ -9,11 +9,13 @@ links:
 ---
 
 Decision
+
 - 'user' is the only shared module; 'team' depends on 'user'; others use events only.
 
 Rationale
+
 - Minimize coupling; maintain clear boundaries.
 
 Consequences
-- Requires projections/read models for cross-module reads.
 
+- Requires projections/read models for cross-module reads.

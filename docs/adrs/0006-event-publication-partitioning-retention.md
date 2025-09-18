@@ -9,11 +9,13 @@ links:
 ---
 
 Decision
+
 - Monthly partitions; active retention ≤ 7 days; archive to object storage; scheduled cleanup.
 
 Rationale
+
 - Sustain 2000+ TPS with predictable storage/maintenance overhead.
 
 Consequences
-- Operational jobs required; observability for lag and table growth.
 
+- Operational jobs required; observability for lag and table growth.

@@ -12,6 +12,7 @@ status: Draft
 ### 9.1 On-Premise Kubernetes Deployment Strategy
 
 **Single Cluster Architecture (Single Data Center, HA across nodes/racks)**:
+
 - Internal on-premise Kubernetes cluster deployment
 - Designed for 1000 total users, max 350 concurrent users
 - 50 helpdesk agents capacity
@@ -26,6 +27,7 @@ status: Draft
 │  └──────────────┘  └──────────────┘  └──────────┘ │
 └────────────────────────────────────────────────────┘
 ```
+
 ┌─────────────────────────────────────────────────────────────┐
 │                  On-Premise Kubernetes Cluster              │
 ├─────────────────────────────────────────────────────────────┤
@@ -44,6 +46,7 @@ status: Draft
 │  │    MinIO     │  │    Redis     │  │ Prometheus   │    │
 │  └──────────────┘  └──────────────┘  └──────────────┘    │
 └─────────────────────────────────────────────────────────────┘
+
 ```
 
 **Availability Components**:
@@ -55,6 +58,7 @@ status: Draft
 
 **Rack Layout (Illustrative)**:
 ```
+
 RACK A                                   RACK B
 ┌─────────────────────┐            ┌─────────────────────┐
 │ App Nodes (Pods)    │◀─LB─▶      │ App Nodes (Pods)    │
@@ -70,6 +74,7 @@ RACK A                                   RACK B
 ┌─────────────────────┐            ┌─────────────────────┐
 │ MinIO (Erasure)     │            │ MinIO (Erasure)     │
 └─────────────────────┘            └─────────────────────┘
+
 ```
 
 **Failover Mechanisms**:

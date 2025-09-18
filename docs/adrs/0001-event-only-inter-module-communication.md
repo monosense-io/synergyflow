@@ -9,11 +9,13 @@ links:
 ---
 
 Decision
+
 - All ITIL modules communicate via domain events; no direct module dependencies.
 
 Rationale
+
 - Reduce coupling, improve testability, leverage Modulith boundaries.
 
 Consequences
-- Event versioning required; eventual consistency; stronger observability.
 
+- Event versioning required; eventual consistency; stronger observability.

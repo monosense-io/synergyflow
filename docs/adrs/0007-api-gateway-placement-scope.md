@@ -1,7 +1,7 @@
 ---
 adr: 0007
-title: API Gateway Placement & Scope
-status: Accepted
+title: API Gateway Placement & Scope (Superseded)
+status: Superseded
 date: 2025-09-03
 owner: Architect (Integration)
 links:
@@ -10,8 +10,9 @@ links:
 
 Decision
 
-- Spring Cloud Gateway as ingress for REST/GraphQL/Webhooks; internal/external
-  routes; centralized auth, rate limiting, and observability.
+- Spring Cloud Gateway was selected as ingress for REST/GraphQL/Webhooks;
+  internal/external routes; centralized auth, rate limiting, and observability.
+  Superseded by ADR‑0010 adopting Envoy Gateway (Kubernetes Gateway API).
 
 Rationale
 

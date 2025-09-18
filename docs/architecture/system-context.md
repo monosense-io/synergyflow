@@ -30,7 +30,7 @@ Integration Adapters (LDAP/AD, SMTP/IMAP, Monitoring, SIEM/SOAR, ERP/CRM/HR)
 
 ```mermaid
 flowchart TB
-  Users[Users\n(End Users, Agents, Managers)] -->|Web / Mobile| UI[UI / API Gateway]
+  Users[Users\n(End Users, Agents, Managers)] -->|Web / Mobile| UI[UI / API Gateway (Envoy)]
   UI --> Monolith[SynergyFlow Monolith\n(Spring Modulith)]
   Monolith -->|REST / GraphQL / Webhooks| Integrations[Integration Adapters]
   subgraph External Systems

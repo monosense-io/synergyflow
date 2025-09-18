@@ -12,7 +12,8 @@ links:
 
 - RBAC and module boundary enforcement (Modulith verify)
 - Event payload sanitization (Sensitive fields)
-- API auth (OIDC/SAML), rate limiting (client/user)
+- API auth (OIDC/SAML) at edge via Envoy external auth / JWT filter
+- Rate limiting (client/user) via Envoy Rate Limit service
 - Data retention, GDPR/SOX/ISO 27001 alignment
 
 ## Monitoring

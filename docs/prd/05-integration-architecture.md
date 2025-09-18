@@ -31,7 +31,8 @@ status: Draft
 - Response format: JSON with consistent error handling
 - API versioning strategy with backward compatibility
 - GraphQL endpoint for complex queries (real-time via WebSocket/SSE endpoints)
-- API gateway with centralized security, monitoring, and throttling (Spring Cloud Gateway)
+- API gateway with centralized security, monitoring, and throttling
+  (Envoy Gateway, Kubernetes Gateway API)
 
 ### 5.2 Integration Patterns
 
@@ -43,7 +44,8 @@ status: Draft
 **Message Queuing**: Reliable async processing with dead letter queues
 **Circuit Breaker**: Resilience patterns for external system failures
 **Retry Logic**: Exponential backoff for transient failures
-**API Gateway Pattern**: Centralized routing, security, and monitoring for all external access (Spring Cloud Gateway)
+**API Gateway Pattern**: Centralized routing, security, and monitoring for all
+external access (Envoy Gateway with Gateway/HTTPRoute)
 **Outbox Pattern (JDBC)**: Transactional event persistence and externalization via JDBC event store
 **Saga Pattern**: Long-running transaction management for complex business processes
 

@@ -61,6 +61,7 @@ nav:
     - Observability & Reliability: architecture/observability-reliability.md
     - Testing Architecture: architecture/testing-architecture.md
     - API Architecture: architecture/api-architecture.md
+    - Gateway (Envoy): architecture/gateway-envoy.md
     - Migrations: architecture/migrations.md
     - Coding Standards: architecture/coding-standards.md
     - Source Tree & Layout: architecture/source-tree.md
@@ -84,6 +85,7 @@ nav:
   - UX:
     - UX Overview: ux/README.md
   - ADRs:
+    - 0010 Adopt Envoy Gateway (K8s Gateway API): adrs/0010-envoy-gateway-adoption-k8s-gateway-api.md
     - Overview: adrs/README.md
     - 0001 Event-Only Inter-Module Communication: adrs/0001-event-only-inter-module-communication.md
     - 0002 Only 'user' as Shared Module: adrs/0002-user-as-only-shared-foundation-module.md

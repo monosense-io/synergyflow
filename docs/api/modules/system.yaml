@@ -1,0 +1,22 @@
+openapi: 3.1.0
+info:
+  title: SynergyFlow API - System
+  version: 1.0.0
+paths:
+  /health:
+    get:
+      tags: [System]
+      summary: Health check
+      operationId: health
+      security: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, enum: [UP, DOWN] }
+                  time: { type: string, format: date-time }
+

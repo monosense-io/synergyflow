@@ -1,0 +1,228 @@
+openapi: 3.1.0
+info:
+  title: SynergyFlow API - Incidents
+  version: 1.0.0
+paths:
+  /incidents:
+    get:
+      tags: [Incidents]
+      summary: List incidents
+      operationId: listIncidents
+      parameters:
+        - $ref: '../modules/shared.yaml#/components/parameters/Page'
+        - $ref: '../modules/shared.yaml#/components/parameters/Limit'
+        - $ref: '../modules/shared.yaml#/components/parameters/Sort'
+        - in: query
+          name: status
+          schema: { $ref: '../modules/shared.yaml#/components/schemas/IncidentStatus' }
+        - in: query
+          name: severity
+          schema: { $ref: '../modules/shared.yaml#/components/schemas/Severity' }
+        - in: query
+          name: teamId
+          schema: { type: string }
+        - in: query
+          name: assignedTo
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          headers:
+            X-Correlation-Id:
+              $ref: '../modules/shared.yaml#/components/headers/CorrelationId'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  page: { type: integer, minimum: 1 }
+                  limit: { type: integer, minimum: 1, maximum: 200 }
+                  total: { type: integer, minimum: 0 }
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Incident' }
+        default:
+          $ref: '../modules/shared.yaml#/components/responses/ErrorResponse'
+    post:
+      tags: [Incidents]
+      summary: Create incident
+      operationId: createIncident
+      parameters:
+        - $ref: '../modules/shared.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IncidentCreate' }
+      responses:
+        '201':
+          description: Created
+          headers:
+            X-Correlation-Id: { $ref: '../modules/shared.yaml#/components/headers/CorrelationId' }
+            Location:
+              description: Resource location
+              schema: { type: string, format: uri }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Incident' }
+        default:
+          $ref: '../modules/shared.yaml#/components/responses/ErrorResponse'
+
+  /incidents/{id}:
+    get:
+      tags: [Incidents]
+      summary: Get incident
+      operationId: getIncident
+      parameters:
+        - $ref: '../modules/shared.yaml#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: OK
+          headers:
+            ETag: { $ref: '../modules/shared.yaml#/components/headers/ETag' }
+            X-Correlation-Id: { $ref: '../modules/shared.yaml#/components/headers/CorrelationId' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Incident' }
+        '404': { $ref: '../modules/shared.yaml#/components/responses/NotFound' }
+        default: { $ref: '../modules/shared.yaml#/components/responses/ErrorResponse' }
+    patch:
+      tags: [Incidents]
+      summary: Update incident (partial)
+      operationId: updateIncident
+      parameters:
+        - $ref: '../modules/shared.yaml#/components/parameters/IdPath'
+        - $ref: '../modules/shared.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IncidentUpdate' }
+      responses:
+        '200':
+          description: OK
+          headers:
+            ETag: { $ref: '../modules/shared.yaml#/components/headers/ETag' }
+            X-Correlation-Id: { $ref: '../modules/shared.yaml#/components/headers/CorrelationId' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Incident' }
+        default: { $ref: '../modules/shared.yaml#/components/responses/ErrorResponse' }
+
+  /incidents/{id}/assign:
+    post:
+      tags: [Incidents]
+      summary: Assign incident to user/team
+      operationId: assignIncident
+      parameters:
+        - $ref: '../modules/shared.yaml#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId: { type: string, nullable: true }
+                teamId: { type: string, nullable: true }
+              oneOf:
+                - required: [userId]
+                - required: [teamId]
+      responses:
+        '204': { description: No Content }
+        default: { $ref: '../modules/shared.yaml#/components/responses/ErrorResponse' }
+
+  /incidents/{id}/comments:
+    get:
+      tags: [Incidents]
+      summary: List incident comments
+      operationId: listIncidentComments
+      parameters:
+        - $ref: '../modules/shared.yaml#/components/parameters/IdPath'
+        - $ref: '../modules/shared.yaml#/components/parameters/Page'
+        - $ref: '../modules/shared.yaml#/components/parameters/Limit'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  page: { type: integer }
+                  limit: { type: integer }
+                  total: { type: integer }
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/IncidentComment' }
+        default: { $ref: '../modules/shared.yaml#/components/responses/ErrorResponse' }
+    post:
+      tags: [Incidents]
+      summary: Add incident comment
+      operationId: addIncidentComment
+      parameters:
+        - $ref: '../modules/shared.yaml#/components/parameters/IdPath'
+        - $ref: '../modules/shared.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content: { type: string, minLength: 1, maxLength: 4000 }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IncidentComment' }
+        default: { $ref: '../modules/shared.yaml#/components/responses/ErrorResponse' }
+
+components:
+  schemas:
+    Incident:
+      type: object
+      required: [id, title, severity, status, createdAt]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        description: { type: string, nullable: true }
+        severity: { $ref: '../modules/shared.yaml#/components/schemas/Severity' }
+        status: { $ref: '../modules/shared.yaml#/components/schemas/IncidentStatus' }
+        affectedServiceId: { type: string, nullable: true }
+        createdBy: { type: string }
+        assignedTo: { type: string, nullable: true }
+        teamId: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time, nullable: true }
+        resolvedAt: { type: string, format: date-time, nullable: true }
+    IncidentCreate:
+      type: object
+      required: [title, severity, createdBy]
+      properties:
+        title: { type: string, minLength: 3, maxLength: 200 }
+        description: { type: string, nullable: true, maxLength: 4000 }
+        severity: { $ref: '../modules/shared.yaml#/components/schemas/Severity' }
+        affectedServiceId: { type: string, nullable: true }
+        createdBy: { type: string }
+        teamId: { type: string, nullable: true }
+    IncidentUpdate:
+      type: object
+      properties:
+        title: { type: string, minLength: 3, maxLength: 200 }
+        description: { type: string, nullable: true, maxLength: 4000 }
+        status: { $ref: '../modules/shared.yaml#/components/schemas/IncidentStatus' }
+        assignedTo: { type: string, nullable: true }
+        teamId: { type: string, nullable: true }
+    IncidentComment:
+      type: object
+      required: [id, incidentId, userId, content, createdAt]
+      properties:
+        id: { type: string }
+        incidentId: { type: string }
+        userId: { type: string }
+        content: { type: string }
+        createdAt: { type: string, format: date-time }
+

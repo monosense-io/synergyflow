@@ -1,0 +1,111 @@
+openapi: 3.1.0
+info:
+  title: SynergyFlow API - Service Requests
+  version: 1.0.0
+paths:
+  /service-requests:
+    get:
+      tags: [Service Requests]
+      summary: List service requests
+      operationId: listServiceRequests
+      parameters:
+        - $ref: '../modules/shared.yaml#/components/parameters/Page'
+        - $ref: '../modules/shared.yaml#/components/parameters/Limit'
+        - in: query
+          name: status
+          schema: { $ref: '../modules/shared.yaml#/components/schemas/ServiceRequestStatus' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  page: { type: integer }
+                  limit: { type: integer }
+                  total: { type: integer }
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/ServiceRequest' }
+        default: { $ref: '../modules/shared.yaml#/components/responses/ErrorResponse' }
+    post:
+      tags: [Service Requests]
+      summary: Create service request
+      operationId: createServiceRequest
+      parameters:
+        - $ref: '../modules/shared.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ServiceRequestCreate' }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/ServiceRequest' } } } }
+        default: { $ref: '../modules/shared.yaml#/components/responses/ErrorResponse' }
+
+  /service-requests/{id}:
+    get:
+      tags: [Service Requests]
+      summary: Get service request
+      operationId: getServiceRequest
+      parameters:
+        - $ref: '../modules/shared.yaml#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ServiceRequest' } } } }
+        '404': { $ref: '../modules/shared.yaml#/components/responses/NotFound' }
+        default: { $ref: '../modules/shared.yaml#/components/responses/ErrorResponse' }
+    patch:
+      tags: [Service Requests]
+      summary: Update service request
+      operationId: updateServiceRequest
+      parameters:
+        - $ref: '../modules/shared.yaml#/components/parameters/IdPath'
+        - $ref: '../modules/shared.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ServiceRequestUpdate' }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ServiceRequest' } } } }
+        default: { $ref: '../modules/shared.yaml#/components/responses/ErrorResponse' }
+
+components:
+  schemas:
+    ServiceRequest:
+      type: object
+      required: [id, title, status]
+      properties:
+        id: { type: string }
+        serviceId: { type: string }
+        title: { type: string }
+        description: { type: string, nullable: true }
+        status: { $ref: '../modules/shared.yaml#/components/schemas/ServiceRequestStatus' }
+        priority: { type: string, nullable: true }
+        requestedBy: { type: string }
+        approvedBy: { type: string, nullable: true }
+        assignedTo: { type: string, nullable: true }
+        teamId: { type: string, nullable: true }
+        formData: { type: object, additionalProperties: true, nullable: true }
+        createdAt: { type: string, format: date-time, nullable: true }
+        updatedAt: { type: string, format: date-time, nullable: true }
+        fulfilledAt: { type: string, format: date-time, nullable: true }
+    ServiceRequestCreate:
+      type: object
+      required: [serviceId, title, requestedBy]
+      properties:
+        serviceId: { type: string }
+        title: { type: string }
+        description: { type: string, nullable: true }
+        priority: { type: string, nullable: true }
+        requestedBy: { type: string }
+        formData: { type: object, additionalProperties: true, nullable: true }
+    ServiceRequestUpdate:
+      type: object
+      properties:
+        title: { type: string }
+        description: { type: string, nullable: true }
+        status: { $ref: '../modules/shared.yaml#/components/schemas/ServiceRequestStatus' }
+        priority: { type: string, nullable: true }
+

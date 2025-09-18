@@ -1,0 +1,29 @@
+openapi: 3.1.0
+info:
+  title: SynergyFlow API - Search
+  version: 1.0.0
+paths:
+  /search:
+    get:
+      tags: [Search]
+      summary: Global search
+      operationId: search
+      parameters:
+        - in: query
+          name: q
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  incidents: { type: array, items: { type: object } }
+                  problems: { type: array, items: { type: object } }
+                  changes: { type: array, items: { type: object } }
+                  articles: { type: array, items: { type: object } }
+        default: { $ref: '../modules/shared.yaml#/components/responses/ErrorResponse' }
+

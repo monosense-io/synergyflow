@@ -1,0 +1,1432 @@
+openapi: 3.1.0
+info:
+  title: SynergyFlow Platform API
+  version: 1.0.0
+  summary: REST + Webhooks API for SynergyFlow ITSM (Spring Modulith)
+  description: |
+    This specification defines the SynergyFlow REST API across core ITIL modules
+    and supporting domains, plus outbound webhooks for domain events.
+    
+    Conventions
+    - Base path: `/api/v1`
+    - Standard error envelope: `{ code, message, details, correlationId }`
+    - Pagination: `page`, `limit`; responses include `page`, `limit`, `total`
+    - Idempotency for POST: `Idempotency-Key` header
+    - Correlation ID: optional `X-Correlation-Id` header echoed on responses
+  termsOfService: https://example.com/terms
+  contact:
+    name: SynergyFlow Product
+    url: https://example.com/synergyflow
+servers:
+  - url: https://api.dev.synergyflow.example.com/api/v1
+    description: Dev
+  - url: https://api.synergyflow.example.com/api/v1
+    description: Production
+security:
+  - bearerAuth: []
+  - oauth2: []
+  - ApiKeyAuth: []
+tags:
+  - name: Incidents
+  - name: Problems
+  - name: Changes
+  - name: Service Requests
+  - name: Knowledge
+  - name: Users
+  - name: Teams
+  - name: CMDB
+  - name: Search
+  - name: Events
+  - name: System
+paths:
+  /incidents:
+    get:
+      tags: [Incidents]
+      summary: List incidents
+      operationId: listIncidents
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Sort'
+        - in: query
+          name: status
+          schema: { $ref: '#/components/schemas/IncidentStatus' }
+        - in: query
+          name: severity
+          schema: { $ref: '#/components/schemas/Severity' }
+        - in: query
+          name: teamId
+          schema: { type: string }
+        - in: query
+          name: assignedTo
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          headers:
+            X-Correlation-Id:
+              $ref: '#/components/headers/CorrelationId'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  page: { type: integer, minimum: 1 }
+                  limit: { type: integer, minimum: 1, maximum: 200 }
+                  total: { type: integer, minimum: 0 }
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Incident' }
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+    post:
+      tags: [Incidents]
+      summary: Create incident
+      operationId: createIncident
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IncidentCreate' }
+      responses:
+        '201':
+          description: Created
+          headers:
+            X-Correlation-Id: { $ref: '#/components/headers/CorrelationId' }
+            Location:
+              description: Resource location
+              schema: { type: string, format: uri }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Incident' }
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+
+  /incidents/{id}:
+    get:
+      tags: [Incidents]
+      summary: Get incident
+      operationId: getIncident
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: OK
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            X-Correlation-Id: { $ref: '#/components/headers/CorrelationId' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Incident' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+    patch:
+      tags: [Incidents]
+      summary: Update incident (partial)
+      operationId: updateIncident
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IncidentUpdate' }
+      responses:
+        '200':
+          description: OK
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            X-Correlation-Id: { $ref: '#/components/headers/CorrelationId' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Incident' }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+
+  /incidents/{id}/assign:
+    post:
+      tags: [Incidents]
+      summary: Assign incident to user/team
+      operationId: assignIncident
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId: { type: string, nullable: true }
+                teamId: { type: string, nullable: true }
+              oneOf:
+                - required: [userId]
+                - required: [teamId]
+      responses:
+        '204': { description: No Content }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+
+  /incidents/{id}/comments:
+    get:
+      tags: [Incidents]
+      summary: List incident comments
+      operationId: listIncidentComments
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  page: { type: integer }
+                  limit: { type: integer }
+                  total: { type: integer }
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/IncidentComment' }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+    post:
+      tags: [Incidents]
+      summary: Add incident comment
+      operationId: addIncidentComment
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content: { type: string, minLength: 1, maxLength: 4000 }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IncidentComment' }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+
+  /problems:
+    get:
+      tags: [Problems]
+      summary: List problems
+      operationId: listProblems
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - in: query
+          name: status
+          schema: { $ref: '#/components/schemas/ProblemStatus' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  page: { type: integer }
+                  limit: { type: integer }
+                  total: { type: integer }
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Problem' }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+    post:
+      tags: [Problems]
+      summary: Create problem
+      operationId: createProblem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProblemCreate' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+
+  /problems/{id}:
+    get:
+      tags: [Problems]
+      summary: Get problem
+      operationId: getProblem
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+    patch:
+      tags: [Problems]
+      summary: Update problem (partial)
+      operationId: updateProblem
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProblemUpdate' }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+
+  /problems/{id}/link-incidents:
+    post:
+      tags: [Problems]
+      summary: Link incidents to problem
+      operationId: linkProblemIncidents
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [incidentIds]
+              properties:
+                incidentIds:
+                  type: array
+                  items: { type: string }
+      responses:
+        '204': { description: No Content }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+
+  /known-errors:
+    get:
+      tags: [Problems]
+      summary: List known errors
+      operationId: listKnownErrors
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/KnownError' }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+    post:
+      tags: [Problems]
+      summary: Create known error
+      operationId: createKnownError
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/KnownErrorCreate' }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/KnownError' } } } }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+
+  /known-errors/{id}:
+    get:
+      tags: [Problems]
+      summary: Get known error
+      operationId: getKnownError
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/KnownError' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+    patch:
+      tags: [Problems]
+      summary: Update known error
+      operationId: updateKnownError
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/KnownErrorUpdate' }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/KnownError' } } } }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+
+  /changes:
+    get:
+      tags: [Changes]
+      summary: List changes
+      operationId: listChanges
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - in: query
+          name: status
+          schema: { $ref: '#/components/schemas/ChangeStatus' }
+        - in: query
+          name: type
+          schema: { $ref: '#/components/schemas/ChangeType' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  page: { type: integer }
+                  limit: { type: integer }
+                  total: { type: integer }
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Change' }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+    post:
+      tags: [Changes]
+      summary: Create change
+      operationId: createChange
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ChangeCreate' }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Change' } } } }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+
+  /changes/{id}:
+    get:
+      tags: [Changes]
+      summary: Get change
+      operationId: getChange
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Change' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+    patch:
+      tags: [Changes]
+      summary: Update change (partial)
+      operationId: updateChange
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ChangeUpdate' }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Change' } } } }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+
+  /changes/{id}/approvals:
+    get:
+      tags: [Changes]
+      summary: List approvals
+      operationId: listChangeApprovals
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ChangeApproval' }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+    post:
+      tags: [Changes]
+      summary: Submit approval decision
+      operationId: submitChangeApproval
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [approverId, decision]
+              properties:
+                approverId: { type: string }
+                decision: { type: string, enum: [APPROVED, REJECTED] }
+                comments: { type: string, nullable: true, maxLength: 2000 }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/ChangeApproval' } } } }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+
+  /changes/{id}/schedule:
+    post:
+      tags: [Changes]
+      summary: Schedule change window
+      operationId: scheduleChange
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [scheduledDate]
+              properties:
+                scheduledDate: { type: string, format: date-time }
+      responses:
+        '204': { description: No Content }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+
+  /service-requests:
+    get:
+      tags: [Service Requests]
+      summary: List service requests
+      operationId: listServiceRequests
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - in: query
+          name: status
+          schema: { $ref: '#/components/schemas/ServiceRequestStatus' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  page: { type: integer }
+                  limit: { type: integer }
+                  total: { type: integer }
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/ServiceRequest' }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+    post:
+      tags: [Service Requests]
+      summary: Create service request
+      operationId: createServiceRequest
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ServiceRequestCreate' }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/ServiceRequest' } } } }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+
+  /service-requests/{id}:
+    get:
+      tags: [Service Requests]
+      summary: Get service request
+      operationId: getServiceRequest
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ServiceRequest' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+    patch:
+      tags: [Service Requests]
+      summary: Update service request
+      operationId: updateServiceRequest
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ServiceRequestUpdate' }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ServiceRequest' } } } }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+
+  /articles:
+    get:
+      tags: [Knowledge]
+      summary: List knowledge articles
+      operationId: listArticles
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - in: query
+          name: q
+          schema: { type: string, description: Full-text search query }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  page: { type: integer }
+                  limit: { type: integer }
+                  total: { type: integer }
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Article' }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+    post:
+      tags: [Knowledge]
+      summary: Create article
+      operationId: createArticle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ArticleCreate' }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Article' } } } }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+
+  /articles/{id}:
+    get:
+      tags: [Knowledge]
+      summary: Get article
+      operationId: getArticle
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Article' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+    patch:
+      tags: [Knowledge]
+      summary: Update article
+      operationId: updateArticle
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ArticleUpdate' }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Article' } } } }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+
+  /users:
+    get:
+      tags: [Users]
+      summary: List users
+      operationId: listUsers
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - in: query
+          name: active
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  page: { type: integer }
+                  limit: { type: integer }
+                  total: { type: integer }
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/User' }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+    post:
+      tags: [Users]
+      summary: Create user
+      operationId: createUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UserCreate' }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+
+  /users/{id}:
+    get:
+      tags: [Users]
+      summary: Get user
+      operationId: getUser
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+    patch:
+      tags: [Users]
+      summary: Update user
+      operationId: updateUser
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UserUpdate' }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+
+  /users/{id}/activate:
+    post:
+      tags: [Users]
+      summary: Activate user
+      operationId: activateUser
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204': { description: No Content }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+
+  /users/{id}/deactivate:
+    post:
+      tags: [Users]
+      summary: Deactivate user
+      operationId: deactivateUser
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204': { description: No Content }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+
+  /teams:
+    get:
+      tags: [Teams]
+      summary: List teams
+      operationId: listTeams
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Team' } } } } }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+    post:
+      tags: [Teams]
+      summary: Create team
+      operationId: createTeam
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TeamCreate' }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Team' } } } }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+
+  /teams/{id}:
+    get:
+      tags: [Teams]
+      summary: Get team
+      operationId: getTeam
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Team' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+    patch:
+      tags: [Teams]
+      summary: Update team
+      operationId: updateTeam
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TeamUpdate' }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Team' } } } }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+
+  /teams/{id}/members:
+    get:
+      tags: [Teams]
+      summary: List team members
+      operationId: listTeamMembers
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/User' } } } } }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+    post:
+      tags: [Teams]
+      summary: Add user to team
+      operationId: addTeamMember
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, role]
+              properties:
+                userId: { type: string }
+                role: { type: string }
+      responses:
+        '204': { description: No Content }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+
+  /cmdb/configuration-items:
+    get:
+      tags: [CMDB]
+      summary: List configuration items
+      operationId: listConfigurationItems
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/ConfigurationItem' } } } } }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+    post:
+      tags: [CMDB]
+      summary: Create configuration item
+      operationId: createConfigurationItem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ConfigurationItemCreate' }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/ConfigurationItem' } } } }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+
+  /cmdb/configuration-items/{id}:
+    get:
+      tags: [CMDB]
+      summary: Get configuration item
+      operationId: getConfigurationItem
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ConfigurationItem' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+    patch:
+      tags: [CMDB]
+      summary: Update configuration item
+      operationId: updateConfigurationItem
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ConfigurationItemUpdate' }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ConfigurationItem' } } } }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+
+  /cmdb/relationships:
+    get:
+      tags: [CMDB]
+      summary: List CI relationships
+      operationId: listCIRelationships
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/CIRelationship' } } } } }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+    post:
+      tags: [CMDB]
+      summary: Create CI relationship
+      operationId: createCIRelationship
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CIRelationshipCreate' }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/CIRelationship' } } } }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+
+  /cmdb/relationships/{id}:
+    delete:
+      tags: [CMDB]
+      summary: Delete CI relationship
+      operationId: deleteCIRelationship
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204': { description: No Content }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+
+  /search:
+    get:
+      tags: [Search]
+      summary: Global search
+      operationId: search
+      parameters:
+        - in: query
+          name: q
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  incidents: { type: array, items: { $ref: '#/components/schemas/Incident' } }
+                  problems: { type: array, items: { $ref: '#/components/schemas/Problem' } }
+                  changes: { type: array, items: { $ref: '#/components/schemas/Change' } }
+                  articles: { type: array, items: { $ref: '#/components/schemas/Article' } }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+
+  /events:
+    get:
+      tags: [Events]
+      summary: List domain events (audit)
+      operationId: listEvents
+      parameters:
+        - in: query
+          name: type
+          schema: { type: string }
+        - in: query
+          name: since
+          schema: { type: string, format: date-time }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/DomainEvent' }
+        default: { $ref: '#/components/responses/ErrorResponse' }
+
+  /health:
+    get:
+      tags: [System]
+      summary: Health check
+      operationId: health
+      security: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, enum: [UP, DOWN] }
+                  time: { type: string, format: date-time }
+
+webhooks:
+  incident.created:
+    post:
+      summary: Incident created event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IncidentCreatedEvent' }
+  incident.resolved:
+    post:
+      summary: Incident resolved event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IncidentResolvedEvent' }
+  change.approved:
+    post:
+      summary: Change approved event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ChangeApprovedEvent' }
+  change.impactAssessed:
+    post:
+      summary: CMDB impact assessed for change
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ChangeImpactAssessedEvent' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    oauth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://auth.synergyflow.example.com/oauth/authorize
+          tokenUrl: https://auth.synergyflow.example.com/oauth/token
+          scopes:
+            itsm.read: Read access
+            itsm.write: Write access
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+  parameters:
+    IdPath:
+      in: path
+      name: id
+      required: true
+      schema: { type: string }
+    Page:
+      in: query
+      name: page
+      schema: { type: integer, minimum: 1, default: 1 }
+    Limit:
+      in: query
+      name: limit
+      schema: { type: integer, minimum: 1, maximum: 200, default: 20 }
+    Sort:
+      in: query
+      name: sort
+      schema: { type: string, example: '-createdAt' }
+    IfMatch:
+      in: header
+      name: If-Match
+      description: ETag for optimistic concurrency control
+      schema: { type: string }
+    IdempotencyKey:
+      in: header
+      name: Idempotency-Key
+      description: Idempotency key for safely retryable requests
+      schema: { type: string, minLength: 8, maxLength: 128 }
+  headers:
+    ETag:
+      description: Entity tag for concurrency control
+      schema: { type: string }
+    CorrelationId:
+      description: Correlation ID for tracing
+      schema: { type: string }
+  responses:
+    ErrorResponse:
+      description: Error
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+  schemas:
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        details: { type: object, additionalProperties: true, nullable: true }
+        correlationId: { type: string, nullable: true }
+
+    Severity:
+      type: string
+      enum: [LOW, MEDIUM, HIGH, CRITICAL]
+    IncidentStatus:
+      type: string
+      enum: [OPEN, IN_PROGRESS, RESOLVED, CLOSED]
+    ProblemStatus:
+      type: string
+      enum: [OPEN, ANALYSIS, KNOWN_ERROR, RESOLVED, CLOSED]
+    ChangeType:
+      type: string
+      enum: [STANDARD, NORMAL, EMERGENCY]
+    ChangeStatus:
+      type: string
+      enum: [DRAFT, PENDING_APPROVAL, APPROVED, SCHEDULED, IMPLEMENTING, COMPLETED, REJECTED, ROLLBACK]
+    ServiceRequestStatus:
+      type: string
+      enum: [OPEN, IN_PROGRESS, APPROVAL_PENDING, FULFILLED, CLOSED]
+    ArticleStatus:
+      type: string
+      enum: [DRAFT, PUBLISHED, ARCHIVED]
+
+    Incident:
+      type: object
+      required: [id, title, severity, status, createdAt]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        description: { type: string, nullable: true }
+        severity: { $ref: '#/components/schemas/Severity' }
+        status: { $ref: '#/components/schemas/IncidentStatus' }
+        affectedServiceId: { type: string, nullable: true }
+        createdBy: { type: string }
+        assignedTo: { type: string, nullable: true }
+        teamId: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time, nullable: true }
+        resolvedAt: { type: string, format: date-time, nullable: true }
+    IncidentCreate:
+      type: object
+      required: [title, severity, createdBy]
+      properties:
+        title: { type: string, minLength: 3, maxLength: 200 }
+        description: { type: string, nullable: true, maxLength: 4000 }
+        severity: { $ref: '#/components/schemas/Severity' }
+        affectedServiceId: { type: string, nullable: true }
+        createdBy: { type: string }
+        teamId: { type: string, nullable: true }
+    IncidentUpdate:
+      type: object
+      properties:
+        title: { type: string, minLength: 3, maxLength: 200 }
+        description: { type: string, nullable: true, maxLength: 4000 }
+        status: { $ref: '#/components/schemas/IncidentStatus' }
+        assignedTo: { type: string, nullable: true }
+        teamId: { type: string, nullable: true }
+    IncidentComment:
+      type: object
+      required: [id, incidentId, userId, content, createdAt]
+      properties:
+        id: { type: string }
+        incidentId: { type: string }
+        userId: { type: string }
+        content: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    Problem:
+      type: object
+      required: [id, title, status, createdAt]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        description: { type: string, nullable: true }
+        rootCause: { type: string, nullable: true }
+        status: { $ref: '#/components/schemas/ProblemStatus' }
+        priority: { type: string, nullable: true }
+        correlationKey: { type: string, nullable: true }
+        createdBy: { type: string }
+        assignedTo: { type: string, nullable: true }
+        teamId: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time, nullable: true }
+        closedAt: { type: string, format: date-time, nullable: true }
+    ProblemCreate:
+      type: object
+      required: [title, createdBy]
+      properties:
+        title: { type: string }
+        description: { type: string, nullable: true }
+        createdBy: { type: string }
+        teamId: { type: string, nullable: true }
+    ProblemUpdate:
+      type: object
+      properties:
+        title: { type: string }
+        description: { type: string, nullable: true }
+        rootCause: { type: string, nullable: true }
+        status: { $ref: '#/components/schemas/ProblemStatus' }
+
+    KnownError:
+      type: object
+      required: [id, problemId, title, status]
+      properties:
+        id: { type: string }
+        problemId: { type: string }
+        title: { type: string }
+        description: { type: string, nullable: true }
+        workaround: { type: string, nullable: true }
+        status: { type: string }
+    KnownErrorCreate:
+      type: object
+      required: [problemId, title]
+      properties:
+        problemId: { type: string }
+        title: { type: string }
+        description: { type: string, nullable: true }
+        workaround: { type: string, nullable: true }
+    KnownErrorUpdate:
+      type: object
+      properties:
+        title: { type: string }
+        description: { type: string, nullable: true }
+        workaround: { type: string, nullable: true }
+        status: { type: string }
+
+    Change:
+      type: object
+      required: [id, title, type, status, createdAt]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        description: { type: string, nullable: true }
+        type: { $ref: '#/components/schemas/ChangeType' }
+        status: { $ref: '#/components/schemas/ChangeStatus' }
+        riskLevel: { type: string, enum: [LOW, MEDIUM, HIGH], nullable: true }
+        priority: { type: string, nullable: true }
+        rollbackPlan: { type: string, nullable: true }
+        rollbackVerified: { type: boolean, nullable: true }
+        createdBy: { type: string }
+        assignedTo: { type: string, nullable: true }
+        teamId: { type: string, nullable: true }
+        scheduledDate: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time, nullable: true }
+    ChangeCreate:
+      type: object
+      required: [title, type, createdBy]
+      properties:
+        title: { type: string }
+        description: { type: string, nullable: true }
+        type: { $ref: '#/components/schemas/ChangeType' }
+        riskLevel: { type: string, enum: [LOW, MEDIUM, HIGH], nullable: true }
+        priority: { type: string, nullable: true }
+        createdBy: { type: string }
+        teamId: { type: string, nullable: true }
+    ChangeUpdate:
+      type: object
+      properties:
+        title: { type: string }
+        description: { type: string, nullable: true }
+        status: { $ref: '#/components/schemas/ChangeStatus' }
+        riskLevel: { type: string, enum: [LOW, MEDIUM, HIGH], nullable: true }
+        priority: { type: string, nullable: true }
+
+    ChangeApproval:
+      type: object
+      required: [id, changeId, approverId, decision]
+      properties:
+        id: { type: string }
+        changeId: { type: string }
+        approverId: { type: string }
+        decision: { type: string, enum: [APPROVED, REJECTED] }
+        comments: { type: string, nullable: true }
+        approvedAt: { type: string, format: date-time, nullable: true }
+
+    ServiceRequest:
+      type: object
+      required: [id, title, status]
+      properties:
+        id: { type: string }
+        serviceId: { type: string }
+        title: { type: string }
+        description: { type: string, nullable: true }
+        status: { $ref: '#/components/schemas/ServiceRequestStatus' }
+        priority: { type: string, nullable: true }
+        requestedBy: { type: string }
+        approvedBy: { type: string, nullable: true }
+        assignedTo: { type: string, nullable: true }
+        teamId: { type: string, nullable: true }
+        formData: { type: object, additionalProperties: true, nullable: true }
+        createdAt: { type: string, format: date-time, nullable: true }
+        updatedAt: { type: string, format: date-time, nullable: true }
+        fulfilledAt: { type: string, format: date-time, nullable: true }
+    ServiceRequestCreate:
+      type: object
+      required: [serviceId, title, requestedBy]
+      properties:
+        serviceId: { type: string }
+        title: { type: string }
+        description: { type: string, nullable: true }
+        priority: { type: string, nullable: true }
+        requestedBy: { type: string }
+        formData: { type: object, additionalProperties: true, nullable: true }
+    ServiceRequestUpdate:
+      type: object
+      properties:
+        title: { type: string }
+        description: { type: string, nullable: true }
+        status: { $ref: '#/components/schemas/ServiceRequestStatus' }
+        priority: { type: string, nullable: true }
+
+    Article:
+      type: object
+      required: [id, title, status]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        content: { type: string }
+        category: { type: string, nullable: true }
+        status: { $ref: '#/components/schemas/ArticleStatus' }
+        ownerId: { type: string, nullable: true }
+        expiresAt: { type: string, format: date-time, nullable: true }
+        createdBy: { type: string }
+        createdAt: { type: string, format: date-time }
+    ArticleCreate:
+      type: object
+      required: [title, content, createdBy]
+      properties:
+        title: { type: string }
+        content: { type: string }
+        category: { type: string, nullable: true }
+        ownerId: { type: string, nullable: true }
+        expiresAt: { type: string, format: date-time, nullable: true }
+        createdBy: { type: string }
+    ArticleUpdate:
+      type: object
+      properties:
+        title: { type: string }
+        content: { type: string }
+        category: { type: string, nullable: true }
+        status: { $ref: '#/components/schemas/ArticleStatus' }
+        ownerId: { type: string, nullable: true }
+        expiresAt: { type: string, format: date-time, nullable: true }
+
+    User:
+      type: object
+      required: [id, username, email, active]
+      properties:
+        id: { type: string }
+        username: { type: string }
+        email: { type: string, format: email }
+        fullName: { type: string, nullable: true }
+        active: { type: boolean }
+        createdAt: { type: string, format: date-time, nullable: true }
+    UserCreate:
+      type: object
+      required: [username, email]
+      properties:
+        username: { type: string }
+        email: { type: string, format: email }
+        fullName: { type: string, nullable: true }
+    UserUpdate:
+      type: object
+      properties:
+        email: { type: string, format: email }
+        fullName: { type: string, nullable: true }
+        active: { type: boolean }
+
+    Team:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        parentTeamId: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time, nullable: true }
+    TeamCreate:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        description: { type: string, nullable: true }
+        parentTeamId: { type: string, nullable: true }
+    TeamUpdate:
+      type: object
+      properties:
+        name: { type: string }
+        description: { type: string, nullable: true }
+        parentTeamId: { type: string, nullable: true }
+
+    ConfigurationItem:
+      type: object
+      required: [id, ciType, name]
+      properties:
+        id: { type: string }
+        ciType: { type: string }
+        name: { type: string }
+        env: { type: string, nullable: true }
+        ownerId: { type: string, nullable: true }
+        status: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time, nullable: true }
+        updatedAt: { type: string, format: date-time, nullable: true }
+    ConfigurationItemCreate:
+      type: object
+      required: [ciType, name]
+      properties:
+        ciType: { type: string }
+        name: { type: string }
+        env: { type: string, nullable: true }
+        ownerId: { type: string, nullable: true }
+    ConfigurationItemUpdate:
+      type: object
+      properties:
+        name: { type: string }
+        env: { type: string, nullable: true }
+        ownerId: { type: string, nullable: true }
+        status: { type: string, nullable: true }
+
+    CIRelationship:
+      type: object
+      required: [id, sourceCiId, relationshipType, targetCiId]
+      properties:
+        id: { type: string }
+        sourceCiId: { type: string }
+        relationshipType: { type: string }
+        targetCiId: { type: string }
+        createdAt: { type: string, format: date-time, nullable: true }
+    CIRelationshipCreate:
+      type: object
+      required: [sourceCiId, relationshipType, targetCiId]
+      properties:
+        sourceCiId: { type: string }
+        relationshipType: { type: string }
+        targetCiId: { type: string }
+
+    DomainEvent:
+      type: object
+      properties:
+        id: { type: string }
+        type: { type: string }
+        source: { type: string }
+        payload: { type: object, additionalProperties: true }
+        publicationDate: { type: string, format: date-time }
+        completionDate: { type: string, format: date-time, nullable: true }
+
+    IncidentCreatedEvent:
+      type: object
+      required: [incidentId, teamId, severity, affectedServiceId, createdAt, version]
+      properties:
+        incidentId: { type: string }
+        teamId: { type: string }
+        severity: { $ref: '#/components/schemas/Severity' }
+        affectedServiceId: { type: string }
+        createdAt: { type: string, format: date-time }
+        version: { type: string }
+
+    IncidentResolvedEvent:
+      type: object
+      required: [incidentId, resolvedAt, version]
+      properties:
+        incidentId: { type: string }
+        resolvedAt: { type: string, format: date-time }
+        version: { type: string }
+
+    ChangeApprovedEvent:
+      type: object
+      required: [changeId, changeType, approvedAt, approvedBy, version]
+      properties:
+        changeId: { type: string }
+        changeType: { $ref: '#/components/schemas/ChangeType' }
+        approvedAt: { type: string, format: date-time }
+        approvedBy: { type: string }
+        version: { type: string }
+
+    ChangeImpactAssessedEvent:
+      type: object
+      required: [changeId, impactSummary, riskScore, blockers, assessedAt, version]
+      properties:
+        changeId: { type: string }
+        impactSummary: { type: string }
+        riskScore: { type: number, format: float }
+        blockers:
+          type: array
+          items: { type: string }
+        assessedAt: { type: string, format: date-time }
+        version: { type: string }
+

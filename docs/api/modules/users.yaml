@@ -1,0 +1,119 @@
+openapi: 3.1.0
+info:
+  title: SynergyFlow API - Users
+  version: 1.0.0
+paths:
+  /users:
+    get:
+      tags: [Users]
+      summary: List users
+      operationId: listUsers
+      parameters:
+        - $ref: '../modules/shared.yaml#/components/parameters/Page'
+        - $ref: '../modules/shared.yaml#/components/parameters/Limit'
+        - in: query
+          name: active
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  page: { type: integer }
+                  limit: { type: integer }
+                  total: { type: integer }
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/User' }
+        default: { $ref: '../modules/shared.yaml#/components/responses/ErrorResponse' }
+    post:
+      tags: [Users]
+      summary: Create user
+      operationId: createUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UserCreate' }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
+        default: { $ref: '../modules/shared.yaml#/components/responses/ErrorResponse' }
+
+  /users/{id}:
+    get:
+      tags: [Users]
+      summary: Get user
+      operationId: getUser
+      parameters:
+        - $ref: '../modules/shared.yaml#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
+        '404': { $ref: '../modules/shared.yaml#/components/responses/NotFound' }
+        default: { $ref: '../modules/shared.yaml#/components/responses/ErrorResponse' }
+    patch:
+      tags: [Users]
+      summary: Update user
+      operationId: updateUser
+      parameters:
+        - $ref: '../modules/shared.yaml#/components/parameters/IdPath'
+        - $ref: '../modules/shared.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UserUpdate' }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
+        default: { $ref: '../modules/shared.yaml#/components/responses/ErrorResponse' }
+
+  /users/{id}/activate:
+    post:
+      tags: [Users]
+      summary: Activate user
+      operationId: activateUser
+      parameters:
+        - $ref: '../modules/shared.yaml#/components/parameters/IdPath'
+      responses:
+        '204': { description: No Content }
+        default: { $ref: '../modules/shared.yaml#/components/responses/ErrorResponse' }
+
+  /users/{id}/deactivate:
+    post:
+      tags: [Users]
+      summary: Deactivate user
+      operationId: deactivateUser
+      parameters:
+        - $ref: '../modules/shared.yaml#/components/parameters/IdPath'
+      responses:
+        '204': { description: No Content }
+        default: { $ref: '../modules/shared.yaml#/components/responses/ErrorResponse' }
+
+components:
+  schemas:
+    User:
+      type: object
+      required: [id, username, email, active]
+      properties:
+        id: { type: string }
+        username: { type: string }
+        email: { type: string, format: email }
+        fullName: { type: string, nullable: true }
+        active: { type: boolean }
+        createdAt: { type: string, format: date-time, nullable: true }
+    UserCreate:
+      type: object
+      required: [username, email]
+      properties:
+        username: { type: string }
+        email: { type: string, format: email }
+        fullName: { type: string, nullable: true }
+    UserUpdate:
+      type: object
+      properties:
+        email: { type: string, format: email }
+        fullName: { type: string, nullable: true }
+        active: { type: boolean }
+

@@ -1,0 +1,117 @@
+openapi: 3.1.0
+info:
+  title: SynergyFlow API - Teams
+  version: 1.0.0
+paths:
+  /teams:
+    get:
+      tags: [Teams]
+      summary: List teams
+      operationId: listTeams
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Team' } } } } }
+        default: { $ref: '../modules/shared.yaml#/components/responses/ErrorResponse' }
+    post:
+      tags: [Teams]
+      summary: Create team
+      operationId: createTeam
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TeamCreate' }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Team' } } } }
+        default: { $ref: '../modules/shared.yaml#/components/responses/ErrorResponse' }
+
+  /teams/{id}:
+    get:
+      tags: [Teams]
+      summary: Get team
+      operationId: getTeam
+      parameters:
+        - $ref: '../modules/shared.yaml#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Team' } } } }
+        '404': { $ref: '../modules/shared.yaml#/components/responses/NotFound' }
+        default: { $ref: '../modules/shared.yaml#/components/responses/ErrorResponse' }
+    patch:
+      tags: [Teams]
+      summary: Update team
+      operationId: updateTeam
+      parameters:
+        - $ref: '../modules/shared.yaml#/components/parameters/IdPath'
+        - $ref: '../modules/shared.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TeamUpdate' }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Team' } } } }
+        default: { $ref: '../modules/shared.yaml#/components/responses/ErrorResponse' }
+
+  /teams/{id}/members:
+    get:
+      tags: [Teams]
+      summary: List team members
+      operationId: listTeamMembers
+      parameters:
+        - $ref: '../modules/shared.yaml#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/User' } } } } }
+        default: { $ref: '../modules/shared.yaml#/components/responses/ErrorResponse' }
+    post:
+      tags: [Teams]
+      summary: Add user to team
+      operationId: addTeamMember
+      parameters:
+        - $ref: '../modules/shared.yaml#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, role]
+              properties:
+                userId: { type: string }
+                role: { type: string }
+      responses:
+        '204': { description: No Content }
+        default: { $ref: '../modules/shared.yaml#/components/responses/ErrorResponse' }
+
+components:
+  schemas:
+    Team:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        parentTeamId: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time, nullable: true }
+    TeamCreate:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        description: { type: string, nullable: true }
+        parentTeamId: { type: string, nullable: true }
+    TeamUpdate:
+      type: object
+      properties:
+        name: { type: string }
+        description: { type: string, nullable: true }
+        parentTeamId: { type: string, nullable: true }
+    User:
+      type: object
+      required: [id, username, email, active]
+      properties:
+        id: { type: string }
+        username: { type: string }
+        email: { type: string, format: email }
+        fullName: { type: string, nullable: true }
+        active: { type: boolean }
+

@@ -1,0 +1,219 @@
+openapi: 3.1.0
+info:
+  title: SynergyFlow API - Problems & Known Errors
+  version: 1.0.0
+paths:
+  /problems:
+    get:
+      tags: [Problems]
+      summary: List problems
+      operationId: listProblems
+      parameters:
+        - $ref: '../modules/shared.yaml#/components/parameters/Page'
+        - $ref: '../modules/shared.yaml#/components/parameters/Limit'
+        - in: query
+          name: status
+          schema: { $ref: '../modules/shared.yaml#/components/schemas/ProblemStatus' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  page: { type: integer }
+                  limit: { type: integer }
+                  total: { type: integer }
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Problem' }
+        default: { $ref: '../modules/shared.yaml#/components/responses/ErrorResponse' }
+    post:
+      tags: [Problems]
+      summary: Create problem
+      operationId: createProblem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProblemCreate' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        default: { $ref: '../modules/shared.yaml#/components/responses/ErrorResponse' }
+
+  /problems/{id}:
+    get:
+      tags: [Problems]
+      summary: Get problem
+      operationId: getProblem
+      parameters:
+        - $ref: '../modules/shared.yaml#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '404': { $ref: '../modules/shared.yaml#/components/responses/NotFound' }
+        default: { $ref: '../modules/shared.yaml#/components/responses/ErrorResponse' }
+    patch:
+      tags: [Problems]
+      summary: Update problem (partial)
+      operationId: updateProblem
+      parameters:
+        - $ref: '../modules/shared.yaml#/components/parameters/IdPath'
+        - $ref: '../modules/shared.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProblemUpdate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        default: { $ref: '../modules/shared.yaml#/components/responses/ErrorResponse' }
+
+  /problems/{id}/link-incidents:
+    post:
+      tags: [Problems]
+      summary: Link incidents to problem
+      operationId: linkProblemIncidents
+      parameters:
+        - $ref: '../modules/shared.yaml#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [incidentIds]
+              properties:
+                incidentIds:
+                  type: array
+                  items: { type: string }
+      responses:
+        '204': { description: No Content }
+        default: { $ref: '../modules/shared.yaml#/components/responses/ErrorResponse' }
+
+  /known-errors:
+    get:
+      tags: [Problems]
+      summary: List known errors
+      operationId: listKnownErrors
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/KnownError' }
+        default: { $ref: '../modules/shared.yaml#/components/responses/ErrorResponse' }
+    post:
+      tags: [Problems]
+      summary: Create known error
+      operationId: createKnownError
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/KnownErrorCreate' }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/KnownError' } } } }
+        default: { $ref: '../modules/shared.yaml#/components/responses/ErrorResponse' }
+
+  /known-errors/{id}:
+    get:
+      tags: [Problems]
+      summary: Get known error
+      operationId: getKnownError
+      parameters:
+        - $ref: '../modules/shared.yaml#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/KnownError' } } } }
+        '404': { $ref: '../modules/shared.yaml#/components/responses/NotFound' }
+        default: { $ref: '../modules/shared.yaml#/components/responses/ErrorResponse' }
+    patch:
+      tags: [Problems]
+      summary: Update known error
+      operationId: updateKnownError
+      parameters:
+        - $ref: '../modules/shared.yaml#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/KnownErrorUpdate' }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/KnownError' } } } }
+        default: { $ref: '../modules/shared.yaml#/components/responses/ErrorResponse' }
+
+components:
+  schemas:
+    Problem:
+      type: object
+      required: [id, title, status, createdAt]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        description: { type: string, nullable: true }
+        rootCause: { type: string, nullable: true }
+        status: { $ref: '../modules/shared.yaml#/components/schemas/ProblemStatus' }
+        priority: { type: string, nullable: true }
+        correlationKey: { type: string, nullable: true }
+        createdBy: { type: string }
+        assignedTo: { type: string, nullable: true }
+        teamId: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time, nullable: true }
+        closedAt: { type: string, format: date-time, nullable: true }
+    ProblemCreate:
+      type: object
+      required: [title, createdBy]
+      properties:
+        title: { type: string }
+        description: { type: string, nullable: true }
+        createdBy: { type: string }
+        teamId: { type: string, nullable: true }
+    ProblemUpdate:
+      type: object
+      properties:
+        title: { type: string }
+        description: { type: string, nullable: true }
+        rootCause: { type: string, nullable: true }
+        status: { $ref: '../modules/shared.yaml#/components/schemas/ProblemStatus' }
+
+    KnownError:
+      type: object
+      required: [id, problemId, title, status]
+      properties:
+        id: { type: string }
+        problemId: { type: string }
+        title: { type: string }
+        description: { type: string, nullable: true }
+        workaround: { type: string, nullable: true }
+        status: { type: string }
+    KnownErrorCreate:
+      type: object
+      required: [problemId, title]
+      properties:
+        problemId: { type: string }
+        title: { type: string }
+        description: { type: string, nullable: true }
+        workaround: { type: string, nullable: true }
+    KnownErrorUpdate:
+      type: object
+      properties:
+        title: { type: string }
+        description: { type: string, nullable: true }
+        workaround: { type: string, nullable: true }
+        status: { type: string }
+

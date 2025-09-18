@@ -1,0 +1,131 @@
+openapi: 3.1.0
+info:
+  title: SynergyFlow API - CMDB
+  version: 1.0.0
+paths:
+  /cmdb/configuration-items:
+    get:
+      tags: [CMDB]
+      summary: List configuration items
+      operationId: listConfigurationItems
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/ConfigurationItem' } } } } }
+        default: { $ref: '../modules/shared.yaml#/components/responses/ErrorResponse' }
+    post:
+      tags: [CMDB]
+      summary: Create configuration item
+      operationId: createConfigurationItem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ConfigurationItemCreate' }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/ConfigurationItem' } } } }
+        default: { $ref: '../modules/shared.yaml#/components/responses/ErrorResponse' }
+
+  /cmdb/configuration-items/{id}:
+    get:
+      tags: [CMDB]
+      summary: Get configuration item
+      operationId: getConfigurationItem
+      parameters:
+        - $ref: '../modules/shared.yaml#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ConfigurationItem' } } } }
+        '404': { $ref: '../modules/shared.yaml#/components/responses/NotFound' }
+        default: { $ref: '../modules/shared.yaml#/components/responses/ErrorResponse' }
+    patch:
+      tags: [CMDB]
+      summary: Update configuration item
+      operationId: updateConfigurationItem
+      parameters:
+        - $ref: '../modules/shared.yaml#/components/parameters/IdPath'
+        - $ref: '../modules/shared.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ConfigurationItemUpdate' }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ConfigurationItem' } } } }
+        default: { $ref: '../modules/shared.yaml#/components/responses/ErrorResponse' }
+
+  /cmdb/relationships:
+    get:
+      tags: [CMDB]
+      summary: List CI relationships
+      operationId: listCIRelationships
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/CIRelationship' } } } } }
+        default: { $ref: '../modules/shared.yaml#/components/responses/ErrorResponse' }
+    post:
+      tags: [CMDB]
+      summary: Create CI relationship
+      operationId: createCIRelationship
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CIRelationshipCreate' }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/CIRelationship' } } } }
+        default: { $ref: '../modules/shared.yaml#/components/responses/ErrorResponse' }
+
+  /cmdb/relationships/{id}:
+    delete:
+      tags: [CMDB]
+      summary: Delete CI relationship
+      operationId: deleteCIRelationship
+      parameters:
+        - $ref: '../modules/shared.yaml#/components/parameters/IdPath'
+      responses:
+        '204': { description: No Content }
+        default: { $ref: '../modules/shared.yaml#/components/responses/ErrorResponse' }
+
+components:
+  schemas:
+    ConfigurationItem:
+      type: object
+      required: [id, ciType, name]
+      properties:
+        id: { type: string }
+        ciType: { type: string }
+        name: { type: string }
+        env: { type: string, nullable: true }
+        ownerId: { type: string, nullable: true }
+        status: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time, nullable: true }
+        updatedAt: { type: string, format: date-time, nullable: true }
+    ConfigurationItemCreate:
+      type: object
+      required: [ciType, name]
+      properties:
+        ciType: { type: string }
+        name: { type: string }
+        env: { type: string, nullable: true }
+        ownerId: { type: string, nullable: true }
+    ConfigurationItemUpdate:
+      type: object
+      properties:
+        name: { type: string }
+        env: { type: string, nullable: true }
+        ownerId: { type: string, nullable: true }
+        status: { type: string, nullable: true }
+    CIRelationship:
+      type: object
+      required: [id, sourceCiId, relationshipType, targetCiId]
+      properties:
+        id: { type: string }
+        sourceCiId: { type: string }
+        relationshipType: { type: string }
+        targetCiId: { type: string }
+        createdAt: { type: string, format: date-time, nullable: true }
+    CIRelationshipCreate:
+      type: object
+      required: [sourceCiId, relationshipType, targetCiId]
+      properties:
+        sourceCiId: { type: string }
+        relationshipType: { type: string }
+        targetCiId: { type: string }
+

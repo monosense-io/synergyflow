@@ -163,3 +163,9 @@ Operations
 - Manage Gateway/GatewayClass/Routes via GitOps.
 - CI validates manifests (schema, policy, lint) before deploy.
 - Dashboards for 4xx/5xx, latency, rate-limit hits; alert on SLO breach.
+
+GitOps Bootstrap
+
+- Argo CD Applications provided under `infra/gitops/argocd/` for dev/stg/prod.
+- Flux CRs (GitRepository + Kustomization) under `infra/gitops/flux/` with staged dependsOn.
+- See `infra/gitops/README.md` for apply commands and prerequisites.

@@ -1,0 +1,13 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: synergyflow
+  namespace: flux-system
+  labels:
+    app.kubernetes.io/part-of: synergyflow
+spec:
+  interval: 1m0s
+  url: https://github.com/monosense-io/synergyflow.git
+  ref:
+    branch: main
+

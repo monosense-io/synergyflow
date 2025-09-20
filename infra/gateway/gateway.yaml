@@ -1,0 +1,19 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: synergyflow-gw
+  namespace: edge
+  labels:
+    app.kubernetes.io/part-of: synergyflow
+spec:
+  gatewayClassName: envoy
+  listeners:
+    - name: https
+      protocol: HTTPS
+      port: 443
+      hostname: api.synergyflow.example.com
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: synergyflow-cert
+

@@ -73,6 +73,91 @@ Security Controls
 - Rate limiting via Envoy Rate Limit service (per API key/user/client).
 - mTLS between gateway and backend where feasible.
 
+JWT Validation & Callback Restrictions (Story 16.09)
+
+```yaml
+# Envoy Gateway JWT provider (extension)
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: JWT
+metadata:
+  name: oidc-default
+  namespace: edge
+spec:
+  providers:
+    - name: oidc
+      issuer:
+        url: ${OIDC_ISSUER}
+      remoteJWKS:
+        uri: ${OIDC_JWKS_URI:-"${OIDC_ISSUER}/protocol/openid-connect/certs"}
+        cacheDuration: ${JWKS_CACHE_TTL_SECONDS:-300}s
+      audiences:
+        - ${SECURITY_JWT_EXPECTED_AUDIENCE}
+  claimToHeaders:
+    - claim: sub
+      header: x-auth-sub
+    - claim: roles
+      header: x-auth-roles
+```
+
+```yaml
+# Protected routes; NextAuth callbacks limited and rate limited per token
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: api-protected
+  namespace: edge
+spec:
+  parentRefs:
+    - name: synergyflow-gw
+  hostnames:
+    - api.synergyflow.example.com
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /actuator/health
+      backendRefs:
+        - name: synergyflow-backend
+          port: 8080
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/auth/
+      filters:
+        - type: ExtensionRef
+          extensionRef:
+            group: gateway.envoyproxy.io
+            kind: JWT
+            name: oidc-default
+        - type: ExtensionRef
+          extensionRef:
+            group: gateway.envoyproxy.io
+            kind: RateLimit
+            name: auth-per-token
+      backendRefs:
+        - name: synergyflow-frontend
+          port: 80
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api
+      filters:
+        - type: ExtensionRef
+          extensionRef:
+            group: gateway.envoyproxy.io
+            kind: JWT
+            name: oidc-default
+      backendRefs:
+        - name: synergyflow-backend
+          port: 8080
+```
+
+Notes
+
+- Allowed callback hosts are derived from `NEXTAUTH_URL` and optional `NEXTAUTH_CALLBACK_HOSTS`.
+- On JWT validation failure, the gateway strips `Authorization` and returns `401`; forbidden paths return `403`.
+- JWKS outage behavior is documented per Story 16.09 (clear `5xx` with logs).
+
 Operations
 
 - Manage Gateway/GatewayClass/Routes via GitOps.

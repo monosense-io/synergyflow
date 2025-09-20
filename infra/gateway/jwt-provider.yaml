@@ -1,0 +1,28 @@
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: JWT
+metadata:
+  name: oidc-default
+  namespace: edge
+  labels:
+    app.kubernetes.io/part-of: synergyflow
+spec:
+  providers:
+    - name: oidc
+      issuer:
+        url: ${OIDC_ISSUER}
+      remoteJWKS:
+        uri: ${OIDC_JWKS_URI:-"${OIDC_ISSUER}/protocol/openid-connect/certs"}
+        cacheDuration: ${JWKS_CACHE_TTL_SECONDS:-300}s
+        retryPolicy:
+          numRetries: 3
+          retryBackOff:
+            baseInterval: 0.25s
+            maxInterval: 2s
+      audiences:
+        - ${SECURITY_JWT_EXPECTED_AUDIENCE}
+  claimToHeaders:
+    - claim: sub
+      header: x-auth-sub
+    - claim: roles
+      header: x-auth-roles
+

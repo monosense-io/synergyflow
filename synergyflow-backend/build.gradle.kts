@@ -16,14 +16,22 @@ repositories { mavenCentral() }
 dependencies {
     implementation(platform("org.springframework.boot:spring-boot-dependencies:${libs.versions.spring.boot.get()}"))
     implementation(platform("org.springframework.modulith:spring-modulith-bom:${libs.versions.spring.modulith.get()}"))
+    implementation(platform("com.baomidou:mybatis-plus-bom:${libs.versions.mybatis.plus.get()}"))
     testImplementation(platform("org.testcontainers:testcontainers-bom:${libs.versions.testcontainers.get()}"))
 
     implementation("org.springframework.boot:spring-boot-starter")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
+    implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.springframework.boot:spring-boot-starter-security")
+    implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
 
     // Spring Modulith
     implementation("org.springframework.modulith:spring-modulith-starter-core")
     testImplementation("org.springframework.modulith:spring-modulith-starter-test")
+
+    // MyBatis-Plus
+    implementation("com.baomidou:mybatis-plus-spring-boot3-starter")
+    implementation("com.baomidou:mybatis-plus-jsqlparser")
 
     // Lombok
     compileOnly("org.projectlombok:lombok:${libs.versions.lombok.get()}")
@@ -37,7 +45,7 @@ dependencies {
 
     // Test
     testImplementation("org.springframework.boot:spring-boot-starter-test")
-    testImplementation("org.springframework.boot:spring-boot-starter-web")
+    testImplementation("org.springframework.security:spring-security-test")
     testImplementation("org.assertj:assertj-core")
     testImplementation("org.junit.jupiter:junit-jupiter")
 

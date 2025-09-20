@@ -34,3 +34,7 @@ jobs:
         with:
           args: -strict -ignore-missing-schemas -summary infra/gateway
 
+      - name: conftest policy checks (gateway)
+        uses: docker://openpolicyagent/conftest:latest
+        with:
+          args: test --policy policy/gateway infra/gateway

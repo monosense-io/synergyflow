@@ -1,0 +1,51 @@
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: JWT
+metadata:
+  name: oidc-default
+  namespace: edge
+spec:
+  providers:
+    - name: oidc
+      issuer:
+        url: https://keycloak.stg.synergyflow.example.com/realms/synergyflow
+      remoteJWKS:
+        uri: https://keycloak.stg.synergyflow.example.com/realms/synergyflow/protocol/openid-connect/certs
+      audiences:
+        - synergyflow-api
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: api-protected
+  namespace: edge
+spec:
+  hostnames:
+    - api.stg.synergyflow.example.com
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: synergyflow-gw
+  namespace: edge
+spec:
+  listeners:
+    - hostname: api.stg.synergyflow.example.com
+      name: https
+      port: 443
+      protocol: HTTPS
+      tls:
+        certificateRefs:
+          - name: synergyflow-stg-cert
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: RateLimitPolicy
+metadata:
+  name: auth-per-token
+  namespace: edge
+spec:
+  limits:
+    - name: per-token-auth
+      rates:
+        - requests: 60
+          unit: minute
+

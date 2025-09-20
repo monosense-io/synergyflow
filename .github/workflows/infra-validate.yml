@@ -1,0 +1,36 @@
+name: Infra Manifests Validate
+
+on:
+  push:
+    paths:
+      - 'infra/gateway/**'
+      - '.github/workflows/infra-validate.yml'
+  pull_request:
+    paths:
+      - 'infra/gateway/**'
+      - '.github/workflows/infra-validate.yml'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install yamllint
+        run: pip install --disable-pip-version-check --no-cache-dir yamllint
+
+      - name: YAML lint (infra/gateway)
+        run: |
+          yamllint -d "{extends: relaxed, rules: {line-length: {max: 140}}}" infra/gateway
+
+      - name: kubeconform validate (ignore missing CRD schemas)
+        uses: docker://ghcr.io/yannh/kubeconform:latest
+        with:
+          args: -strict -ignore-missing-schemas -summary infra/gateway
+

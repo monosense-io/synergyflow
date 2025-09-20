@@ -3,6 +3,8 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/synergyflow.iml" filepath="$PROJECT_DIR$/.idea/synergyflow.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/synergyflow-backend.main.iml" filepath="$PROJECT_DIR$/.idea/modules/synergyflow-backend.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/synergyflow-backend.test.iml" filepath="$PROJECT_DIR$/.idea/modules/synergyflow-backend.test.iml" />
     </modules>
   </component>
 </project>

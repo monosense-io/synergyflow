@@ -1,0 +1,258 @@
+openapi: 3.0.3
+info:
+  title: SynergyFlow ITSM API
+  version: 0.2.0
+  description: Ticket CRUD, queue cards, and composite side-panel endpoints.
+servers: []
+security:
+  - bearerAuth: []
+paths:
+  /api/itsm/tickets:
+    get:
+      tags: [ITSM]
+      summary: List and search tickets
+      parameters:
+        - in: query
+          name: q
+          schema: { type: string }
+        - in: query
+          name: status
+          schema: { $ref: '#/components/schemas/TicketStatus' }
+        - in: query
+          name: priority
+          schema: { $ref: '#/components/schemas/TicketPriority' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Ticket' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [ITSM]
+      summary: Create ticket
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateTicketRequest' }
+            examples:
+              incident:
+                summary: Create Incident
+                value:
+                  ticketType: Incident
+                  title: "Server down in DC-1"
+                  description: "Ping timeout. Impacting payroll."
+                  priority: Critical
+                  requesterId: "e8d6d56f-2c61-4f2f-8b7e-74a7a9d5a222"
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ticket' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /api/itsm/tickets/{id}:
+    get:
+      tags: [ITSM]
+      summary: Get ticket by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ticket' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [ITSM]
+      summary: Update ticket
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+        - in: header
+          name: If-Match
+          description: Version for optimistic concurrency
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateTicketRequest' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ticket' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /api/itsm/console/queue:
+    get:
+      tags: [ITSM]
+      summary: Queue cards (cursor-paged)
+      parameters:
+        - in: query
+          name: cursor
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/QueuePage' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/itsm/console/sidepanel/{id}:
+    get:
+      tags: [ITSM]
+      summary: Composite side-panel bundle for ticket
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SidePanelBundle' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    Unauthorized:
+      description: Unauthorized
+    Forbidden:
+      description: Forbidden
+    NotFound:
+      description: Not Found
+    BadRequest:
+      description: Bad Request
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Unprocessable:
+      description: Unprocessable Entity
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    PreconditionFailed:
+      description: Precondition Failed (ETag/version mismatch)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+  schemas:
+    Ticket:
+      type: object
+      required: [id, ticketType, title, status, requesterId, version, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        ticketType: { $ref: '#/components/schemas/TicketType' }
+        title: { type: string }
+        description: { type: string }
+        status: { $ref: '#/components/schemas/TicketStatus' }
+        priority: { $ref: '#/components/schemas/TicketPriority' }
+        category: { type: string }
+        requesterId: { type: string, format: uuid }
+        assigneeId: { type: string, format: uuid }
+        version: { type: integer, format: int64 }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateTicketRequest:
+      type: object
+      required: [ticketType, title, requesterId]
+      properties:
+        ticketType: { $ref: '#/components/schemas/TicketType' }
+        title: { type: string }
+        description: { type: string }
+        priority: { $ref: '#/components/schemas/TicketPriority' }
+        category: { type: string }
+        requesterId: { type: string, format: uuid }
+    UpdateTicketRequest:
+      type: object
+      properties:
+        title: { type: string }
+        description: { type: string }
+        status: { $ref: '#/components/schemas/TicketStatus' }
+        priority: { $ref: '#/components/schemas/TicketPriority' }
+        assigneeId: { type: string, format: uuid }
+        category: { type: string }
+    TicketType:
+      type: string
+      enum: [Incident, ServiceRequest]
+    TicketStatus:
+      type: string
+      enum: [New, Assigned, InProgress, Resolved, Closed]
+    TicketPriority:
+      type: string
+      enum: [Low, Medium, High, Critical]
+    TicketCard:
+      type: object
+      required: [ticketId, title, status, priority, dueInSeconds, version]
+      properties:
+        ticketId: { type: string, format: uuid }
+        title: { type: string }
+        status: { $ref: '#/components/schemas/TicketStatus' }
+        priority: { $ref: '#/components/schemas/TicketPriority' }
+        assignee: { type: string }
+        dueInSeconds: { type: integer }
+        updatedAt: { type: string, format: date-time }
+        version: { type: integer, format: int64 }
+    QueuePage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/TicketCard' }
+        nextCursor: { type: string, nullable: true }
+    SidePanelBundle:
+      type: object
+      properties:
+        requesterHistory:
+          type: array
+          items: { type: string }
+        relatedTickets:
+          type: array
+          items: { $ref: '#/components/schemas/TicketCard' }
+        kbSuggestions:
+          type: array
+          items: { type: string }
+        assetInfo:
+          type: object
+          additionalProperties: true
+        complianceChecks:
+          type: object
+          additionalProperties: true
+    Error:
+      type: object
+      required: [message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        details: { type: object, additionalProperties: true }

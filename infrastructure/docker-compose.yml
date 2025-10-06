@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: synergyflow-postgres
+    environment:
+      POSTGRES_DB: synergyflow
+      POSTGRES_USER: synergyflow
+      POSTGRES_PASSWORD: synergyflow
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: synergyflow-redis
+    ports:
+      - "6379:6379"
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0
+    container_name: synergyflow-keycloak
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    command: start-dev
+    ports:
+      - "8180:8080"
+
+volumes:
+  postgres_data:

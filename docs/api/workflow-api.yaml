@@ -1,0 +1,216 @@
+openapi: 3.0.3
+info:
+  title: SynergyFlow Workflow API
+  version: 0.2.0
+  description: Approvals, routing/state/policy rules, simulation, and batch authorization.
+servers: []
+security:
+  - bearerAuth: []
+paths:
+  /api/workflow/inbox:
+    get:
+      tags: [Workflow]
+      summary: Get inbox for current approver
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/InboxItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /api/workflow/approvals/{requestId}:
+    post:
+      tags: [Workflow]
+      summary: Decide approval
+      parameters:
+        - in: path
+          name: requestId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalDecisionRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApprovalDecision' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/workflow/approvals/bundles/decide:
+    post:
+      tags: [Workflow]
+      summary: Decide bundle of approvals; outliers auto-split
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BundleDecisionRequest' }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /api/workflow/rules:
+    post:
+      tags: [Workflow]
+      summary: Create or update a workflow rule (routing, state, or policy)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RuleUpsert' }
+      responses:
+        '200': { description: OK }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /api/workflow/simulate:
+    post:
+      tags: [Workflow]
+      summary: Run approval simulation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SimulationRequest' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SimulationResult' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /api/auth/batchCheck:
+    post:
+      tags: [Security]
+      summary: Batch authorization check for resources
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BatchCheckRequest' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BatchCheckResult' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    Unauthorized: { description: Unauthorized }
+    NotFound: { description: Not Found }
+    BadRequest:
+      description: Bad Request
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+  schemas:
+    InboxItem:
+      type: object
+      properties:
+        requestId: { type: string, format: uuid }
+        title: { type: string }
+        requester: { type: string }
+        createdAt: { type: string, format: date-time }
+        status: { type: string }
+        riskFlags:
+          type: array
+          items: { type: string }
+        confidence: { type: number, format: float }
+    ApprovalDecisionRequest:
+      type: object
+      required: [decision]
+      properties:
+        decision: { type: string, enum: [APPROVE, REJECT, MORE_INFO] }
+        rationale: { type: string }
+    ApprovalDecision:
+      type: object
+      properties:
+        requestId: { type: string, format: uuid }
+        decision: { type: string }
+        decidedAt: { type: string, format: date-time }
+    BundleDecisionRequest:
+      type: object
+      properties:
+        requestIds:
+          type: array
+          items: { type: string, format: uuid }
+        decision: { type: string, enum: [APPROVE, REJECT] }
+        rationale: { type: string }
+    RuleUpsert:
+      type: object
+      properties:
+        routingRule:
+          type: object
+          properties:
+            conditionType: { type: string }
+            conditionValue: { type: string }
+            targetTeam: { type: string }
+            priority: { type: integer }
+        stateRule:
+          type: object
+          properties:
+            entityType: { type: string }
+            from: { type: string }
+            to: { type: string }
+            predicate: { type: string }
+        policyRule:
+          type: object
+          properties:
+            expression: { type: string }
+    SimulationRequest:
+      type: object
+      properties:
+        requestId: { type: string, format: uuid }
+        quantity: { type: integer }
+        price: { type: number, format: float }
+    SimulationResult:
+      type: object
+      properties:
+        budgetDelta: { type: number, format: float }
+        inventoryCurve:
+          type: array
+          items: { type: integer }
+        etaDays: { type: number, format: float }
+        breachProbability: { type: number, format: float }
+    BatchCheckRequest:
+      type: object
+      properties:
+        resourceIds:
+          type: array
+          items: { type: string }
+        action: { type: string }
+    BatchCheckResult:
+      type: object
+      properties:
+        decisions:
+          type: array
+          items:
+            type: object
+            properties:
+              resourceId: { type: string }
+              allowed: { type: boolean }
+    Error:
+      type: object
+      required: [message]
+      properties:
+        message: { type: string }
+        code: { type: string }
+        details: { type: object, additionalProperties: true }

@@ -1,0 +1,284 @@
+openapi: 3.0.3
+info:
+  title: SynergyFlow PM API
+  version: 0.2.0
+  description: Core endpoints for Issues, Boards, Sprints, and Metrics.
+servers: []
+security:
+  - bearerAuth: []
+paths:
+  /api/pm/issues:
+    get:
+      tags: [PM]
+      summary: List and search issues
+      parameters:
+        - in: query
+          name: q
+          schema: { type: string }
+        - in: query
+          name: status
+          schema: { $ref: '#/components/schemas/IssueStatus' }
+        - in: query
+          name: type
+          schema: { $ref: '#/components/schemas/IssueType' }
+        - in: query
+          name: assigneeId
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Issue' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [PM]
+      summary: Create issue
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateIssueRequest' }
+            examples:
+              story:
+                value:
+                  type: Story
+                  title: "Add keyboard shortcuts"
+                  reporterId: "c7a7f765-3a9b-49a7-a8d3-2f5a9f7cbe77"
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Issue' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /api/pm/issues/{id}:
+    get:
+      tags: [PM]
+      summary: Get issue by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Issue' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [PM]
+      summary: Update issue
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+        - in: header
+          name: If-Match
+          required: true
+          description: Version for optimistic concurrency
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateIssueRequest' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Issue' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /api/pm/boards/{boardId}:
+    get:
+      tags: [PM]
+      summary: Get board view (columns + issue cards)
+      parameters:
+        - in: path
+          name: boardId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BoardView' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/pm/boards/{boardId}/move:
+    post:
+      tags: [PM]
+      summary: Move issue between columns
+      parameters:
+        - in: path
+          name: boardId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BoardMoveRequest' }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/pm/sprints/{sprintId}/burndown:
+    get:
+      tags: [PM]
+      summary: Burndown data for a sprint
+      parameters:
+        - in: path
+          name: sprintId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Burndown' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    Unauthorized: { description: Unauthorized }
+    Forbidden: { description: Forbidden }
+    NotFound: { description: Not Found }
+    Conflict: { description: Conflict }
+    BadRequest:
+      description: Bad Request
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Unprocessable:
+      description: Unprocessable Entity
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    PreconditionFailed:
+      description: Precondition Failed (ETag/version mismatch)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+  schemas:
+    Issue:
+      type: object
+      required: [id, type, title, status, reporterId, version, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        type: { $ref: '#/components/schemas/IssueType' }
+        title: { type: string }
+        description: { type: string }
+        status: { $ref: '#/components/schemas/IssueStatus' }
+        priority: { $ref: '#/components/schemas/IssuePriority' }
+        assigneeId: { type: string, format: uuid }
+        reporterId: { type: string, format: uuid }
+        storyPoints: { type: integer }
+        sprintId: { type: string, format: uuid }
+        epicId: { type: string, format: uuid }
+        version: { type: integer, format: int64 }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateIssueRequest:
+      type: object
+      required: [type, title, reporterId]
+      properties:
+        type: { $ref: '#/components/schemas/IssueType' }
+        title: { type: string }
+        description: { type: string }
+        reporterId: { type: string, format: uuid }
+    UpdateIssueRequest:
+      type: object
+      properties:
+        title: { type: string }
+        description: { type: string }
+        status: { $ref: '#/components/schemas/IssueStatus' }
+        assigneeId: { type: string, format: uuid }
+        storyPoints: { type: integer }
+        sprintId: { type: string, format: uuid }
+    IssueType:
+      type: string
+      enum: [Story, Task, Bug, Epic]
+    IssueStatus:
+      type: string
+      enum: [Backlog, ToDo, InProgress, InReview, Done]
+    IssuePriority:
+      type: string
+      enum: [Highest, High, Medium, Low, Lowest]
+    IssueCard:
+      type: object
+      required: [issueId, title, status, type, version]
+      properties:
+        issueId: { type: string, format: uuid }
+        title: { type: string }
+        status: { $ref: '#/components/schemas/IssueStatus' }
+        type: { $ref: '#/components/schemas/IssueType' }
+        priority: { $ref: '#/components/schemas/IssuePriority' }
+        assignee: { type: string }
+        sprint: { type: string }
+        updatedAt: { type: string, format: date-time }
+        version: { type: integer, format: int64 }
+    BoardColumn:
+      type: object
+      properties:
+        name: { type: string }
+        position: { type: integer }
+        wipLimit: { type: integer }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/IssueCard' }
+    BoardView:
+      type: object
+      properties:
+        boardId: { type: string, format: uuid }
+        columns:
+          type: array
+          items: { $ref: '#/components/schemas/BoardColumn' }
+    BoardMoveRequest:
+      type: object
+      required: [issueId, fromColumn, toColumn]
+      properties:
+        issueId: { type: string, format: uuid }
+        fromColumn: { type: string }
+        toColumn: { type: string }
+        position: { type: integer }
+    Burndown:
+      type: object
+      properties:
+        dates:
+          type: array
+          items: { type: string, format: date }
+        pointsRemaining:
+          type: array
+          items: { type: integer }
+    Error:
+      type: object
+      required: [message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        details: { type: object, additionalProperties: true }

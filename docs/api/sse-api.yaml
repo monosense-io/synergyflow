@@ -1,0 +1,19 @@
+openapi: 3.0.3
+info:
+  title: SynergyFlow SSE API
+  version: 0.2.0
+  description: Realtime event subscription and replay cursor.
+servers: []
+paths:
+  /api/sse/stream:
+    get:
+      summary: Subscribe to server-sent events
+      parameters:
+        - in: query
+          name: cursor
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: text/event-stream
+        '401': { description: Unauthorized }

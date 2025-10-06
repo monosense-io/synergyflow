@@ -1,0 +1,195 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>1</storyId>
+    <title>Initialize Monorepo Structure</title>
+    <status>ContextReadyDraft</status>
+    <generatedAt>2025-10-06</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>./story-1.1.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>Development Team</asA>
+    <iWant>set up the foundational monorepo structure with proper build tooling</iWant>
+    <soThat>we can enable parallel development of backend, frontend, and infrastructure components with consistent build processes</soThat>
+    <tasks>
+      <task id="1" ac="1,6">Initialize Git repository and create top-level directory structure</task>
+      <task id="2" ac="2,4">Configure backend build with Gradle Kotlin DSL</task>
+      <task id="3" ac="3">Initialize frontend application with Vite</task>
+      <task id="4" ac="1">Create infrastructure and documentation placeholders</task>
+      <task id="5" ac="5">Add repository standard files</task>
+      <task id="6" ac="6">Commit initial structure</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC1">Monorepo directory structure matches the source tree diagram defined in Epic 1 Technical Specification (lines 39-225), with top-level folders: backend/, frontend/, infrastructure/, docs/, and testing/</criterion>
+    <criterion id="AC2">Backend build succeeds with ./gradlew build command, using Gradle 8.10+ with Kotlin DSL</criterion>
+    <criterion id="AC3">Frontend build succeeds with npm install command, using Vite 5.x as the build tool</criterion>
+    <criterion id="AC4">All Java packages follow the namespace convention io.monosense.synergyflow.*</criterion>
+    <criterion id="AC5">Repository includes standard files: .gitignore, README.md, and LICENSE</criterion>
+    <criterion id="AC6">Git repository is initialized with initial commit containing the base structure</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/epics/epic-1-foundation-tech-spec.md" title="Epic 1: Foundation &amp; Infrastructure - Technical Specification" section="Source Tree Structure" lines="39-225">
+        Complete monorepo source tree layout with backend/, frontend/, infrastructure/, docs/, testing/ directories and full subdirectory specifications for Spring Boot modulith structure
+      </doc>
+      <doc path="docs/epics/epic-1-foundation-tech-spec.md" title="Epic 1: Foundation &amp; Infrastructure - Technical Specification" section="Implementation Stack - Backend" lines="980-1031">
+        Backend technology stack: Spring Boot 3.4+, Java 21 LTS, Gradle 8.10+ with Kotlin DSL, Spring Modulith, Spring Data JPA, Hibernate 7.0
+      </doc>
+      <doc path="docs/epics/epic-1-foundation-tech-spec.md" title="Epic 1: Foundation &amp; Infrastructure - Technical Specification" section="Implementation Stack - Frontend" lines="1032-1071">
+        Frontend technology stack: React 18.3+, TypeScript 5.x, Vite 5.x, Ant Design 5.x, Redux Toolkit 2.x, React Router 6.x
+      </doc>
+      <doc path="docs/epics/epic-1-foundation-tech-spec.md" title="Epic 1: Foundation &amp; Infrastructure - Technical Specification" section="Story 1.1 Task Breakdown" lines="1740-1744">
+        Initialize monorepo structure: Create Git repository with backend/, frontend/, infrastructure/, docs/ folders; Configure Gradle Kotlin DSL at repo root; Initialize Vite app; Add .gitignore, README.md, LICENSE
+      </doc>
+      <doc path="docs/epics/epic-1-foundation-tech-spec.md" title="Epic 1: Foundation &amp; Infrastructure - Technical Specification" section="Week 1 Acceptance Criteria" lines="1772-1783">
+        AC validation: Monorepo structure matches source tree, ./gradlew build succeeds, npm install succeeds, all packages start with io.monosense.synergyflow, Spring Modulith module boundaries verified
+      </doc>
+      <doc path="docs/epics/epic-1-foundation-tech-spec.md" title="Epic 1: Foundation &amp; Infrastructure - Technical Specification" section="Development Setup" lines="1574-1733">
+        Prerequisites (JDK 21, Node.js 20+, Docker Desktop, Gradle 8.10+), local environment setup with Docker Compose, running backend/frontend locally
+      </doc>
+      <doc path="docs/architecture/architecture-blueprint.md" title="Architecture Blueprint — SynergyFlow" section="System Context &amp; Deployment">
+        High-level architecture: Modulith + 3 Companions deployment (App, Event Worker, Timer/SLA, Indexer), PostgreSQL, Redis Streams, Keycloak, OpenSearch
+      </doc>
+    </docs>
+
+    <code>
+      <note>This is Story 1.1 - the foundational setup story creating the initial project structure. No existing code to reference. This story CREATES the codebase.</note>
+    </code>
+
+    <dependencies>
+      <backend>
+        <build>
+          <tool name="Gradle" version="8.10+" dsl="Kotlin DSL" />
+          <tool name="Gradle Wrapper" note="gradlew, gradlew.bat, gradle/wrapper/ files required" />
+        </build>
+        <runtime>
+          <jdk version="21" variant="LTS (Temurin or Oracle)" />
+        </runtime>
+        <frameworks>
+          <framework name="Spring Boot" version="3.4+" note="Will be configured in Story 1.2" />
+          <framework name="Spring Modulith" version="1.2+" note="Will be configured in Story 1.2" />
+        </frameworks>
+      </backend>
+
+      <frontend>
+        <runtime>
+          <node version="20+" variant="LTS" />
+        </runtime>
+        <buildTool name="Vite" version="5.x" />
+        <packages>
+          <package name="react" version="18.3+" />
+          <package name="typescript" version="5.x" />
+          <package name="vite" version="5.x" />
+          <package name="antd" version="5.x" note="Ant Design component library" />
+          <package name="@reduxjs/toolkit" version="2.x" note="Will be added in Epic 2+" />
+          <package name="react-router-dom" version="6.x" note="Will be added in Epic 2+" />
+        </packages>
+      </frontend>
+
+      <infrastructure>
+        <tool name="Docker Desktop" purpose="Local development containers (PostgreSQL, Redis, Keycloak)" />
+        <tool name="Git" purpose="Version control" />
+      </infrastructure>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="architecture" source="epic-1-foundation-tech-spec.md#L228-232">
+      Monorepo Pattern: Single Git repository with clear module boundaries (backend, frontend, infrastructure, docs, testing). No microservices - unified codebase with modulith architecture.
+    </constraint>
+    <constraint type="architecture" source="epic-1-foundation-tech-spec.md#L228-232">
+      Build Isolation: Backend uses Gradle (JVM), frontend uses npm (Node.js) - each must be buildable independently without cross-dependencies.
+    </constraint>
+    <constraint type="naming" source="epic-1-foundation-tech-spec.md#L1776">
+      Package Namespace: ALL Java code MUST use base package io.monosense.synergyflow for consistency. No exceptions.
+    </constraint>
+    <constraint type="structure" source="epic-1-foundation-tech-spec.md#L39-225">
+      Directory Structure: MUST match Epic 1 Technical Specification source tree EXACTLY. This is the single source of truth for project layout.
+    </constraint>
+    <constraint type="tooling" source="epic-1-foundation-tech-spec.md#L1028-1071">
+      Toolchain Versions: Gradle 8.10+ (Kotlin DSL mandatory), Java 21 LTS (no earlier versions), Node.js 20+ LTS, Vite 5.x (not 4.x or earlier)
+    </constraint>
+  </constraints>
+
+  <interfaces>
+    <note>This story creates the project structure. No module interfaces exist yet. Subsequent stories (1.2+) will define Spring Modulith @ApplicationModule boundaries and @NamedInterface SPIs for cross-module communication.</note>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Story 1.1 verification is primarily MANUAL validation of infrastructure setup:
+
+      1. Backend Build Verification:
+         - Execute ./gradlew build from repository root
+         - MUST complete without errors and produce build/ directory
+         - Verify Gradle Kotlin DSL is used (NOT Groovy)
+
+      2. Frontend Build Verification:
+         - Execute npm install from frontend/ directory
+         - Execute npm run build from frontend/ directory
+         - MUST produce dist/ directory with compiled assets
+
+      3. Structure Verification:
+         - Use tree command or manual inspection
+         - Compare against Epic 1 Tech Spec lines 39-225
+         - MUST have exact directory structure
+
+      4. Package Namespace Verification:
+         - Search all .java files for package declarations
+         - ALL must start with io.monosense.synergyflow
+
+      Future automated testing (Story 1.2+):
+      - Unit tests: JUnit 5 + Mockito for domain logic
+      - Integration tests: Spring Boot Test + Testcontainers for database/outbox
+      - Frontend tests: Vitest + React Testing Library
+      - E2E tests: Playwright (Epic 5+)
+      - Performance tests: Gatling (Epic 5+)
+    </standards>
+
+    <locations>
+      <location>backend/src/test/java/ - JUnit tests (Story 1.2+ will populate)</location>
+      <location>frontend/src/__tests__/ - Vitest tests (Epic 2+ will populate)</location>
+      <location>testing/integration/ - Integration tests (Epic 2+)</location>
+      <location>testing/e2e/ - Playwright E2E tests (Epic 5+)</location>
+      <location>testing/performance/ - Gatling performance tests (Epic 5+)</location>
+    </locations>
+
+    <ideas>
+      <testIdea ac="AC1" type="manual" priority="high">
+        Execute: tree -L 3 /path/to/repo (or equivalent)
+        Verify: Directory structure matches lines 39-225 of Epic 1 Tech Spec
+        Expected: backend/, frontend/, infrastructure/, docs/, testing/ directories present with correct subdirectories
+      </testIdea>
+      <testIdea ac="AC2" type="manual" priority="high">
+        Execute: cd backend && ./gradlew build
+        Verify: Exit code 0, build/ directory created, no compilation errors
+        Expected: "BUILD SUCCESSFUL" message
+      </testIdea>
+      <testIdea ac="AC3" type="manual" priority="high">
+        Execute: cd frontend && npm install && npm run build
+        Verify: node_modules/ created, dist/ directory created with index.html and assets
+        Expected: "built successfully" message from Vite
+      </testIdea>
+      <testIdea ac="AC4" type="manual" priority="medium">
+        Execute: find backend/src -name "*.java" -exec grep -H "^package" {} \;
+        Verify: ALL package declarations start with io.monosense.synergyflow
+        Expected: No violations found
+      </testIdea>
+      <testIdea ac="AC5" type="manual" priority="low">
+        Execute: ls -la / (repo root)
+        Verify: .gitignore, README.md, LICENSE files exist
+        Expected: All three files present
+      </testIdea>
+      <testIdea ac="AC6" type="manual" priority="low">
+        Execute: git log --oneline
+        Verify: Initial commit exists with message containing "initialize monorepo"
+        Expected: At least one commit in history
+      </testIdea>
+    </ideas>
+  </tests>
+</story-context>

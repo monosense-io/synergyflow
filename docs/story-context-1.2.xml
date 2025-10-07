@@ -1,0 +1,224 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>2</storyId>
+    <title>Set up Spring Boot Modulith Architecture</title>
+    <status>Draft</status>
+    <generatedAt>2025-10-06</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>./docs/stories/story-1.2.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>Development Team</asA>
+    <iWant>establish Spring Boot modulith architecture with explicit module boundaries and build-time verification tests</iWant>
+    <soThat>we can enforce architectural constraints automatically and prevent unintended coupling between domain modules</soThat>
+    <tasks>
+      <task id="1" ac="2,3">Configure build.gradle.kts with Spring Modulith dependencies</task>
+      <task id="2" ac="1,2">Create module package structure for 8 modules</task>
+      <task id="3" ac="2,3">Add @ApplicationModule declarations for each module</task>
+      <task id="4" ac="2">Create SPI interfaces with @NamedInterface</task>
+      <task id="5" ac="3">Add module verification tests (ModularityTests.java)</task>
+      <task id="6" ac="4">Add ArchUnit tests for package access enforcement</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC1">All Java packages use io.monosense.synergyflow.* namespace convention</criterion>
+    <criterion id="AC2">package-info.java created for each of the 8 modules with @ApplicationModule annotations declaring explicit allowedDependencies</criterion>
+    <criterion id="AC3">ModularityTests.java passes, verifying module boundaries and detecting cyclic dependencies at build time</criterion>
+    <criterion id="AC4">ArchUnitTests.java enforces that classes in internal/ packages are NOT accessible from outside their module, while api/ and spi/ packages are public</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/epics/epic-1-foundation-tech-spec.md" title="Epic 1: Foundation &amp; Infrastructure - Technical Specification" section="Spring Modulith Module Declarations" lines="1116-1254">
+        Complete Spring Modulith implementation guide with @ApplicationModule examples for all 8 modules (itsm, pm, workflow, security, eventing, sla, sse, audit), module dependency matrix showing allowed dependencies, @NamedInterface SPI pattern examples, and ModularityTests.java/ArchUnitTests.java verification test code samples
+      </doc>
+      <doc path="docs/epics/epic-1-foundation-tech-spec.md" title="Epic 1: Foundation &amp; Infrastructure - Technical Specification" section="Source Tree Structure" lines="43-131">
+        Complete backend directory structure showing all 8 module packages under io.monosense.synergyflow/, with subdirectories for each module: api/ (REST controllers), spi/ (Service Provider Interfaces with @NamedInterface), internal/ (package-private implementation), events/ (domain events)
+      </doc>
+      <doc path="docs/epics/epic-1-foundation-tech-spec.md" title="Epic 1: Foundation &amp; Infrastructure - Technical Specification" section="Story 1.2 Task Breakdown" lines="1745-1749">
+        Story 1.2 implementation tasks: Create SynergyFlowApplication.java, configure build.gradle.kts with Spring Boot 3.5.x and Spring Modulith dependencies, create 8 module packages with subdirectories, add package-info.java with @ApplicationModule annotations, create spi/ packages with @NamedInterface, add ModularityTests.java and ArchUnit tests to verify module boundaries
+      </doc>
+      <doc path="docs/epics/epic-1-foundation-tech-spec.md" title="Epic 1: Foundation &amp; Infrastructure - Technical Specification" section="Week 1 Acceptance Criteria" lines="1772-1783">
+        AC validation for Story 1.2: All packages start with io.monosense.synergyflow, package-info.java created for each module with @ApplicationModule, ModularityTests.java passes verifying module boundaries, ArchUnit test enforces internal/ package access rules
+      </doc>
+      <doc path="docs/epics/epic-1-foundation-tech-spec.md" title="Epic 1: Foundation &amp; Infrastructure - Technical Specification" section="Implementation Stack - Backend" lines="980-1031">
+        Backend technology stack: Spring Boot 3.4+, Java 21 LTS, Gradle 8.10+ with Kotlin DSL, Spring Modulith 1.2+, Spring Data JPA, Hibernate 7.0, JUnit 5 + Mockito for testing, ArchUnit for architecture tests
+      </doc>
+      <doc path="docs/architecture/adr/0001-modulith-and-companions.md" title="ADR 0001 — Modulith + Companions" section="Decision">
+        Architectural decision to adopt Spring Modulith core application with explicit module boundaries (@ApplicationModule) and three companion deployments (Event Worker, Timer/SLA, Indexer). Rationale: cohesive domain refactoring and fast iteration while isolating physics-heavy loops from HTTP request path. Requires strong module enforcement via build-time verification tests.
+      </doc>
+      <doc path="docs/stories/story-context-1.1.xml" title="Story 1.1 Context - Initialize Monorepo Structure" section="Testing Standards">
+        Testing standards carried forward from Story 1.1: Story 1.2 is the first story to add automated tests (JUnit 5 + Mockito + Spring Boot Test + ArchUnit). Future stories will follow unit test pattern: backend tests in backend/src/test/java/, frontend tests in frontend/src/__tests__/
+      </doc>
+    </docs>
+
+    <code>
+      <file path="backend/src/main/java/io/monosense/synergyflow/SynergyFlowApplication.java" kind="main-class" symbol="SynergyFlowApplication" lines="1-13" reason="Existing Spring Boot application entry point from Story 1.1. Will scan for @ApplicationModule annotated packages when Spring context starts. No modification needed for Story 1.2." />
+      <file path="backend/build.gradle.kts" kind="build-config" symbol="build.gradle.kts" lines="1-38" reason="Existing Gradle build configuration from Story 1.1 with Spring Boot 3.4.0, Spring Modulith BOM 1.2.4 already configured. Story 1.2 will add spring-modulith-starter-core, spring-modulith-starter-test, and archunit-junit5 dependencies." />
+      <note>This is Story 1.2 - creating module structure. No existing module code to reference. Story 1.2 CREATES the module packages and verification tests that all future stories will use.</note>
+    </code>
+
+    <dependencies>
+      <backend>
+        <build>
+          <tool name="Gradle" version="8.10.2" dsl="Kotlin DSL" />
+          <tool name="Gradle Wrapper" note="gradlew, gradlew.bat, gradle/wrapper/ files present from Story 1.1" />
+        </build>
+        <runtime>
+          <jdk version="21" variant="LTS" />
+        </runtime>
+        <frameworks>
+          <framework name="Spring Boot" version="3.4.0" note="Already configured in build.gradle.kts from Story 1.1" />
+          <framework name="Spring Modulith" version="1.2.4" note="BOM already present; Story 1.2 adds starter-core and starter-test" />
+        </frameworks>
+        <testing>
+          <framework name="JUnit" version="5 (Jupiter)" note="JUnit Platform Launcher already configured from Story 1.1" />
+          <framework name="Spring Boot Test" version="3.4.0" note="Includes Mockito, Spring Test, AssertJ" />
+          <framework name="ArchUnit" version="1.3+" note="Story 1.2 adds archunit-junit5 for architecture tests" />
+        </testing>
+      </backend>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="architecture" source="epic-1-foundation-tech-spec.md#L1116-1254">
+      Spring Modulith Module Boundaries: All 8 modules (itsm, pm, workflow, security, eventing, sla, sse, audit) MUST use @ApplicationModule annotation on package-info.java with explicit allowedDependencies declaration. Module dependency violations MUST cause build failure.
+    </constraint>
+    <constraint type="architecture" source="epic-1-foundation-tech-spec.md#L1244-1253">
+      Module Dependency Matrix: itsm → {security, eventing, sla, sse, audit}; pm → {security, eventing, sse, audit}; workflow → {itsm.spi, pm.spi, security, eventing, audit}; sse → {eventing}; security, eventing, sla, audit → NO module dependencies (leaf modules). Workflow MUST depend on itsm.spi and pm.spi interfaces, NOT itsm/pm internal implementations.
+    </constraint>
+    <constraint type="naming" source="epic-1-foundation-tech-spec.md#L1776">
+      Package Namespace: ALL Java code MUST use base package io.monosense.synergyflow for consistency. Module packages are direct children: io.monosense.synergyflow.itsm, io.monosense.synergyflow.pm, etc. No exceptions.
+    </constraint>
+    <constraint type="structure" source="epic-1-foundation-tech-spec.md#L43-131">
+      Module Package Structure: Each module MUST have subdirectories: api/ (public REST controllers), spi/ (Service Provider Interfaces with @NamedInterface for cross-module communication), internal/ (package-private implementation details), events/ (domain events published by module). This structure is MANDATORY for all modules.
+    </constraint>
+    <constraint type="testing" source="epic-1-foundation-tech-spec.md#L1116-1254">
+      Build-Time Verification: ModularityTests.java and ArchUnitTests.java MUST pass for ./gradlew build to succeed. These tests enforce architectural constraints automatically. Violations MUST fail the build, not just produce warnings. This is critical for preventing architectural drift.
+    </constraint>
+    <constraint type="tooling" source="epic-1-foundation-tech-spec.md#L1028-1071">
+      Toolchain Versions: Spring Boot 3.4+, Spring Modulith 1.2+, Java 21 LTS (no earlier versions), Gradle 8.10+ with Kotlin DSL mandatory. @ApplicationModule and @NamedInterface annotations require Spring Modulith 1.2+ for full support.
+    </constraint>
+    <constraint type="pattern" source="adr/0001-modulith-and-companions.md#L10">
+      Modulith Pattern: Explicit module boundaries via @ApplicationModule with strong build-time enforcement. Rationale: enables cohesive domain refactoring while preventing unintended coupling. Companions (Event Worker, Timer/SLA, Indexer) will be added in future stories but core modulith structure must be established first.
+    </constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="@ApplicationModule" kind="annotation" signature="@ApplicationModule(displayName, allowedDependencies)" path="org.springframework.modulith.ApplicationModule">
+      Spring Modulith annotation placed on package-info.java to declare module boundaries and allowed dependencies. Example: @ApplicationModule(displayName = "ITSM Module", allowedDependencies = { "security", "eventing", "sla", "sse", "audit" })
+    </interface>
+    <interface name="@NamedInterface" kind="annotation" signature="@NamedInterface(name)" path="org.springframework.modulith.NamedInterface">
+      Spring Modulith annotation for SPI packages to expose specific interfaces for cross-module communication. Placed on spi/package-info.java. Example: @NamedInterface("spi") with JavaDoc explaining the interface contract.
+    </interface>
+    <interface name="ApplicationModules" kind="test-api" signature="ApplicationModules.of(Class<?> basePackage)" path="org.springframework.modulith.test.ApplicationModules">
+      Spring Modulith test API for verifying module structure. Used in ModularityTests.java to call verify() method which checks @ApplicationModule annotations, allowedDependencies, and detects cyclic dependencies at build time.
+    </interface>
+    <interface name="ArchUnit ArchRuleDefinition" kind="test-api" signature="classes().that()...should()..." path="com.tngtech.archunit.lang.syntax.ArchRuleDefinition">
+      ArchUnit API for defining architecture tests. Used in ArchUnitTests.java to enforce package access rules (e.g., internal/ packages not accessible from outside module, all classes in io.monosense.synergyflow.* namespace).
+    </interface>
+    <note>Story 1.2 creates module structure only - no SPI interfaces are implemented yet. Placeholder package-info.java files will be created in itsm/spi/ and pm/spi/ with @NamedInterface annotations. Actual interface contracts (e.g., TicketQueryService) will be added in Story 1.3+ when domain entities exist.</note>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Story 1.2 establishes automated testing foundation for the project. This is the FIRST story to add automated tests (Story 1.1 used only manual verification).
+
+      **Testing Framework Stack:**
+      - JUnit 5 (Jupiter) for test lifecycle and assertions
+      - Spring Boot Test with @SpringBootTest for integration tests (will be used in Story 1.3+)
+      - ArchUnit for architecture verification tests (enforces package access rules)
+      - Spring Modulith Test API for module boundary verification
+
+      **Module Verification Tests (NEW in Story 1.2):**
+      - ModularityTests.java uses Spring Modulith's ApplicationModules API to verify:
+        1. All @ApplicationModule annotations are correctly configured with displayName and allowedDependencies
+        2. No cyclic dependencies exist between modules (directed acyclic graph enforced)
+        3. Module boundaries are respected (imports from non-allowed modules cause build failure)
+        4. Auto-generates PlantUML C4 component diagrams documenting module relationships
+
+      **Architecture Tests (NEW in Story 1.2):**
+      - ArchUnitTests.java uses ArchUnit library to enforce:
+        1. Classes in internal/ packages CANNOT be accessed from outside their module (package-private enforcement)
+        2. Classes in api/ and spi/ packages CAN be accessed by other modules (public contract enforcement)
+        3. All classes use io.monosense.synergyflow.* namespace (no exceptions)
+        4. No cyclic dependencies between packages within modules
+
+      **Success Criteria:**
+      Both ModularityTests.java and ArchUnitTests.java MUST pass for ./gradlew build to succeed. Build MUST fail if architectural constraints are violated. This fail-fast approach prevents architectural drift and eliminates need for manual code review of module boundaries.
+
+      **Future Testing (Story 1.3+):**
+      - Unit tests for domain entities, services, and repositories (JUnit 5 + Mockito)
+      - Integration tests with Testcontainers for database/Redis (Story 1.3+)
+      - REST controller tests with MockMvc (Story 1.5+)
+      - Frontend component tests with Vitest + React Testing Library (Epic 2+)
+    </standards>
+
+    <locations>
+      <location>backend/src/test/java/io/monosense/synergyflow/ - Root package for all backend tests</location>
+      <location>backend/src/test/java/io/monosense/synergyflow/ModularityTests.java - Spring Modulith module boundary verification tests (NEW in Story 1.2)</location>
+      <location>backend/src/test/java/io/monosense/synergyflow/ArchUnitTests.java - ArchUnit architecture tests for package access rules (NEW in Story 1.2)</location>
+      <location>backend/src/test/java/io/monosense/synergyflow/{module}/ - Module-specific unit tests (Story 1.3+ will populate)</location>
+      <location>testing/integration/ - Integration tests with Testcontainers (Epic 2+)</location>
+      <location>testing/e2e/ - Playwright E2E tests (Epic 5+)</location>
+    </locations>
+
+    <ideas>
+      <testIdea ac="AC1" type="architecture" priority="high">
+        Test: ArchUnitTests.java → testPackageNamingConvention()
+        Verify: All classes are in io.monosense.synergyflow.* package
+        Implementation: Use ArchUnit's classes().should().resideInAPackage("io.monosense.synergyflow..") rule
+        Expected: No violations; build fails if any class is outside namespace
+      </testIdea>
+      <testIdea ac="AC2" type="module-verification" priority="high">
+        Test: ModularityTests.java → verifiesModularStructure()
+        Verify: All 8 modules have package-info.java with @ApplicationModule annotations
+        Implementation: ApplicationModules.of(SynergyFlowApplication.class).verify()
+        Expected: Spring Modulith validates all @ApplicationModule annotations are present and correctly configured
+      </testIdea>
+      <testIdea ac="AC2" type="module-verification" priority="high">
+        Test: Manually inspect each package-info.java file
+        Verify: Each of 8 modules declares correct allowedDependencies per module dependency matrix
+        Expected: itsm allows {security, eventing, sla, sse, audit}; pm allows {security, eventing, sse, audit}; workflow allows {itsm.spi, pm.spi, security, eventing, audit}; etc.
+      </testIdea>
+      <testIdea ac="AC3" type="module-verification" priority="high">
+        Test: ModularityTests.java → verifyNoCyclicDependencies()
+        Verify: Module dependency graph is acyclic (no module A → B → A cycles)
+        Implementation: ApplicationModules.of(SynergyFlowApplication.class).verify() automatically checks for cycles
+        Expected: Build passes; no cyclic dependencies detected
+      </testIdea>
+      <testIdea ac="AC3" type="module-verification" priority="high">
+        Test: ModularityTests.java → writeDocumentationSnippets()
+        Verify: Generates PlantUML C4 component diagrams documenting module structure
+        Implementation: modules.writeDocumentationSnippets() creates target/modulith/components.puml
+        Expected: PlantUML file generated showing 8 modules and their allowed dependencies
+      </testIdea>
+      <testIdea ac="AC4" type="architecture" priority="high">
+        Test: ArchUnitTests.java → testInternalPackageNotAccessibleFromOutside()
+        Verify: Classes in {module}/internal/ packages CANNOT be imported by classes outside their module
+        Implementation: ArchUnit rule: noClasses().that().resideInAPackage("..internal..").should().bePublic()
+        Expected: Build fails if any class outside module X imports from module Y's internal/ package
+      </testIdea>
+      <testIdea ac="AC4" type="architecture" priority="high">
+        Test: ArchUnitTests.java → testApiAndSpiPackagesArePublic()
+        Verify: Classes in {module}/api/ and {module}/spi/ packages CAN be accessed by other modules (public contract)
+        Implementation: ArchUnit rule: classes().that().resideInAPackage("..api..").or().resideInAPackage("..spi..").should().bePublic()
+        Expected: Build passes; api/ and spi/ classes are public and accessible
+      </testIdea>
+      <testIdea ac="AC4" type="architecture" priority="medium">
+        Test: ArchUnitTests.java → testNoCyclicPackageDependencies()
+        Verify: No cyclic dependencies between packages within or across modules
+        Implementation: ArchUnit rule: slices().matching("io.monosense.synergyflow.(*)..").should().beFreeOfCycles()
+        Expected: Build passes; package dependency graph is acyclic
+      </testIdea>
+      <testIdea ac="ALL" type="build-verification" priority="high">
+        Test: Execute ./gradlew build in CI/CD pipeline
+        Verify: Build succeeds with all tests passing (ModularityTests.java + ArchUnitTests.java)
+        Expected: BUILD SUCCESSFUL message; no test failures; architectural constraints enforced at build time
+      </testIdea>
+    </ideas>
+  </tests>
+</story-context>

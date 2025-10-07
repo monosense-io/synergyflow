@@ -1,0 +1,213 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>3</storyId>
+    <title>Configure PostgreSQL Database with Flyway Migrations</title>
+    <status>Draft</status>
+    <generatedAt>2025-10-07</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>/Users/monosense/repository/research/itsm/docs/stories/story-1.3.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>Development Team</asA>
+    <iWant>configure PostgreSQL database schema with Flyway migrations for ITSM and PM modules</iWant>
+    <soThat>we can persist domain data with proper structure, indexes, and CQRS-lite read models for high-performance queries</soThat>
+    <tasks>
+      <task id="1" ac="1">Configure Flyway in Gradle build (6 subtasks)</task>
+      <task id="2" ac="2">Create ITSM OLTP migration V1 (14 subtasks)</task>
+      <task id="3" ac="3">Create PM OLTP migration V2 (12 subtasks)</task>
+      <task id="4" ac="4">Create shared tables migration V3 (14 subtasks)</task>
+      <task id="5" ac="5">Create CQRS-lite read models migration V4 (10 subtasks)</task>
+      <task id="6" ac="6">Test migrations locally (9 subtasks)</task>
+      <task id="7" ac="7">Add integration test with Testcontainers (11 subtasks)</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC1">Flyway dependencies are configured in build.gradle.kts and migrations execute automatically on application startup</criterion>
+    <criterion id="AC2">Migration V1__create_itsm_tables.sql creates ITSM OLTP tables: tickets, incidents, service_requests, ticket_comments, routing_rules with UUIDv7 primary keys and appropriate indexes</criterion>
+    <criterion id="AC3">Migration V2__create_pm_tables.sql creates PM OLTP tables: issues, sprints, boards, board_columns, issue_links with UUIDv7 primary keys and appropriate indexes</criterion>
+    <criterion id="AC4">Migration V3__create_shared_tables.sql creates shared tables: users, roles, user_roles, teams, approvals, workflow_states, audit_log, and outbox (transactional event log)</criterion>
+    <criterion id="AC5">Migration V4__create_read_models.sql creates CQRS-lite read models: ticket_card, sla_tracking, related_incidents, queue_row, issue_card, sprint_summary with denormalized fields for &lt;200ms p95 queries</criterion>
+    <criterion id="AC6">All migrations execute successfully against local Docker Compose PostgreSQL 16+ instance</criterion>
+    <criterion id="AC7">Integration test with Testcontainers validates schema creation, table existence, and basic CRUD operations</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/epics/epic-1-foundation-tech-spec.md</path>
+        <title>Epic 1 Foundation Technical Specification</title>
+        <section>Database Design: CQRS-Lite Pattern (lines 360-714)</section>
+        <snippet>Complete SQL schema definitions for all 28 tables: 5 ITSM OLTP (tickets, incidents, service_requests, ticket_comments, routing_rules) + 5 PM OLTP (issues, sprints, boards, board_columns, issue_links) + 8 Shared (users, roles, user_roles, teams, approvals, workflow_states, audit_log, outbox) + 6 Read Models (ticket_card, sla_tracking, related_incidents, queue_row, issue_card, sprint_summary). Includes UUIDv7 implementation guide, optimistic locking patterns, transactional outbox pattern, and CQRS-lite read model update strategy.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics/epic-1-foundation-tech-spec.md</path>
+        <title>Epic 1 Foundation Technical Specification</title>
+        <section>UUIDv7 Entity Implementation (lines 723-796)</section>
+        <snippet>Hibernate 7.0+ @UuidGenerator(style = Style.VERSION_7) usage for time-ordered, globally unique primary keys. Example Ticket entity with @Id, @Version for optimistic locking, and FK relationships. UUIDv7 provides 6.6x better B-tree index performance vs UUIDv4 due to time-ordered structure per RFC 9562.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics/epic-1-foundation-tech-spec.md</path>
+        <title>Epic 1 Foundation Technical Specification</title>
+        <section>Database & Persistence Configuration (lines 363-374)</section>
+        <snippet>PostgreSQL 16+ sizing: 4 vCPU, 16GB RAM, 500GB SSD. High Availability via streaming replication (active-passive). HikariCP connection pool with maximumPoolSize=50. Schema strategy: OLTP tables (normalized source of truth) + Read Models (denormalized for hot reads, updated by Event Worker).</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture/architecture-blueprint.md</path>
+        <title>Architecture Blueprint - SynergyFlow</title>
+        <section>C4 System Context and Deployment</section>
+        <snippet>Modulith + Companions deployment pattern. Backend App (HTTP/SSE), Event Worker (outbox drainer), Timer/SLA Service (durable scheduler), Search Indexer (OpenSearch). PostgreSQL 16 as primary datastore, Redis Streams for event fan-out, Keycloak for authentication.</snippet>
+      </doc>
+      <doc>
+        <path>docs/product/prd.md</path>
+        <title>Product Requirements Document</title>
+        <section>Database & Persistence (lines 503-516)</section>
+        <snippet>PostgreSQL 16+ primary datastore. OLTP tables (normalized) for domain writes. Read models (denormalized) for hot reads. Flyway for versioned schema migrations. Continuous WAL archiving to S3. RPO: 15 minutes, RTO: 4 hours.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/story-1.1.md</path>
+        <title>Story 1.1: Initialize Monorepo Structure</title>
+        <section>Completion Notes</section>
+        <snippet>Docker Compose PostgreSQL service defined in infrastructure/docker-compose.yml with synergyflow database, postgres:16 image, port 5432.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/story-1.2.md</path>
+        <title>Story 1.2: Set up Spring Boot Modulith Architecture</title>
+        <section>Module Structure</section>
+        <snippet>8 modules established: itsm, pm, workflow, security, eventing, sla, sse, audit. Each has api/, spi/, internal/, events/ subdirectories. Spring Modulith 1.2.4 with build-time verification tests (ModularityTests.java, ArchUnitTests.java). JPA entities will go in module internal/domain/ packages.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>backend/build.gradle.kts</path>
+        <kind>build</kind>
+        <symbol>dependencies block</symbol>
+        <lines>20-30</lines>
+        <reason>Current dependencies include spring-boot-starter-data-jpa (line 22) and postgresql driver (line 24). Story 1.3 must add org.flywaydb:flyway-core and org.flywaydb:flyway-database-postgresql dependencies here.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/build.gradle.kts</path>
+        <kind>build</kind>
+        <symbol>testImplementation dependencies</symbol>
+        <lines>26-28</lines>
+        <reason>Testcontainers dependencies needed for AC7 integration test. Add org.testcontainers:postgresql and org.testcontainers:testcontainers-bom to testImplementation.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/main/java/io/monosense/synergyflow/SynergyFlowApplication.java</path>
+        <kind>main-class</kind>
+        <symbol>@SpringBootApplication</symbol>
+        <lines>1-15</lines>
+        <reason>Main Spring Boot entry point. When application starts, Flyway will auto-run migrations if spring.flyway.enabled=true in application.yml.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/main/java/io/monosense/synergyflow/itsm/package-info.java</path>
+        <kind>module-declaration</kind>
+        <symbol>@ApplicationModule(displayName = "ITSM Module")</symbol>
+        <lines>1-10</lines>
+        <reason>ITSM module where JPA entities (Ticket, Incident, ServiceRequest, TicketComment) will be placed in internal/domain/ subdirectory in Story 1.4+.</reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/main/java/io/monosense/synergyflow/pm/package-info.java</path>
+        <kind>module-declaration</kind>
+        <symbol>@ApplicationModule(displayName = "PM Module")</symbol>
+        <lines>1-10</lines>
+        <reason>PM module where JPA entities (Issue, Sprint, Board, BoardColumn, IssueLink) will be placed in internal/domain/ subdirectory in Story 1.4+.</reason>
+      </artifact>
+      <artifact>
+        <path>infrastructure/docker-compose.yml</path>
+        <kind>docker-compose</kind>
+        <symbol>postgres service</symbol>
+        <lines>4-14</lines>
+        <reason>PostgreSQL 16 container for local development. Database: synergyflow, User: synergyflow, Password: synergyflow, Port: 5432. Used for AC6 manual migration testing.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <backend type="gradle">
+        <dependency>org.springframework.boot:spring-boot-starter-web:3.4.0</dependency>
+        <dependency>org.springframework.boot:spring-boot-starter-data-jpa:3.4.0</dependency>
+        <dependency>org.springframework.modulith:spring-modulith-starter-core:1.2.4</dependency>
+        <dependency>org.postgresql:postgresql:42.7.3</dependency>
+        <dependency>org.springframework.boot:spring-boot-starter-test:3.4.0 (test)</dependency>
+        <dependency>org.springframework.modulith:spring-modulith-starter-test:1.2.4 (test)</dependency>
+        <dependency>com.tngtech.archunit:archunit-junit5:1.3.0 (test)</dependency>
+        <dependency>REQUIRED: org.flywaydb:flyway-core (missing - add in this story)</dependency>
+        <dependency>REQUIRED: org.flywaydb:flyway-database-postgresql (missing - add in this story)</dependency>
+        <dependency>REQUIRED: org.testcontainers:postgresql (missing - add in this story for AC7)</dependency>
+        <dependency>REQUIRED: org.testcontainers:junit-jupiter (missing - add in this story for AC7)</dependency>
+      </backend>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="architecture">Spring Boot Modulith pattern enforced via @ApplicationModule annotations. Database migrations belong in shared infrastructure, NOT in individual modules. Place migrations in backend/src/main/resources/db/migration/ (global resource directory).</constraint>
+    <constraint type="schema">All primary keys MUST use UUID type with application-generated UUIDv7 via Hibernate @UuidGenerator(style = Style.VERSION_7). Database columns defined as UUID, NOT VARCHAR(36). Application generates IDs to ensure same ID is used in domain logic and outbox events.</constraint>
+    <constraint type="migration">Flyway migrations are immutable once applied to production. Never modify existing V1, V2, V3, V4 migration files. New schema changes require new migration files (V5, V6, etc.). Migration naming convention: V{version}__{description}.sql (double underscore).</constraint>
+    <constraint type="locking">All OLTP tables MUST include version BIGINT NOT NULL DEFAULT 1 column for Hibernate optimistic locking. Prevents lost updates in concurrent scenarios. Application increments version on each update; database rejects if version mismatch.</constraint>
+    <constraint type="outbox">Transactional outbox pattern requires outbox table with id BIGSERIAL PRIMARY KEY for FIFO ordering, processed_at TIMESTAMP for at-least-once delivery, and UNIQUE constraint on (aggregate_id, version) for idempotency.</constraint>
+    <constraint type="read-models">CQRS-lite read models (V4 migration) are denormalized copies updated by Event Worker. Include version BIGINT column for idempotent updates. Event Worker drops stale events by comparing version numbers.</constraint>
+    <constraint type="indexes">Critical indexes required: idx_tickets_status, idx_issues_status, idx_outbox_unprocessed (partial WHERE processed_at IS NULL), idx_sla_due_at (partial WHERE NOT paused), idx_ticket_card_sla_due (with NULLS LAST). Indexes drive query performance targets: queue loads &lt;200ms p95, side-panel hydration &lt;300ms p95.</constraint>
+    <constraint type="testing">Integration tests MUST use Testcontainers with real PostgreSQL 16 container, NOT H2 or in-memory mocks. Ensures schema compatibility with production database. Tests validate Flyway execution, table existence, and index creation.</constraint>
+    <constraint type="config">Flyway configuration in application.yml: spring.flyway.enabled=true, spring.flyway.locations=classpath:db/migration. Default baseline-on-migrate=false to prevent accidental production baselining.</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>Flyway API</name>
+      <kind>library</kind>
+      <signature>org.flywaydb.core.Flyway - Spring Boot auto-configuration via spring.flyway.* properties</signature>
+      <path>external:org.flywaydb:flyway-core</path>
+      <usage>Migrations auto-execute on Spring Boot startup when spring.flyway.enabled=true. Flyway scans classpath:db/migration for V*.sql files, tracks applied migrations in flyway_schema_history table.</usage>
+    </interface>
+    <interface>
+      <name>Hibernate UUIDv7 Generator</name>
+      <kind>annotation</kind>
+      <signature>@UuidGenerator(style = Style.VERSION_7) on @Id fields</signature>
+      <path>external:org.hibernate.annotations.UuidGenerator</path>
+      <usage>Generates time-ordered, globally unique UUIDs per RFC 9562. Place on @Id UUID fields in JPA entities. Hibernate inserts generated UUID before persist, making ID available immediately after save() call.</usage>
+    </interface>
+    <interface>
+      <name>JPA @Version</name>
+      <kind>annotation</kind>
+      <signature>@Version on Long/BigInteger version fields</signature>
+      <path>external:jakarta.persistence.Version</path>
+      <usage>Enables optimistic locking. Hibernate auto-increments version on each update. If version mismatch (concurrent update), throws OptimisticLockException. Maps to version BIGINT NOT NULL columns in migrations.</usage>
+    </interface>
+    <interface>
+      <name>Testcontainers PostgreSQL</name>
+      <kind>test-library</kind>
+      <signature>@Container static PostgreSQLContainer&lt;?&gt; postgres = new PostgreSQLContainer&lt;&gt;("postgres:16-alpine")</signature>
+      <path>external:org.testcontainers:postgresql</path>
+      <usage>Spins up real PostgreSQL Docker container for integration tests. Use @DynamicPropertySource to override spring.datasource.url with container URL. Container auto-stops after tests complete.</usage>
+    </interface>
+    <interface>
+      <name>JdbcTemplate</name>
+      <kind>spring-bean</kind>
+      <signature>org.springframework.jdbc.core.JdbcTemplate - autowire in @SpringBootTest integration tests</signature>
+      <path>external:org.springframework.boot:spring-boot-starter-data-jpa</path>
+      <usage>Execute raw SQL queries in integration tests to validate table existence, index creation, and Flyway migration success. Example: jdbcTemplate.queryForObject("SELECT COUNT(*) FROM flyway_schema_history", Integer.class)</usage>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Integration tests use Testcontainers with real PostgreSQL 16 container to validate Flyway migrations. Tests verify: (1) flyway_schema_history table shows 4 successful migrations, (2) All 28 tables exist via information_schema.tables query, (3) Critical indexes exist via pg_indexes query. Test class annotated with @SpringBootTest and @Testcontainers. Uses @DynamicPropertySource to inject container datasource URL. JUnit 5 (Jupiter) framework with standard Spring Boot Test dependency. No business logic tests yet - Story 1.3 validates schema only. JPA entity and repository tests deferred to Story 1.4+.</standards>
+    <locations>
+      <location>backend/src/test/java/io/monosense/synergyflow/DatabaseSchemaIntegrationTest.java - NEW file for AC7</location>
+      <location>backend/src/test/java/io/monosense/synergyflow/ModularityTests.java - existing from Story 1.2, no changes needed</location>
+      <location>backend/src/test/java/io/monosense/synergyflow/ArchUnitTests.java - existing from Story 1.2, no changes needed</location>
+    </locations>
+    <ideas>
+      <idea ac="AC1">Test: Verify Flyway auto-configuration by checking Spring Boot logs for "Migrating schema" message during application startup</idea>
+      <idea ac="AC1">Test: testFlywayMigrationsExecuted() - Query flyway_schema_history table and assert 4 rows with success=true</idea>
+      <idea ac="AC2">Test: testItsmTablesCreated() - Query information_schema.tables for tickets, incidents, service_requests, ticket_comments, routing_rules and assert all exist</idea>
+      <idea ac="AC3">Test: testPmTablesCreated() - Query information_schema.tables for issues, sprints, boards, board_columns, issue_links and assert all exist</idea>
+      <idea ac="AC4">Test: testSharedTablesCreated() - Query information_schema.tables for users, roles, user_roles, teams, approvals, workflow_states, audit_log, outbox and assert all exist</idea>
+      <idea ac="AC5">Test: testReadModelsCreated() - Query information_schema.tables for ticket_card, sla_tracking, related_incidents, queue_row, issue_card, sprint_summary and assert all exist</idea>
+      <idea ac="AC6">Manual test: docker-compose up -d postgres &amp;&amp; ./gradlew bootRun &amp;&amp; psql -h localhost -U synergyflow -d synergyflow -c "\\dt" | wc -l should show 28+ lines (28 tables + header)</idea>
+      <idea ac="AC7">Test: testIndexesCreated() - Query pg_indexes WHERE indexname IN ('idx_tickets_status', 'idx_outbox_unprocessed', 'idx_sla_due_at', 'idx_ticket_card_sla_due') and assert COUNT(*)=4+</idea>
+      <idea ac="AC7">Test: testOutboxUniqueConstraint() - Attempt to insert duplicate (aggregate_id, version) and assert SQLException with "unique constraint" message</idea>
+      <idea ac="AC7">Test: testTicketsVersionColumn() - Insert ticket row, update it, query version column and assert value=2 (incremented from default 1)</idea>
+    </ideas>
+  </tests>
+</story-context>

@@ -54,4 +54,4 @@ coverage/
 # Qodana
 .qodana/
 qodana.sarif.json
-qodana-results/
+qodana-results/backend/.env

@@ -43,6 +43,30 @@ cd infrastructure
 docker-compose up -d
 ```
 
+### Authentication & Authorization
+
+- The backend acts as an OAuth2 Resource Server and validates JWT tokens issued by Keycloak.
+- Import the `infrastructure/keycloak/synergyflow-realm.json` realm (contains roles and test users) into your local Keycloak instance.
+- Required environment variables (defaults already provided in `backend/src/main/resources/application.yml`):
+  - `KEYCLOAK_ISSUER_URI=http://localhost:8080/realms/synergyflow`
+  - `KEYCLOAK_JWK_SET_URI=http://localhost:8080/realms/synergyflow/protocol/openid-connect/certs`
+- Obtain a token and call the secured health endpoint:
+
+```bash
+# Request access token using direct grant (test credentials)
+TOKEN=$(curl -s -X POST http://localhost:8080/realms/synergyflow/protocol/openid-connect/token \
+  -d "client_id=synergyflow-backend" \
+  -d "client_secret=synergyflow-secret-change-in-production" \
+  -d "grant_type=password" \
+  -d "username=admin@test.com" \
+  -d "password=admin123" | jq -r .access_token)
+
+# Call secured actuator endpoint (requires valid JWT)
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/actuator/health
+```
+
+The `/actuator/health` endpoint responds with `{"status":"UP"}` only when a valid Bearer token is supplied.
+
 ## Project Structure
 
 ```

@@ -1,0 +1,297 @@
+<story-context id="story-1.4-keycloak-oidc-authentication" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>4</storyId>
+    <title>Integrate Keycloak OIDC Authentication</title>
+    <status>Draft</status>
+    <generatedAt>2025-10-07</generatedAt>
+    <generator>BMAD Story Context Workflow v6</generator>
+    <sourceStoryPath>docs/stories/story-1.4.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>Development Team</asA>
+    <iWant>integrate Keycloak OIDC authentication with JWT validation and role-based access control</iWant>
+    <soThat>the application can authenticate users via OAuth2/OIDC and enforce RBAC for API endpoints based on Keycloak roles</soThat>
+    <tasks>
+      - Task 1: Add OAuth2 Resource Server dependency
+      - Task 2: Configure Keycloak connection in application.yml
+      - Task 3: Create SecurityConfig.java
+      - Task 4: Create JwtValidator.java
+      - Task 5: Create RoleMapper.java
+      - Task 6: Configure Keycloak realm and roles
+      - Task 7: Create integration test for authentication flow
+      - Task 8: Update documentation and verify build
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC1">Spring Security OAuth2 Resource Server dependency (spring-boot-starter-oauth2-resource-server) is added to build.gradle.kts</criterion>
+    <criterion id="AC2">SecurityConfig.java is created in the security module configuring JWT validation with Keycloak issuer URI and JWK set endpoint</criterion>
+    <criterion id="AC3">JwtValidator.java service is implemented to decode JWT tokens and extract claims (subject, roles, email)</criterion>
+    <criterion id="AC4">RoleMapper.java service is implemented to map Keycloak realm roles to application roles: ADMIN, ITSM_AGENT, DEVELOPER, MANAGER, EMPLOYEE</criterion>
+    <criterion id="AC5">/actuator/health endpoint is secured and returns 200 OK only with valid JWT Bearer token</criterion>
+    <criterion id="AC6">RBAC roles are configured in Keycloak realm: ADMIN, ITSM_AGENT, DEVELOPER, MANAGER, EMPLOYEE</criterion>
+    <criterion id="AC7">Integration test validates complete authentication flow: obtain JWT from Keycloak → call secured endpoint → verify role mapping → assert 200 OK response</criterion>
+    <criterion id="AC8">Integration test validates unauthorized access returns 401 Unauthorized without JWT token</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/epics/epic-1-foundation-tech-spec.md</path>
+        <title>Epic 1 Foundation Tech Spec - Story 1.4</title>
+        <section>Week 1: Project Setup & Database Foundation - Story 1.4</section>
+        <snippet>
+          Story 1.4: Integrate Keycloak OIDC authentication
+          - Add spring-boot-starter-oauth2-resource-server dependency
+          - Configure SecurityConfig.java with JWT validation
+          - Create JwtValidator.java to decode and validate Keycloak tokens
+          - Create RoleMapper.java to map Keycloak roles to application roles
+          - Add integration test: authenticate with Keycloak, validate JWT, check roles
+          - Configure RBAC: Admin, ITSM_Agent, Developer, Manager, Employee
+
+          Acceptance Criteria:
+          - ✅ Authenticated /actuator/health endpoint returns 200 OK with JWT token
+          - ✅ Integration test validates Keycloak JWT and RBAC roles
+        </snippet>
+        <lines>1764-1782</lines>
+      </doc>
+      <doc>
+        <path>docs/epics/epic-1-foundation-tech-spec.md</path>
+        <title>Security Module Package Structure</title>
+        <section>Source Tree - Security Module</section>
+        <snippet>
+          security/                  # Security Module (authentication & authorization)
+          ├── api/                   # Public security APIs
+          │   ├── JwtValidator.java
+          │   ├── RoleMapper.java
+          │   └── BatchAuthService.java
+          ├── internal/
+          │   ├── KeycloakClient.java
+          │   └── AclCacheManager.java
+          ├── config/                # Spring Security configuration
+          │   └── SecurityConfig.java
+          └── package-info.java
+        </snippet>
+        <lines>77-87</lines>
+      </doc>
+      <doc>
+        <path>docs/architecture/module-boundaries.md</path>
+        <title>Module Boundaries - Security Module</title>
+        <section>Allowed Dependencies Matrix</section>
+        <snippet>
+          Security Module:
+          - May Depend On: audit
+          - Provides @NamedInterface: io.monosense.synergyflow.security.api.BatchAuthService
+          - Used by: itsm, pm, workflow, sse modules
+
+          Enforcement:
+          - Cross-module calls must go via spi/ packages annotated with @NamedInterface
+          - internal/ packages are not referenced from other modules
+        </snippet>
+        <lines>15, 30</lines>
+      </doc>
+      <doc>
+        <path>docs/epics/epic-1-foundation-tech-spec.md</path>
+        <title>Technology Stack - Spring Security</title>
+        <section>Tech Stack Summary</section>
+        <snippet>
+          - Spring Security 6.x + OAuth2 Resource Server
+          - Keycloak integration for authentication and authorization
+          - JWT token validation with JWK endpoint
+          - Stateless authentication (no sessions)
+        </snippet>
+        <lines>986-987</lines>
+      </doc>
+      <doc>
+        <path>docs/epics/epic-1-foundation-tech-spec.md</path>
+        <title>Testing Strategy - Integration Tests</title>
+        <section>Integration Tests with Testcontainers</section>
+        <snippet>
+          Integration Tests (Spring Boot Test + Testcontainers)
+
+          Scope: Test database interactions, outbox pattern, Event Worker, SSE gateway, batch auth
+
+          Testcontainers Configuration:
+          @SpringBootTest
+          @Testcontainers
+
+          Examples:
+          - OutboxIntegrationTest.java
+          - EventWorkerIntegrationTest.java
+          - SseGatewayIntegrationTest.java
+          - ReadModelIntegrationTest.java
+        </snippet>
+        <lines>1916-1929</lines>
+      </doc>
+      <doc>
+        <path>docs/epics/epic-1-foundation-tech-spec.md</path>
+        <title>Testing Strategy - Unit Tests</title>
+        <section>Unit Tests with JUnit 5 + Mockito</section>
+        <snippet>
+          Unit Tests (JUnit 5 + Mockito)
+
+          Target Coverage: >80% for domain logic
+
+          Examples:
+          - TicketServiceTest.java
+          - SlaCalculatorTest.java
+          - RuleEvaluatorTest.java
+          - BatchAuthServiceTest.java: Test batch authorization with mocked Keycloak
+
+          Run: ./gradlew test
+        </snippet>
+        <lines>1901-1914</lines>
+      </doc>
+      <doc>
+        <path>backend/src/main/resources/application.yml</path>
+        <title>Application Configuration</title>
+        <section>Spring Configuration</section>
+        <snippet>
+          spring:
+            application:
+              name: synergyflow
+            datasource:
+              url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:synergyflow}
+            jpa:
+              database-platform: org.hibernate.dialect.PostgreSQLDialect
+            flyway:
+              enabled: true
+              locations: classpath:db/migration
+        </snippet>
+        <lines>1-31</lines>
+      </doc>
+      <doc>
+        <path>docs/product/prd.md</path>
+        <title>Product Requirements - Security & RBAC</title>
+        <section>Non-Functional Requirements (inferred)</section>
+        <snippet>
+          RBAC roles required for the platform:
+          - Admin: Full system access
+          - ITSM_Agent: Ticket/incident management operations
+          - Developer: PM/issue tracking operations
+          - Manager: Approval workflow operations
+          - Employee: Self-service request submission
+        </snippet>
+        <lines>N/A - inferred from epic context</lines>
+      </doc>
+    </docs>
+
+    <code>
+      <file>
+        <path>backend/src/main/java/io/monosense/synergyflow/security/package-info.java</path>
+        <kind>module-declaration</kind>
+        <symbol>@ApplicationModule</symbol>
+        <lines>1-14</lines>
+        <reason>Security module is already declared with @ApplicationModule annotation. This story adds authentication functionality to this existing module structure.</reason>
+      </file>
+      <file>
+        <path>backend/build.gradle.kts</path>
+        <kind>build-configuration</kind>
+        <symbol>dependencies</symbol>
+        <lines>20-35</lines>
+        <reason>Current dependencies include Spring Boot starters (web, data-jpa), Spring Modulith, PostgreSQL, Flyway. Need to add spring-boot-starter-oauth2-resource-server for OAuth2/OIDC support.</reason>
+      </file>
+      <file>
+        <path>backend/src/test/java/io/monosense/synergyflow/DatabaseSchemaIntegrationTest.java</path>
+        <kind>integration-test</kind>
+        <symbol>@SpringBootTest @Testcontainers</symbol>
+        <lines>1-50</lines>
+        <reason>Reference integration test pattern using Testcontainers. Story 1.4 integration test should follow similar pattern with Keycloak container or WireMock.</reason>
+      </file>
+      <file>
+        <path>backend/src/main/resources/application.yml</path>
+        <kind>configuration</kind>
+        <symbol>spring configuration</symbol>
+        <lines>1-38</lines>
+        <reason>Need to add OAuth2 Resource Server configuration properties: spring.security.oauth2.resourceserver.jwt.issuer-uri and jwk-set-uri</reason>
+      </file>
+    </code>
+
+    <dependencies>
+      <gradle>
+        <dependency name="spring-boot-starter-web" version="3.4.0" scope="implementation"/>
+        <dependency name="spring-boot-starter-data-jpa" version="3.4.0" scope="implementation"/>
+        <dependency name="spring-modulith-starter-core" version="1.2.4" scope="implementation"/>
+        <dependency name="postgresql" version="42.7.x" scope="implementation"/>
+        <dependency name="flyway-core" version="10.x" scope="implementation"/>
+        <dependency name="flyway-database-postgresql" version="10.x" scope="implementation"/>
+        <dependency name="spring-boot-starter-test" version="3.4.0" scope="test"/>
+        <dependency name="spring-boot-testcontainers" version="3.4.0" scope="test"/>
+        <dependency name="spring-modulith-starter-test" version="1.2.4" scope="test"/>
+        <dependency name="archunit-junit5" version="1.3.0" scope="test"/>
+        <dependency name="testcontainers-postgresql" version="1.20.4" scope="test"/>
+        <dependency name="testcontainers-junit-jupiter" version="1.20.4" scope="test"/>
+      </gradle>
+      <note>Story 1.4 requires adding: spring-boot-starter-oauth2-resource-server (implementation scope)</note>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="architecture">Security module must follow modulith pattern with api/ package for public interfaces and internal/ package for implementation details (enforced by ArchUnit tests)</constraint>
+    <constraint type="architecture">Security module is a leaf module - depends only on audit module, provides services to itsm, pm, workflow, sse modules via @NamedInterface APIs</constraint>
+    <constraint type="security">Application acts as OAuth2 Resource Server (not Authorization Server) - Keycloak handles token issuance</constraint>
+    <constraint type="security">Stateless authentication via JWT Bearer tokens - no server-side session management</constraint>
+    <constraint type="security">JWT validation uses JWK public key from Keycloak JWKS endpoint for signature verification</constraint>
+    <constraint type="testing">Integration tests must use Testcontainers for realistic environment simulation or WireMock as lightweight alternative</constraint>
+    <constraint type="testing">Unit tests must achieve >80% coverage for domain logic (JwtValidator, RoleMapper services)</constraint>
+    <constraint type="configuration">All external service URLs must use environment variable placeholders with sensible defaults for local development</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>JwtValidator</name>
+      <kind>service-api</kind>
+      <signature>validateAndExtractClaims(String token) → JwtClaims</signature>
+      <package>io.monosense.synergyflow.security.api</package>
+      <description>Public API for validating JWT tokens and extracting claims (subject, roles, email). Used by other modules for authentication.</description>
+    </interface>
+    <interface>
+      <name>RoleMapper</name>
+      <kind>service-api</kind>
+      <signature>mapKeycloakRolesToAppRoles(List&lt;String&gt; keycloakRoles) → Set&lt;String&gt;</signature>
+      <package>io.monosense.synergyflow.security.api</package>
+      <description>Public API for mapping Keycloak realm roles to application roles. Used for RBAC enforcement.</description>
+    </interface>
+    <interface>
+      <name>SecurityFilterChain</name>
+      <kind>spring-security-config</kind>
+      <signature>@Bean SecurityFilterChain filterChain(HttpSecurity http)</signature>
+      <package>io.monosense.synergyflow.security.config</package>
+      <description>Spring Security configuration bean defining authentication and authorization rules for HTTP endpoints.</description>
+    </interface>
+    <interface>
+      <name>JwtDecoder</name>
+      <kind>spring-security-bean</kind>
+      <signature>Auto-configured by spring-boot-starter-oauth2-resource-server</signature>
+      <package>org.springframework.security.oauth2.jwt</package>
+      <description>Auto-configured bean that validates JWT signatures using Keycloak JWK endpoint. Injected into JwtValidator service.</description>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Unit tests use JUnit 5 with Mockito for mocking dependencies. Integration tests use Spring Boot Test with Testcontainers for realistic environment simulation. Test classes follow naming convention *Test.java for unit tests and *IntegrationTest.java for integration tests. Target code coverage is >80% for domain logic. All tests run via ./gradlew test and must pass before commits.
+    </standards>
+
+    <locations>
+      <location>backend/src/test/java/io/monosense/synergyflow/security/</location>
+      <location>backend/src/test/java/io/monosense/synergyflow/security/api/</location>
+      <location>backend/src/test/java/io/monosense/synergyflow/security/config/</location>
+      <pattern>**/*Test.java for unit tests</pattern>
+      <pattern>**/*IntegrationTest.java for integration tests</pattern>
+    </locations>
+
+    <ideas>
+      <idea ac="AC1">Unit test to verify spring-boot-starter-oauth2-resource-server dependency is present in classpath (can check for JwtDecoder bean availability)</idea>
+      <idea ac="AC2">Unit test for SecurityConfig: verify SecurityFilterChain bean is created with correct configuration (OAuth2 resource server enabled, /actuator/health secured)</idea>
+      <idea ac="AC3">Unit test for JwtValidator: mock JwtDecoder, provide sample JWT claims, verify extraction of sub, roles, email fields. Test error handling for invalid/expired tokens.</idea>
+      <idea ac="AC4">Unit test for RoleMapper: provide various Keycloak role lists, verify correct mapping to application roles. Test case-insensitive matching and unknown role handling.</idea>
+      <idea ac="AC5">Integration test: start application with Testcontainers, attempt to access /actuator/health without token (expect 401), then with valid JWT (expect 200 OK)</idea>
+      <idea ac="AC6">Manual setup task + optional integration test to verify Keycloak realm configuration via Keycloak Admin API</idea>
+      <idea ac="AC7">Integration test SecurityIntegrationTest: use Keycloak Testcontainer or WireMock to mock JWKS endpoint, obtain JWT token, call secured endpoint, verify role extraction and 200 OK response</idea>
+      <idea ac="AC8">Integration test SecurityIntegrationTest: send request to /actuator/health without Authorization header, assert 401 Unauthorized response</idea>
+    </ideas>
+  </tests>
+</story-context>

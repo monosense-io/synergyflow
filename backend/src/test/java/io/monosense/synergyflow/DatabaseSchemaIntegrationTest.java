@@ -43,26 +43,27 @@ class DatabaseSchemaIntegrationTest {
 
     @Test
     void testFlywayMigrationsExecuted() {
-        // AC1: Verify 5 migrations executed successfully
+        // AC1: Verify 7 migrations executed successfully (V6 added for SINGLE_TABLE refactoring, V7 for ticket_comments/routing_rules refactoring)
         Integer migrationCount = jdbcTemplate.queryForObject(
             "SELECT COUNT(*) FROM flyway_schema_history WHERE success = true",
             Integer.class
         );
-        assertThat(migrationCount).isEqualTo(5);
+        assertThat(migrationCount).isEqualTo(7);
 
         // Verify migration versions in order
         List<String> versions = jdbcTemplate.queryForList(
             "SELECT version FROM flyway_schema_history WHERE success = true ORDER BY installed_rank",
             String.class
         );
-        assertThat(versions).containsExactly("1", "2", "3", "4", "5");
+        assertThat(versions).containsExactly("1", "2", "3", "4", "5", "6", "7");
     }
 
     @Test
     void testItsmTablesCreated() {
         // AC2: Verify ITSM OLTP tables exist
+        // Note: After Story 2.1, incidents and service_requests tables removed (SINGLE_TABLE inheritance in tickets table)
         List<String> itsmTables = List.of(
-            "tickets", "incidents", "service_requests", "ticket_comments", "routing_rules"
+            "tickets", "ticket_comments", "routing_rules"
         );
 
         for (String tableName : itsmTables) {
@@ -81,6 +82,14 @@ class DatabaseSchemaIntegrationTest {
             String.class
         );
         assertThat(ticketsIdType).isEqualTo("uuid");
+
+        // Verify tickets table has ticket_type discriminator column for SINGLE_TABLE inheritance (Story 2.1)
+        String ticketTypeColumn = jdbcTemplate.queryForObject(
+            "SELECT data_type FROM information_schema.columns " +
+            "WHERE table_name = 'tickets' AND column_name = 'ticket_type'",
+            String.class
+        );
+        assertThat(ticketTypeColumn).isEqualTo("character varying");
     }
 
     @Test
@@ -208,8 +217,10 @@ class DatabaseSchemaIntegrationTest {
     @Test
     void testOptimisticLockingColumns() {
         // AC7: Verify all OLTP tables have version column for optimistic locking
+        // Note: After Story 2.1, incidents and service_requests tables removed (SINGLE_TABLE inheritance)
+        // Note: ticket_comments excluded (immutable, no version column needed)
         List<String> olptTables = List.of(
-            "tickets", "incidents", "service_requests", "ticket_comments", "routing_rules",
+            "tickets", "routing_rules",
             "issues", "sprints", "boards", "board_columns", "issue_links",
             "users", "roles", "user_roles", "teams", "approvals", "workflow_states"
         );
@@ -234,13 +245,14 @@ class DatabaseSchemaIntegrationTest {
 
     @Test
     void testTableCount() {
-        // Verify total table count: 24 domain tables + 1 flyway_schema_history = 25
-        // Breakdown: V1=5 ITSM, V2=5 PM, V3=8 shared, V4=6 read models
+        // Verify total table count: 22 domain tables + 1 flyway_schema_history = 23
+        // Breakdown: V1=5 ITSM → V6=3 ITSM (after SINGLE_TABLE refactoring), V2=5 PM, V3=8 shared, V4=6 read models
+        // V6 drops incidents and service_requests tables (SINGLE_TABLE inheritance in tickets)
         Integer tableCount = jdbcTemplate.queryForObject(
             "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public'",
             Integer.class
         );
-        assertThat(tableCount).isEqualTo(25);
+        assertThat(tableCount).isEqualTo(23);
     }
 
     @Test
@@ -251,7 +263,7 @@ class DatabaseSchemaIntegrationTest {
             "SELECT version, description, checksum, success FROM flyway_schema_history ORDER BY installed_rank"
         );
 
-        assertThat(migrations).hasSize(5);
+        assertThat(migrations).hasSize(7); // V7 added for Story 2.1 Task 3 (ticket_comments/routing_rules refactoring)
 
         // Verify all migrations succeeded
         for (Map<String, Object> migration : migrations) {
@@ -271,5 +283,7 @@ class DatabaseSchemaIntegrationTest {
         assertThat(migrations.get(2).get("description")).isEqualTo("create shared tables");
         assertThat(migrations.get(3).get("description")).isEqualTo("create read models");
         assertThat(migrations.get(4).get("description")).isEqualTo("add foreign key constraints");
+        assertThat(migrations.get(5).get("description")).isEqualTo("refactor tickets single table inheritance");
+        assertThat(migrations.get(6).get("description")).isEqualTo("add ticket comments and routing rules");
     }
 }

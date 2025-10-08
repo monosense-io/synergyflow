@@ -5,6 +5,12 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.monosense.synergyflow.eventing.api.EventPublisher;
 import io.monosense.synergyflow.itsm.events.TicketAssigned;
 import io.monosense.synergyflow.itsm.events.TicketCreated;
+import io.monosense.synergyflow.itsm.internal.domain.Ticket;
+import io.monosense.synergyflow.itsm.internal.domain.TicketStatus;
+import io.monosense.synergyflow.itsm.internal.domain.Priority;
+import io.monosense.synergyflow.itsm.internal.domain.Incident;
+import io.monosense.synergyflow.itsm.internal.domain.Severity;
+import io.monosense.synergyflow.itsm.internal.repository.TicketRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -82,19 +88,30 @@ public class TicketService {
      * @throws DuplicateEventException if an event with the same aggregate ID and version already exists
      */
     @Transactional
-    public UUID createTicket(String title, String priority, UUID requesterId) {
-        // Create and save ticket
-        String ticketNumber = "T-" + System.currentTimeMillis(); // Simple ticket number generation
-        Ticket ticket = new Ticket(UUID.randomUUID(), ticketNumber, title, priority, requesterId);
+    public UUID createTicket(String title, String priorityString, UUID requesterId) {
+        // Map legacy string priority to enum (backwards compatibility)
+        Priority priority = Priority.valueOf(priorityString.toUpperCase());
+
+        // Create and save ticket (ID generated automatically by @UuidGenerator)
+        Ticket ticket = new Incident(
+                title,
+                null, // description
+                TicketStatus.NEW,
+                priority,
+                null, // category
+                requesterId,
+                null,  // assigneeId
+                (Severity) null // severity not set at creation
+        );
         ticket = repository.save(ticket);
 
-        // Prepare event payload
+        // Prepare event payload (removed ticketNumber field - not in new Ticket)
         TicketCreated event = new TicketCreated(
                 ticket.getId(),
-                ticket.getTicketNumber(),
+                "T-" + ticket.getId(), // Generate ticket number for event
                 ticket.getTitle(),
-                ticket.getStatus(),
-                ticket.getPriority(),
+                ticket.getStatus().name(),
+                ticket.getPriority().name(),
                 ticket.getRequesterId(),
                 ticket.getCreatedAt(),
                 ticket.getUpdatedAt()

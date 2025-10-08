@@ -2,6 +2,7 @@ import org.gradle.api.tasks.Exec
 
 plugins {
     java
+    // Upgrade Spring Boot; we’ll still force Hibernate 7 explicitly below
     id("org.springframework.boot") version "3.4.0"
     id("io.spring.dependency-management") version "1.1.6"
 }
@@ -31,6 +32,9 @@ configurations {
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+    implementation("org.springframework.boot:spring-boot-starter-validation")
+    // Force Hibernate ORM 7.x for UUIDv7 native support
+    implementation("org.hibernate.orm:hibernate-core:7.0.0.Final")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
     implementation("org.springframework.modulith:spring-modulith-starter-core")

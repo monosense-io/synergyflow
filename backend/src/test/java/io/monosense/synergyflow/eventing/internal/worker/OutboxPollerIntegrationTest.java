@@ -241,17 +241,18 @@ class OutboxPollerIntegrationTest {
     }
 
     private void insertTicket(UUID ticketId, UUID requesterId, String ticketNumber, Instant createdAt) {
+        // V6 migration removed ticket_number and updated allowed status values
         jdbcTemplate.update(
-                "INSERT INTO tickets (id, ticket_number, title, status, priority, requester_id, created_at, updated_at, version) " +
-                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)",
+                "INSERT INTO tickets (id, title, status, priority, requester_id, created_at, updated_at, version, ticket_type) " +
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)",
                 ticketId,
-                ticketNumber,
                 "Seed Ticket",
-                "OPEN",
+                "NEW",
                 "HIGH",
                 requesterId,
                 Timestamp.from(createdAt),
-                Timestamp.from(createdAt)
+                Timestamp.from(createdAt),
+                "INCIDENT"
         );
     }
 }

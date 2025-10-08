@@ -48,6 +48,8 @@ class ArchUnitTests {
         ArchRule rule = noClasses()
             .that().resideInAPackage("..internal..")
             .and().areNotAnnotatedWith(org.springframework.stereotype.Service.class)
+            // Allow domain model classes to be public across internal packages
+            .and().resideOutsideOfPackage("..internal.domain..")
             .should().bePublic()
             .allowEmptyShould(true)
             .because("Internal package classes should be package-private to enforce module boundaries; service classes are allowed to be public for Spring wiring and testing");

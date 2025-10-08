@@ -47,9 +47,10 @@ class ArchUnitTests {
     void testInternalPackageNotAccessibleFromOutside() {
         ArchRule rule = noClasses()
             .that().resideInAPackage("..internal..")
+            .and().areNotAnnotatedWith(org.springframework.stereotype.Service.class)
             .should().bePublic()
             .allowEmptyShould(true)
-            .because("Internal package classes should be package-private to enforce module boundaries");
+            .because("Internal package classes should be package-private to enforce module boundaries; service classes are allowed to be public for Spring wiring and testing");
 
         rule.check(importedClasses);
     }

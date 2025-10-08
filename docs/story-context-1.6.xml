@@ -1,0 +1,181 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>6</storyId>
+    <title>Event Worker (Outbox → Redis Stream + Read Models)</title>
+    <status>Approved</status>
+    <generatedAt>2025-10-07</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>/Users/monosense/repository/research/itsm/docs/stories/story-1.6.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>Development Team</asA>
+    <iWant>an Event Worker that drains the transactional outbox, publishes events to Redis Stream, and updates denormalized read models</iWant>
+    <soThat>downstream consumers (SSE gateway, Search Indexer) receive a reliable event stream and users see real-time updates via materialized views with &lt;200ms p95 query latency</soThat>
+    <tasks>
+      <task id="1" acs="AC1,AC4,AC8">
+        <description>Implement OutboxPoller</description>
+        <subtasks>
+          <subtask>Create `OutboxPoller` @Component with @Profile("worker")</subtask>
+          <subtask>Add @Scheduled(fixedDelay = ${synergyflow.outbox.polling.fixed-delay-ms:100})</subtask>
+          <subtask>Query `OutboxRepository.findUnprocessedBatch(limit)` - SELECT * FROM outbox WHERE processed_at IS NULL ORDER BY id LIMIT ?</subtask>
+          <subtask>For each event: call RedisStreamPublisher.publish() + ReadModelUpdater.update() + mark processed</subtask>
+          <subtask>Add Micrometer metrics: outbox_lag_rows (gauge), outbox_processing_time_ms (histogram)</subtask>
+          <subtask>Structured logging: INFO on batch completion with batch_size, processing_time_ms, lag_rows</subtask>
+        </subtasks>
+      </task>
+      <task id="2" acs="AC2,AC8">
+        <description>Implement RedisStreamPublisher</description>
+        <subtasks>
+          <subtask>Create `RedisStreamPublisher` @Component with Redisson RStream client</subtask>
+          <subtask>Publish to stream "domain-events" with maxlen 100000 (24-48h retention)</subtask>
+          <subtask>Serialize OutboxEvent envelope to JSON</subtask>
+          <subtask>Add @Retryable with maxAttempts=3, backoff exponential (1s, 2s, 4s) for transient Redis failures</subtask>
+          <subtask>Add metrics: outbox_events_published_total (counter with event_type tag), outbox_redis_publish_errors_total</subtask>
+          <subtask>Structured logging: WARN on retry attempts, ERROR if all retries exhausted</subtask>
+        </subtasks>
+      </task>
+      <task id="3" acs="AC3,AC6,AC8">
+        <description>Implement ReadModelUpdater with Event Handlers</description>
+        <subtasks>
+          <subtask>Create `ReadModelUpdater` @Service that routes events by event_type to handlers</subtask>
+          <subtask>Create `TicketCardHandler`: handle TicketCreated (INSERT ticket_card), TicketAssigned (UPDATE ticket_card SET assignee_name=?, updated_at=?, version=? WHERE ticket_id=? AND version &lt; ?)</subtask>
+          <subtask>Create `IssueCardHandler`: handle IssueCreated (INSERT queue_row + issue_card), IssueStateChanged (UPDATE issue_card SET status=?, updated_at=?, version=? WHERE issue_id=? AND version &lt; ?)</subtask>
+          <subtask>Create JPA entities if not exists: TicketCard, QueueRow, IssueCard (map to ticket_card, queue_row, issue_card tables from V4 migration)</subtask>
+          <subtask>Idempotency: Use version check in WHERE clause to prevent duplicate updates</subtask>
+          <subtask>Add metrics: outbox_read_model_updates_total (counter with event_type, model_name tags), outbox_read_model_update_errors_total</subtask>
+          <subtask>Error handling: Log ERROR if read model update fails, increment error metric, but still mark event as processed (to avoid blocking queue)</subtask>
+        </subtasks>
+      </task>
+      <task id="4" acs="AC5,AC8">
+        <description>Implement GapDetector</description>
+        <subtasks>
+          <subtask>Create `GapDetector` @Component with @Profile("worker")</subtask>
+          <subtask>Add @Scheduled(fixedRate = 60000) - run every 1 minute</subtask>
+          <subtask>Query OutboxRepository.findMaxProcessedId() and OutboxRepository.findGaps(maxProcessedId)</subtask>
+          <subtask>SQL: SELECT id FROM outbox WHERE id &lt; ? AND processed_at IS NULL ORDER BY id - detect missing IDs</subtask>
+          <subtask>If gaps found: Log ERROR with gap_start_id, gap_end_id, gap_size; increment outbox_gaps_detected_total metric</subtask>
+          <subtask>Don't block processing - gaps could be in-flight transactions</subtask>
+        </subtasks>
+      </task>
+      <task id="5" acs="AC7">
+        <description>Add Worker Profile Configuration</description>
+        <subtasks>
+          <subtask>Create application-worker.yml with spring.profiles.active=worker</subtask>
+          <subtask>Disable web server: spring.autoconfigure.exclude=[WebMvcAutoConfiguration]</subtask>
+          <subtask>Configure polling: synergyflow.outbox.polling.fixed-delay-ms=100, batch-size=100</subtask>
+          <subtask>Configure Redis: spring.redis.stream.domain-events (maxlen, consumer-group, consumer-name)</subtask>
+          <subtask>Configure retry: synergyflow.outbox.retry (max-attempts=3, initial-interval-ms=1000, multiplier=2.0)</subtask>
+          <subtask>Add Redisson dependency to build.gradle.kts: org.redisson:redisson-spring-boot-starter</subtask>
+        </subtasks>
+      </task>
+      <task id="6" acs="AC1,AC2,AC3,AC4,AC5,AC6">
+        <description>Add Integration Tests</description>
+        <subtasks>
+          <subtask>Create `OutboxPollerIntegrationTest` with Testcontainers (PostgreSQL + Redis)</subtask>
+          <subtask>Test: Insert outbox event → worker polls → verify Redis Stream receives event → verify read model updated → verify processed_at set</subtask>
+          <subtask>Test idempotency: Process same event twice → verify single read model row (version prevents duplicate update)</subtask>
+          <subtask>Test gap detection: Insert events with missing IDs (e.g., 1, 2, 4, 5) → verify gap alert (ID 3 missing)</subtask>
+          <subtask>Test Redis failure retry: Mock Redis failure → verify 3 retry attempts → verify event remains unprocessed</subtask>
+          <subtask>Test read model update failure: Simulate constraint violation → verify event still marked processed, error metric incremented</subtask>
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="1">Event Worker polls `outbox` table WHERE `processed_at IS NULL` in FIFO order (ORDER BY id) with configurable batch size (default 100 events), using @Scheduled(fixedDelay = 100) for 100ms polling interval</ac>
+    <ac id="2">For each unprocessed event, worker publishes event envelope to Redis Stream (topic: `domain-events`) with retry logic (max 3 attempts, exponential backoff 1s/2s/4s) for transient Redis failures</ac>
+    <ac id="3">Worker updates corresponding read models based on event type: TicketCreated → INSERT ticket_card, TicketAssigned → UPDATE ticket_card, IssueCreated → INSERT queue_row + issue_card, IssueStateChanged → UPDATE issue_card. Updates are idempotent (version-based: WHERE version &lt; ?)</ac>
+    <ac id="4">After successful Redis publish and read model update, worker marks event as processed (UPDATE outbox SET processed_at = now() WHERE id = ?). If Redis publish fails after retries, event remains unprocessed for next poll</ac>
+    <ac id="5">Gap detection runs every 60 seconds (@Scheduled(fixedRate = 60000)), detects missing sequence numbers between max processed ID and current max ID, logs ERROR and increments outbox_gaps_detected_total metric if gaps found</ac>
+    <ac id="6">Worker is idempotent - replaying an already-processed event (version ≤ current) results in 0 rows affected for UPDATE operations, preventing duplicate side effects</ac>
+    <ac id="7">Worker runs as Spring Boot application with @Profile("worker"), no HTTP server enabled (web autoconfiguration excluded), exposes only actuator endpoints for health checks and metrics</ac>
+    <ac id="8">Observability in place: outbox_lag_rows (gauge), outbox_processing_time_ms (histogram), outbox_events_published_total (counter), outbox_read_model_updates_total (counter), outbox_read_model_update_errors_total (counter), outbox_gaps_detected_total (counter), outbox_redis_publish_errors_total (counter); structured logging includes batch_size, processing_time_ms, lag_rows</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/epics/epic-1-foundation-tech-spec.md" section="Event Worker (lines 279-302)" relevance="Defines Event Worker deployment, responsibilities, technology stack, and success criteria">Event Worker is a companion service that polls transactional outbox, publishes to Redis Stream, updates read models. Deployment: 2 replicas, 0.5 CPU/1GB RAM, autoscale on outbox lag. Success criteria: p95 event propagation ≤2s</doc>
+      <doc path="docs/epics/epic-1-foundation-tech-spec.md" section="CQRS-Lite Read Models (lines 603-713)" relevance="Defines read model tables (ticket_card, queue_row, issue_card, sprint_summary) updated by Event Worker">Read models are denormalized views optimized for hot reads (&lt;200ms p95). Event Worker updates materialized views: ticket_card (ITSM queue), queue_row (agent work queue), issue_card (PM board), sprint_summary (velocity tracking)</doc>
+      <doc path="docs/epics/epic-1-foundation-tech-spec.md" section="Outbox Implementation (lines 1259-1356)" relevance="Defines OutboxPoller polling logic, RedisStreamPublisher, ReadModelUpdater, GapDetector">OutboxPoller polls every 100ms (fixedDelay), processes batch of 100 events. RedisStreamPublisher uses Redisson RStream. ReadModelUpdater routes events by event_type. GapDetector checks for missing IDs every 60s</doc>
+      <doc path="docs/architecture/eventing-and-timers.md" section="Outbox Schema &amp; Semantics" relevance="Defines outbox table structure, envelope format, delivery semantics">Outbox schema: aggregate_id, aggregate_type, event_type, version, occurred_at, payload (JSONB), processed_at. Envelope uses lowercase_with_underscores keys. Delivery: at-least-once, consumers must reduce idempotently</doc>
+      <doc path="docs/architecture/eventing-and-timers.md" section="Stream Topology" relevance="Defines Redis Stream fan-out pattern for SSE and indexers">Event Worker publishes to Redis Stream `sf.events` with message key {aggregateId}:{version}. Consumer groups: app-sse (SSE gateway), read-model (read model updaters), indexer (OpenSearch)</doc>
+      <doc path="docs/architecture/eventing-and-timers.md" section="Metrics (Publisher)" relevance="Defines metrics for outbox publishing (implemented in Story 1.5)">Story 1.5 metrics: outbox_published_total, outbox_publish_errors_total, outbox_publish_latency_ms. Story 1.6 adds: outbox_lag_rows, outbox_processing_time_ms, outbox_events_published_total, outbox_read_model_updates_total</doc>
+      <doc path="docs/architecture/eventing-and-timers.md" section="Idempotency &amp; Versioning" relevance="Defines version-based deduplication strategy for event consumers">Consumers maintain {aggregate_id → version} and drop events with version ≤ current. Read model updaters use WHERE version &lt; ? to ensure idempotent updates</doc>
+      <doc path="docs/product/prd.md" section="NFR9 Real-time updates via SSE" relevance="Performance requirement for event propagation">E2E event propagation ≤2s p95 from database commit to client UI update. Reconnection catch-up &lt;1s. Idempotent client reducers drop stale updates by version</doc>
+      <doc path="docs/product/prd.md" section="NFR1 Queue/list operations &lt;200ms p95" relevance="Performance requirement for read model queries">Queue/list operations &lt;200ms p95 (enabled by denormalized read models). Composite side-panel hydration &lt;300ms p95</doc>
+    </docs>
+    <code>
+      <artifact path="backend/src/main/java/io/monosense/synergyflow/eventing/internal/OutboxRepository.java" kind="interface" relevance="Needs new methods: findUnprocessedBatch(limit), findMaxProcessedId(), findGaps(maxId)">Currently has only basic JpaRepository methods. Story 1.6 needs to add custom query methods for polling unprocessed events and gap detection</artifact>
+      <artifact path="backend/src/main/java/io/monosense/synergyflow/eventing/internal/OutboxEvent.java" kind="entity" relevance="JPA entity for outbox table, used by OutboxPoller to fetch events">Maps to outbox table (V3 migration). Fields: id (Long), aggregateId (UUID), aggregateType, eventType, eventPayload (JSONB), version, occurredAt, processedAt</artifact>
+      <artifact path="backend/src/main/java/io/monosense/synergyflow/eventing/internal/OutboxEventEnvelope.java" kind="record" relevance="Event envelope structure for JSON serialization, used by RedisStreamPublisher">Immutable record with stable JSON field names (lowercase_with_underscores). Fields: aggregate_id, aggregate_type, event_type, version, occurred_at, schema_version, payload. CURRENT_SCHEMA_VERSION = 1</artifact>
+      <artifact path="backend/src/main/resources/db/migration/V3__create_shared_tables.sql" lines="116-134" kind="migration" relevance="Creates outbox table with indexes for polling and gap detection">Outbox table: id BIGSERIAL PK, aggregate_id/aggregate_type/event_type, event_payload JSONB, version, occurred_at, processed_at, retry_count. Indexes: idx_outbox_idempotency (aggregate_id, version UNIQUE), idx_outbox_unprocessed (occurred_at WHERE processed_at IS NULL)</artifact>
+      <artifact path="backend/src/main/resources/db/migration/V4__create_read_models.sql" kind="migration" relevance="Creates read model tables updated by ReadModelUpdater">Creates ticket_card (lines 6-30), queue_row (lines 78-98), issue_card (lines 101-125), sprint_summary (lines 128-152). Each has version column for idempotent updates</artifact>
+    </code>
+    <dependencies>
+      <java>
+        <dependency>org.springframework.boot:spring-boot-starter-web:3.4.0</dependency>
+        <dependency>org.springframework.boot:spring-boot-starter-data-jpa:3.4.0</dependency>
+        <dependency>org.springframework.boot:spring-boot-starter-actuator:3.4.0</dependency>
+        <dependency>io.micrometer:micrometer-observation:1.14.1</dependency>
+        <dependency>org.postgresql:postgresql:42.7.x</dependency>
+        <dependency>org.redisson:redisson-spring-boot-starter:REQUIRED (not yet added - Task 5)</dependency>
+        <dependency>org.testcontainers:postgresql:1.19.x (test scope)</dependency>
+        <dependency>org.testcontainers:junit-jupiter:1.19.x (test scope)</dependency>
+      </java>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <architectural>
+      <constraint id="polling-pattern">Use Polling Publisher pattern (100ms fixed delay) instead of CDC. Acceptable for &lt;10K events/hour workload. Can switch to PostgreSQL LISTEN/NOTIFY if lag becomes issue</constraint>
+      <constraint id="cqrs-lite">Read models are denormalized for hot reads (&lt;200ms p95). Event-driven updates maintain eventual consistency. Acceptable lag: &lt;2s p95 from write to read model (NFR9)</constraint>
+      <constraint id="idempotency">Version-based deduplication ensures idempotency. UPDATE statements use WHERE version &lt; ? to prevent replaying old events. At-least-once delivery guarantees from transactional outbox</constraint>
+      <constraint id="companion-service">Event Worker is separate deployment (Spring profile "worker") to isolate physics-heavy event processing from HTTP p95 latency. No HTTP server enabled. Autoscale based on outbox_lag_rows metric</constraint>
+      <constraint id="module-boundaries">All components in eventing/internal/worker package: OutboxPoller, RedisStreamPublisher, ReadModelUpdater, GapDetector, handlers. Only activated with @Profile("worker"). No dependencies on itsm/pm domain logic - worker uses event payload only (decoupled)</constraint>
+      <constraint id="transaction-boundaries">Each event processed in its own transaction (Redis publish + read model update + mark processed). If Redis publish succeeds but read model update fails → event still marked processed (acceptable - read models are eventually consistent)</constraint>
+    </architectural>
+    <errorHandling>
+      <constraint id="redis-failure">Redis connection failure: Use @Retryable with exponential backoff (1s, 2s, 4s, max 3 attempts). If all retries fail: Log ERROR, increment outbox_redis_publish_errors_total, leave event unprocessed (will retry on next poll). Don't mark processed_at if publish fails</constraint>
+      <constraint id="read-model-failure">Read model update failure (constraint violation, FK error): Log ERROR with event details, increment outbox_read_model_update_errors_total. Mark event as processed anyway (to avoid blocking queue)</constraint>
+      <constraint id="gap-detection">Gap detected in sequence: Log ERROR with gap range (gap_start_id, gap_end_id, gap_size). Alert via metrics spike (outbox_gaps_detected_total counter). Don't block processing - gaps could be in-flight transaction commits</constraint>
+      <constraint id="db-connection-failure">Database connection failure during polling: Spring @Scheduled will retry on next interval (fixedDelay = 100ms). Log WARN</constraint>
+    </errorHandling>
+  </constraints>
+
+  <interfaces>
+    <interface name="OutboxRepository" kind="repository" path="backend/src/main/java/io/monosense/synergyflow/eventing/internal/OutboxRepository.java">
+      <method signature="List&lt;OutboxEvent&gt; findUnprocessedBatch(int limit)" description="Query unprocessed events: SELECT * FROM outbox WHERE processed_at IS NULL ORDER BY id LIMIT ? - AC1"/>
+      <method signature="Long findMaxProcessedId()" description="Query max processed ID: SELECT MAX(id) FROM outbox WHERE processed_at IS NOT NULL - AC5"/>
+      <method signature="List&lt;Long&gt; findGaps(Long maxProcessedId)" description="Detect gaps: SELECT id FROM outbox WHERE id &lt; ? AND processed_at IS NULL ORDER BY id - AC5"/>
+    </interface>
+    <interface name="RedisStreamPublisher" kind="component" path="backend/src/main/java/io/monosense/synergyflow/eventing/internal/worker/RedisStreamPublisher.java (NEW)">
+      <method signature="void publish(OutboxEvent event)" description="Publish event envelope to Redis Stream 'domain-events' with retry logic - AC2"/>
+    </interface>
+    <interface name="ReadModelUpdater" kind="service" path="backend/src/main/java/io/monosense/synergyflow/eventing/internal/worker/ReadModelUpdater.java (NEW)">
+      <method signature="void update(OutboxEvent event)" description="Route event to appropriate handler (TicketCardHandler, IssueCardHandler) based on event_type - AC3"/>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Integration tests using Spring Boot Test + Testcontainers (PostgreSQL 16 + Redis 7). Test transactional semantics with real databases. All worker components tested with @Profile("worker") active. Micrometer metrics verified via MeterRegistry. Structured logging verified via Logback test appender</standards>
+    <locations>
+      <location>backend/src/test/java/io/monosense/synergyflow/eventing/worker/OutboxPollerIntegrationTest.java</location>
+      <location>backend/src/test/java/io/monosense/synergyflow/eventing/worker/ReadModelIdempotencyTest.java</location>
+      <location>backend/src/test/java/io/monosense/synergyflow/eventing/worker/GapDetectorTest.java</location>
+    </locations>
+    <ideas>
+      <idea ac="AC1">Test OutboxPoller: Insert outbox event → worker polls → verify event fetched in FIFO order → verify batch size limit respected</idea>
+      <idea ac="AC2">Test RedisStreamPublisher: Publish event → verify Redis Stream receives event with correct envelope structure → test retry on Redis connection failure (3 attempts)</idea>
+      <idea ac="AC3">Test ReadModelUpdater: TicketCreated event → verify INSERT into ticket_card → TicketAssigned event → verify UPDATE ticket_card (idempotent WHERE version &lt; ?)</idea>
+      <idea ac="AC3">Test ReadModelUpdater: IssueCreated event → verify INSERT into queue_row AND issue_card → IssueStateChanged event → verify UPDATE issue_card</idea>
+      <idea ac="AC4">Test marking processed: After successful publish + update → verify processed_at timestamp set → verify event not fetched on next poll</idea>
+      <idea ac="AC4">Test Redis failure: Mock Redis failure → verify event remains unprocessed (processed_at IS NULL) → verify next poll retries same event</idea>
+      <idea ac="AC5">Test GapDetector: Insert events with IDs 1, 2, 4, 5 (missing 3) → verify gap detection logs ERROR → verify outbox_gaps_detected_total metric incremented</idea>
+      <idea ac="AC6">Test idempotency: Process same event twice → verify single row in read model → verify second UPDATE affects 0 rows (WHERE version &lt; ? prevents duplicate)</idea>
+      <idea ac="AC8">Test observability: Verify all metrics present (outbox_lag_rows, outbox_processing_time_ms, outbox_events_published_total, outbox_read_model_updates_total, outbox_read_model_update_errors_total, outbox_gaps_detected_total, outbox_redis_publish_errors_total) → verify structured logging includes batch_size, processing_time_ms, lag_rows</idea>
+    </ideas>
+  </tests>
+</story-context>

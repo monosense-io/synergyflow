@@ -1,0 +1,26 @@
+# Redisson configuration for the worker profile when targeting a multi-region Redis Global Datastore.
+# Activate by setting SPRING config property:
+#   SYNERGYFLOW_REDIS_CONFIG=classpath:redisson-worker.yaml
+# and providing the endpoint environment variables below.
+
+clusterServersConfig:
+  nodeAddresses:
+    - ${SYNERGYFLOW_OUTBOX_REDIS_PRIMARY:rediss://redis-primary.example.com:6380}
+    - ${SYNERGYFLOW_OUTBOX_REDIS_SECONDARY:rediss://redis-secondary.example.com:6380}
+  username: ${SYNERGYFLOW_OUTBOX_REDIS_USERNAME:}
+  password: ${REDIS_PASSWORD}
+  readMode: "MASTER"
+  subscriptionMode: "MASTER"
+  retryAttempts: 3
+  retryInterval: 2000
+  pingConnectionInterval: 15000
+  failedSlaveCheckInterval: 60000
+  failedSlaveReconnectionInterval: 3000
+  sslEnableEndpointIdentification: ${SYNERGYFLOW_OUTBOX_REDIS_SSL_ENFORCED:true}
+  sslTruststore: ${SYNERGYFLOW_OUTBOX_REDIS_TRUSTSTORE:}
+  sslTruststorePassword: ${SYNERGYFLOW_OUTBOX_REDIS_TRUSTSTORE_PASSWORD:}
+  sslProvider: "JDK"
+
+threads: ${SYNERGYFLOW_OUTBOX_REDIS_THREADS:8}
+nettyThreads: ${SYNERGYFLOW_OUTBOX_REDIS_NETTY_THREADS:8}
+codec: !<org.redisson.codec.JsonJacksonCodec> {}

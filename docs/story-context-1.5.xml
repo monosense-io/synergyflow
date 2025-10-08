@@ -1,0 +1,88 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>5</storyId>
+    <title>Implement Transactional Outbox Write Path</title>
+    <status>Ready</status>
+    <generatedAt>2025-10-07</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>/Users/monosense/repository/research/itsm/docs/stories/story-1.5.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>Development Team</asA>
+    <iWant>persist domain events to a transactional outbox in the same transaction as aggregate writes</iWant>
+    <soThat>downstream consumers can rely on an ordered, durable event log with at-least-once delivery and idempotent processing</soThat>
+    <tasks>
+      <task id="1" ac="AC1">Define OutboxEvent envelope (fields incl. schema_version, JSON schema, compat tests)</task>
+      <task id="2" ac="AC2">Implement transactional EventPublisher with repository</task>
+      <task id="3" ac="AC4">Emit representative events (TicketCreated, TicketAssigned, IssueCreated, IssueStateChanged)</task>
+      <task id="4" ac="AC3">Enforce uniqueness and idempotency; handle duplicates gracefully</task>
+      <task id="5" ac="AC2,AC3,AC4">Add unit and integration tests (commit/rollback semantics, unique constraint)</task>
+      <task id="6" ac="AC5,AC6">Add metrics/logs and update documentation</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC1">Outbox event envelope defined and serialization validated (stable fields: aggregate_id, aggregate_type, event_type, version, occurred_at, schema_version, payload)</criterion>
+    <criterion id="AC2">Publisher writes outbox rows in the same transaction as domain writes; rollback leaves no rows; commit persists exactly one row</criterion>
+    <criterion id="AC3">Uniqueness on (aggregate_id, version) enforced with tests; duplicates handled without duplicate side effects</criterion>
+    <criterion id="AC4">Minimum event set emitted: TicketCreated, TicketAssigned, IssueCreated, IssueStateChanged with correct versioning</criterion>
+    <criterion id="AC5">Micrometer metrics and structured logging implemented for publish outcomes and latency</criterion>
+    <criterion id="AC6">Documentation updated for write-path, envelope, and consumer expectations</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/epics/epic-1-foundation-tech-spec.md</path>
+        <title>Epic 1 Technical Specification</title>
+        <section>Transactional Outbox Pattern; Eventing Module; Read Models</section>
+      </doc>
+      <doc>
+        <path>docs/architecture/eventing-and-timers.md</path>
+        <title>Eventing &amp; Timers</title>
+        <section>Outbox Schema &amp; Semantics; Stream Topology; Idempotency &amp; Versioning</section>
+      </doc>
+      <doc>
+        <path>docs/architecture/module-boundaries.md</path>
+        <title>Module Boundaries</title>
+        <section>Eventing module contracts and allowed dependencies</section>
+      </doc>
+    </docs>
+  </artifacts>
+
+  <constraints>
+    <constraint type="transactionality">Outbox writes MUST occur within the same DB transaction and datasource as domain writes.</constraint>
+    <constraint type="idempotency">(aggregate_id, version) MUST be unique; downstream consumers MUST drop stale events with version less or equal to current.</constraint>
+    <constraint type="delivery">System guarantees at-least-once delivery; publisher never deletes outbox rows; consumers mark processed_at.</constraint>
+    <constraint type="observability">Micrometer metrics and structured logs are required for publish success/error and latency.</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>EventPublisher</name>
+      <kind>service</kind>
+      <signature>publish(aggregateId: UUID, aggregateType: String, eventType: String, version: long, occurredAt: Instant, schemaVersion: int, payload: JsonNode)</signature>
+      <path>backend.eventing.api.EventPublisher</path>
+    </interface>
+    <interface>
+      <name>OutboxRepository</name>
+      <kind>repository</kind>
+      <signature>save(OutboxEvent event): OutboxEvent</signature>
+      <path>backend.eventing.internal.OutboxRepository</path>
+    </interface>
+  </interfaces>
+
+  <dependencies>
+    <backend>
+      <dependency>org.springframework.boot:spring-boot-starter-data-jpa</dependency>
+      <dependency>io.micrometer:micrometer-core</dependency>
+      <dependency>com.fasterxml.jackson.core:jackson-databind</dependency>
+      <dependency>org.springframework.boot:spring-boot-starter-test (test)</dependency>
+      <dependency>org.testcontainers:postgresql (test)</dependency>
+      <dependency>org.testcontainers:junit-jupiter (test)</dependency>
+    </backend>
+  </dependencies>
+
+</story-context>

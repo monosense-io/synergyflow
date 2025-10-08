@@ -1,0 +1,39 @@
+spring:
+  main:
+    web-application-type: none
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.web.servlet.ServletWebServerFactoryAutoConfiguration
+      - org.springframework.boot.autoconfigure.web.servlet.WebMvcAutoConfiguration
+      - org.springframework.boot.autoconfigure.websocket.servlet.WebSocketServletAutoConfiguration
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD:?Redis password must be provided for worker profile}
+  security:
+    user:
+      name: ${WORKER_ACTUATOR_USERNAME:worker-actuator}
+      password: ${WORKER_ACTUATOR_PASSWORD:?Set WORKER_ACTUATOR_PASSWORD for actuator access}
+      roles: ACTUATOR
+
+management:
+  server:
+    port: ${WORKER_MANAGEMENT_PORT:9090}
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  security:
+    enabled: true
+
+synergyflow:
+  outbox:
+    polling:
+      fixed-delay-ms: ${SYNERGYFLOW_OUTBOX_POLLING_DELAY_MS:100}
+      batch-size: ${SYNERGYFLOW_OUTBOX_POLLING_BATCH_SIZE:100}
+    redis:
+      stream-name: ${SYNERGYFLOW_OUTBOX_STREAM_NAME:domain-events}

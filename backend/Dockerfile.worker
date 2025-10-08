@@ -1,0 +1,20 @@
+# syntax=docker/dockerfile:1.6
+
+FROM gradle:8.10.2-jdk21-alpine AS build
+
+WORKDIR /workspace
+COPY gradlew settings.gradle.kts build.gradle.kts gradle.properties ./
+COPY gradle ./gradle
+COPY src ./src
+RUN ./gradlew --no-daemon bootJar
+
+FROM eclipse-temurin:21-jre
+
+ARG APP_JAR=build/libs/backend-0.0.1-SNAPSHOT.jar
+ENV JAVA_OPTS=""
+
+WORKDIR /app
+COPY --from=build /workspace/${APP_JAR} app.jar
+
+EXPOSE 9090
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/app.jar --spring.profiles.active=worker"]

@@ -2,6 +2,7 @@ package io.monosense.synergyflow.security.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -15,7 +16,11 @@ import java.util.List;
 /**
  * Spring Security configuration for OAuth2 Resource Server with JWT authentication.
  *
- * <p>This configuration:
+ * <p>This configuration provides comprehensive security setup for the SynergyFlow application
+ * using the OAuth2 Resource Server pattern with JWT Bearer tokens. It integrates with Keycloak
+ * as the identity provider for authentication and authorization.
+ *
+ * <p><strong>Key Security Features:</strong>
  * <ul>
  *   <li>Enables JWT-based authentication via OAuth2 Resource Server pattern</li>
  *   <li>Validates JWT tokens using Keycloak's JWK endpoint (configured in application.yml)</li>
@@ -23,16 +28,35 @@ import java.util.List;
  *   <li>Permits /actuator/info endpoint publicly for health check monitoring</li>
  *   <li>Configures CORS for frontend access (localhost:5173 in development)</li>
  *   <li>Enforces stateless session management (no server-side sessions)</li>
+ *   <li>Disables CSRF protection for stateless REST API</li>
  * </ul>
  *
- * <p>RBAC enforcement is delegated to controller methods using @PreAuthorize annotations.
+ * <p><strong>Authentication Flow:</strong>
+ * <ol>
+ *   <li>Client obtains JWT token from Keycloak</li>
+ *   <li>Client includes JWT Bearer token in Authorization header</li>
+ *   <li>Spring Security validates token signature and claims</li>
+ *   <li>Request is authenticated and proceeds to authorization</li>
+ * </ol>
+ *
+ * <p><strong>Authorization Model:</strong>
+ * <p>RBAC enforcement is delegated to controller methods using {@code @PreAuthorize} annotations.
  * Role mapping from Keycloak roles to application roles is handled by {@link io.monosense.synergyflow.security.api.RoleMapper}.
  *
+ * <p><strong>Profile Activation:</strong>
+ * This configuration is active when the {@code "worker"} profile is NOT active, ensuring that
+ * worker processes don't need HTTP security while API endpoints remain protected.
+ *
+ * @author monosense
+ * @since 1.0.0
+ * @version 1.0.0
  * @see io.monosense.synergyflow.security.api.JwtValidator
  * @see io.monosense.synergyflow.security.api.RoleMapper
+ * @see io.monosense.synergyflow.security.api.JwtClaims
  */
 @Configuration
 @EnableWebSecurity
+@Profile("!worker")
 public class SecurityConfig {
 
     /**
@@ -54,6 +78,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/actuator/info").permitAll()  // Public health check
                 .requestMatchers("/actuator/health").authenticated()  // Secured health endpoint
+                .requestMatchers("/api/sse/events").authenticated()  // SSE streaming endpoint (JWT required)
                 .anyRequest().authenticated()  // All other endpoints require authentication
             )
 
@@ -73,6 +98,10 @@ public class SecurityConfig {
 
     /**
      * Configures CORS to allow frontend access from localhost:5173 (Vite dev server).
+     * <p>
+     * Includes support for Server-Sent Events (SSE) with {@code Last-Event-ID} header
+     * for reconnection support.
+     * </p>
      *
      * @return the CORS configuration source
      */
@@ -81,7 +110,8 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(List.of("http://localhost:5173"));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setAllowedHeaders(List.of("*"));  // Includes Last-Event-ID for SSE reconnection
+        configuration.setExposedHeaders(List.of("Last-Event-ID"));  // Expose for SSE clients
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

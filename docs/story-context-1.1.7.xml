@@ -1,0 +1,299 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>1.7</storyId>
+    <title>SSE Gateway (Server-Sent Events Fan-Out)</title>
+    <status>Approved</status>
+    <generatedAt>2025-10-07</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>/Users/monosense/repository/research/itsm/docs/stories/story-1.7.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>Development Team</asA>
+    <iWant>an SSE Gateway that fans out domain events from Redis Stream to connected web clients with sub-2-second latency and reconnection support</iWant>
+    <soThat>users see real-time updates for tickets and issues without polling, and the system meets NFR9 requirements for real-time collaboration</soThat>
+    <tasks>
+      <task id="1" title="Implement SseController">
+        - Create SseController @RestController with GET /api/sse/events endpoint producing text/event-stream
+        - Extract authenticated user from Principal (Spring Security JWT context)
+        - Create SseEmitter with Long.MAX_VALUE timeout (no server-side timeout)
+        - Accept optional Last-Event-ID header for reconnection
+        - Register emitter with SseConnectionManager
+        - Set up lifecycle callbacks: onCompletion(), onError(), onTimeout()
+        - Document controller with Javadoc explaining SSE protocol
+      </task>
+      <task id="2" title="Implement SseConnectionManager">
+        - Create SseConnectionManager @Service with ConcurrentHashMap for user → emitters mapping
+        - Implement register(userId, emitter, lastEventId) with connection tracking
+        - Implement unregister(userId, emitter) with cleanup and metrics
+        - Implement broadcast(OutboxEnvelope event) with user filtering
+        - Implement filterEventForUser(userId, event) for authorization
+        - Handle SseEmitter.send() exceptions gracefully
+        - Add metrics: sse_active_connections, sse_events_sent_total, sse_connection_duration_seconds
+      </task>
+      <task id="3" title="Implement RedisStreamSubscriber">
+        - Create RedisStreamSubscriber @Component with @Profile("app")
+        - Use @PostConstruct to start Redis Stream subscription with Redisson
+        - Configure consumer group: sse-gateways, consumer name: gateway-{hostname}
+        - Read events in blocking loop with blockMillis = 1000
+        - Deserialize OutboxEnvelope from Redis Stream using Jackson
+        - Call SseConnectionManager.broadcast(event) for each event
+        - Handle deserialization errors and implement graceful shutdown
+      </task>
+      <task id="4" title="Implement SSE Catchup Logic">
+        - Create SseCatchupService @Service to read missed events from Redis Stream
+        - Implement readMissedEvents(String lastEventId, int maxEvents) using Redisson RStream.range()
+        - Send all missed events to emitter before registering for live stream
+        - Set SSE id field on each catchup event
+        - Increment sse_catchup_events_sent_total counter
+      </task>
+      <task id="5" title="Security &amp; CORS Configuration">
+        - Update SecurityConfig to permit SSE endpoint: .requestMatchers("/api/sse/events").authenticated()
+        - Disable CSRF for SSE endpoint (stateless event stream)
+        - Configure CORS for Last-Event-ID header if needed
+        - Add integration tests for authentication
+      </task>
+      <task id="6" title="Integration Testing &amp; Performance Validation">
+        - Create SseGatewayIntegrationTest with Redis Testcontainer
+        - Test: Connect SSE client → publish event to Redis → verify client receives event within 2s
+        - Test: User filtering - verify only authorized users receive events
+        - Test: Reconnection - verify catchup sends missed events
+        - Test: 250 concurrent connections for 5 minutes
+        - Add performance assertions: p95 latency ≤2s, catchup &lt;1s
+      </task>
+      <task id="7" title="Configuration &amp; Documentation">
+        - Add SSE configuration properties to application-app.yml
+        - Document SSE endpoint in OpenAPI spec
+        - Update Story 1.7 Dev Notes with implementation details
+        - Add troubleshooting guide
+        - Document frontend integration requirements
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC1">SSE Controller exposes GET /api/sse/events endpoint accepting JWT authentication (via Spring Security), creates SseEmitter with infinite timeout (Long.MAX_VALUE), and registers connection in SseConnectionManager with user ID extracted from JWT principal.</criterion>
+    <criterion id="AC2">SSE endpoint supports Last-Event-ID request header for reconnection - when provided, reads missed events from Redis Stream since lastEventId and sends catchup batch before resuming live streaming. Catchup completes in &lt;1s p95 for ≤100 missed events.</criterion>
+    <criterion id="AC3">RedisStreamSubscriber consumes from Redis Stream (topic: domain-events) using Redisson consumer group (sse-gateways), deserializes OutboxEnvelope messages with Jackson, and broadcasts events to all connected SseEmitter instances via SseConnectionManager.</criterion>
+    <criterion id="AC4">SseConnectionManager filters events per user - only sends events to users who have access based on: (a) aggregate ownership (user is ticket assignee/requester or issue assignee/reporter), (b) team membership (user's team owns the ticket/issue), or (c) watchlist subscription. Filter uses BatchAuthService for authorization checks (MVP: simple ownership check).</criterion>
+    <criterion id="AC5">Connection lifecycle management - on SseEmitter completion, error, or timeout: unregister emitter from SseConnectionManager, log disconnection event with structured fields (user_id, connection_id, duration_seconds, events_sent_count), and clean up resources to prevent memory leaks.</criterion>
+    <criterion id="AC6">Observability instrumentation includes: sse_active_connections gauge (current connected clients), sse_events_sent_total counter tagged by event_type, sse_connection_duration_seconds histogram (p95/p99 tracking), sse_catchup_events_sent_total counter, and structured JSON logging for connect/disconnect/error events.</criterion>
+    <criterion id="AC7">Performance targets met - E2E event propagation ≤2s p95 (measured from outbox.occurred_at timestamp to SSE event sent to client), reconnect catchup &lt;1s for ≤100 missed events, and system sustains 250 concurrent SSE connections for 8+ hours without memory leak (&lt;5% heap growth per hour).</criterion>
+    <criterion id="AC8">Integration test coverage using Redis Testcontainer verifies: (a) connect client → publish event to Redis → client receives event within 2s, (b) disconnect client → publish 10 events → reconnect with Last-Event-ID → verify all missed events received in catchup &lt;1s, (c) user filtering - User A does not receive User B's private events, (d) 250 concurrent connections sustained for 5 minutes without errors.</criterion>
+    <criterion id="AC9">Implementation follows engineering coding standards - use Lombok for constructors/logging, document public API classes with Javadoc (@since 1.7), configure CORS for frontend origin if needed, and ensure SSE endpoints excluded from CSRF protection (stateless event stream).</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>/Users/monosense/repository/research/itsm/docs/epics/epic-1-foundation-tech-spec.md</path>
+        <title>Epic 1 Foundation Tech Spec - SSE Gateway Implementation</title>
+        <section>SSE Controller, Redis Stream Subscriber</section>
+        <snippet>Lines 1450-1528: Detailed code examples for SseController with reconnection support, RedisStreamSubscriber with consumer groups, success criteria for E2E event propagation ≤2s p95, reconnect catch-up &lt;1s, 250 concurrent connections for 8 hours</snippet>
+        <reason>Primary technical specification for SSE implementation patterns and architecture</reason>
+      </doc>
+      <doc>
+        <path>/Users/monosense/repository/research/itsm/docs/architecture/adr/0004-sse-vs-websocket.md</path>
+        <title>ADR 0004 — SSE vs WebSocket</title>
+        <section>Decision, Context, Consequences</section>
+        <snippet>Decision: Use Server-Sent Events (SSE) for realtime UI updates with replay cursor. Pros: Simpler infra (HTTP/2 friendly), automatic reconnection, fewer moving parts. Cons: Client → server push not supported</snippet>
+        <reason>Architecture decision rationale for choosing SSE over WebSocket for Phase 1</reason>
+      </doc>
+      <doc>
+        <path>/Users/monosense/repository/research/itsm/docs/architecture/eventing-and-timers.md</path>
+        <title>Eventing &amp; Timers Architecture</title>
+        <section>Outbox Schema &amp; Semantics, Stream Topology, Idempotency &amp; Versioning</section>
+        <snippet>Outbox envelope structure with lowercase_with_underscores keys, aggregate_id, aggregate_type, event_type, version, occurred_at, schema_version, payload. Redis Streams topology: Backend writes outbox → Event Worker polls → publishes to Redis Stream sf.events → Consumers: Backend SSE, read model updaters, search indexer. Consumer groups: app-sse, read-model, indexer. Delivery: at-least-once, consumers must reduce idempotently and drop stale version.</snippet>
+        <reason>Defines event envelope structure and Redis Stream topology for SSE consumption</reason>
+      </doc>
+      <doc>
+        <path>/Users/monosense/repository/research/itsm/docs/product/prd.md</path>
+        <title>Product Requirements Document</title>
+        <section>NFR9 - Real-time Updates</section>
+        <snippet>Line 212: The system shall support real-time updates via Server-Sent Events (SSE) with end-to-end event propagation ≤2s p95 from database commit to client UI update, reconnection catch-up &lt;1s, and idempotent client reducers that drop stale updates based on version/updated_at timestamps.</snippet>
+        <reason>Defines non-functional requirements and performance targets for SSE implementation</reason>
+      </doc>
+      <doc>
+        <path>/Users/monosense/repository/research/itsm/docs/stories/story-1.6.md</path>
+        <title>Story 1.6: Event Worker (Outbox → Redis Stream + Read Models)</title>
+        <section>Story, Acceptance Criteria, Implementation</section>
+        <snippet>Event Worker polls outbox table, publishes events to Redis Stream (topic: domain-events) with retry logic, updates read models. Redis stream configured with consumer groups for fault tolerance. Status: Completed (2025-10-07). OutboxEnvelope structure with aggregate_id, aggregate_type, event_type, version, occurred_at, schema_version, payload.</snippet>
+        <reason>Upstream dependency - Event Worker publishes events that SSE Gateway consumes from Redis Stream</reason>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>/Users/monosense/repository/research/itsm/backend/src/main/java/io/monosense/synergyflow/security/config/SecurityConfig.java</path>
+        <kind>class</kind>
+        <symbol>SecurityConfig</symbol>
+        <lines>1-115</lines>
+        <reason>Shows JWT authentication pattern using OAuth2 Resource Server, CORS configuration for frontend, and profile-based activation (!worker). SSE controller must follow same authentication pattern and add /api/sse/events to permitAll or authenticated() rules.</reason>
+      </artifact>
+      <artifact>
+        <path>/Users/monosense/repository/research/itsm/backend/src/main/java/io/monosense/synergyflow/eventing/internal/worker/RedisStreamPublisher.java</path>
+        <kind>class</kind>
+        <symbol>RedisStreamPublisher</symbol>
+        <lines>1-159</lines>
+        <reason>Shows how to use Redisson RStream API for publishing to Redis Stream with retry logic and backoff. SSE RedisStreamSubscriber will consume from same stream using consumer groups (readGroup instead of add).</reason>
+      </artifact>
+      <artifact>
+        <path>/Users/monosense/repository/research/itsm/backend/src/main/java/io/monosense/synergyflow/eventing/internal/worker/OutboxPoller.java</path>
+        <kind>class</kind>
+        <symbol>OutboxPoller</symbol>
+        <lines>1-119</lines>
+        <reason>Shows scheduled worker pattern with @Profile("worker"), transaction management, and metrics instrumentation (Timer, Counter, Gauge). SSE components will follow similar patterns but with @Profile("app").</reason>
+      </artifact>
+      <artifact>
+        <path>/Users/monosense/repository/research/itsm/backend/src/main/java/io/monosense/synergyflow/eventing/internal/worker/OutboxMessage.java</path>
+        <kind>record</kind>
+        <symbol>OutboxMessage</symbol>
+        <lines>1-16</lines>
+        <reason>Lightweight record for outbox row representation used by worker pipeline. SSE will consume similar structure from Redis Stream.</reason>
+      </artifact>
+      <artifact>
+        <path>/Users/monosense/repository/research/itsm/backend/src/main/java/io/monosense/synergyflow/eventing/internal/worker/OutboxEnvelope.java</path>
+        <kind>record</kind>
+        <symbol>OutboxEnvelope</symbol>
+        <lines>1-54</lines>
+        <reason>Full event envelope with all metadata (aggregate_id, aggregate_type, event_type, version, occurred_at, schema_version, payload). This is the exact structure SSE will deserialize from Redis Stream and send to clients. Uses Jackson @JsonProperty annotations for lowercase_with_underscores naming.</reason>
+      </artifact>
+      <artifact>
+        <path>/Users/monosense/repository/research/itsm/backend/src/test/java/io/monosense/synergyflow/eventing/internal/worker/OutboxPollerIntegrationTest.java</path>
+        <kind>class</kind>
+        <symbol>OutboxPollerIntegrationTest</symbol>
+        <lines>1-80</lines>
+        <reason>Shows integration test pattern using @SpringBootTest, @Testcontainers with PostgreSQL and Redis containers, @ActiveProfiles("worker"), and dynamic property registration. SSE integration tests will follow same pattern but with @ActiveProfiles("app").</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <java>
+        <dependency name="spring-boot-starter-web" version="3.4.0" reason="Provides Spring MVC, SseEmitter support for SSE streaming"/>
+        <dependency name="spring-boot-starter-data-jpa" version="3.4.0" reason="Database access for user authorization checks"/>
+        <dependency name="spring-boot-starter-actuator" version="3.4.0" reason="Metrics and health endpoints"/>
+        <dependency name="spring-boot-starter-oauth2-resource-server" version="3.4.0" reason="JWT authentication validation"/>
+        <dependency name="spring-modulith-starter-core" version="1.2.4" reason="Module boundaries and testing support"/>
+        <dependency name="redisson-spring-boot-starter" version="3.35.0" reason="Redis Stream consumer with consumer groups via RStream API"/>
+        <dependency name="lombok" version="latest" reason="@Slf4j for logging, @RequiredArgsConstructor for DI"/>
+        <dependency name="jackson-databind" version="included" reason="JSON serialization for OutboxEnvelope deserialization"/>
+        <dependency name="micrometer-core" version="included" reason="Metrics instrumentation (Counter, Gauge, Timer)"/>
+      </java>
+      <test>
+        <dependency name="spring-boot-testcontainers" version="3.4.0" reason="Testcontainers integration for Redis and PostgreSQL"/>
+        <dependency name="testcontainers-postgresql" version="1.20.4" reason="PostgreSQL container for integration tests"/>
+        <dependency name="testcontainers-junit-jupiter" version="1.20.4" reason="JUnit 5 integration for container lifecycle"/>
+      </test>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint id="PROFILE">SSE components MUST use @Profile("app") - NOT "worker" profile. Worker profile excludes web server, SSE requires HTTP endpoints.</constraint>
+    <constraint id="AUTH">All SSE endpoints MUST require JWT authentication via Spring Security OAuth2 Resource Server. Extract user ID from Principal.getName().</constraint>
+    <constraint id="TIMEOUT">SseEmitter MUST use Long.MAX_VALUE timeout (no server-side timeout) per AC1. Clients handle reconnection via Last-Event-ID header.</constraint>
+    <constraint id="CSRF">SSE endpoint MUST be excluded from CSRF protection (stateless event stream). Update SecurityConfig: .csrf().ignoringRequestMatchers("/api/sse/events")</constraint>
+    <constraint id="REDIS_STREAM">RedisStreamSubscriber MUST consume from stream name "domain-events" (configurable via synergyflow.outbox.redis.stream-name) using consumer group "sse-gateways" and consumer name "gateway-{hostname}".</constraint>
+    <constraint id="ENVELOPE">OutboxEnvelope deserialization MUST use Jackson with lowercase_with_underscores naming convention matching eventing.internal.worker.OutboxEnvelope record structure.</constraint>
+    <constraint id="METRICS">Metrics MUST use Micrometer with standardized naming: sse_active_connections (Gauge), sse_events_sent_total (Counter with event_type tag), sse_connection_duration_seconds (Timer with percentiles), sse_catchup_events_sent_total (Counter).</constraint>
+    <constraint id="LOGGING">Structured logging MUST include: user_id, connection_id (UUID), event_id, aggregate_id, event_type, latency_ms. Use @Slf4j from Lombok.</constraint>
+    <constraint id="MEMORY">Connection cleanup MUST unregister emitters on completion/error/timeout to prevent memory leaks. Target: &lt;5% heap growth per hour with 250 concurrent connections.</constraint>
+    <constraint id="IDEMPOTENCY">Client reducers MUST implement version-based idempotency - drop events where version ≤ currentState.version for that aggregate_id.</constraint>
+    <constraint id="PATTERNS">Follow Spring Modulith module boundaries: SSE module (io.monosense.synergyflow.sse) with api/ and internal/ packages. Public API in api/, implementation in internal/.</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>RedissonClient.getStream(String streamName)</name>
+      <kind>method</kind>
+      <signature>RStream&lt;String, String&gt; getStream(String streamName)</signature>
+      <path>org.redisson.api.RedissonClient</path>
+      <usage>Get Redis Stream handle for consumption. RedisStreamSubscriber calls this with streamName="domain-events" to obtain RStream instance.</usage>
+    </interface>
+    <interface>
+      <name>RStream.createGroup(String groupName)</name>
+      <kind>method</kind>
+      <signature>void createGroup(String groupName)</signature>
+      <path>org.redisson.api.RStream</path>
+      <usage>Create consumer group if not exists. RedisStreamSubscriber calls this with groupName="sse-gateways" during initialization.</usage>
+    </interface>
+    <interface>
+      <name>RStream.readGroup(String groupName, String consumerName)</name>
+      <kind>method</kind>
+      <signature>Stream&lt;StreamMessageId, Map&lt;K, V&gt;&gt; readGroup(String groupName, String consumerName)</signature>
+      <path>org.redisson.api.RStream</path>
+      <usage>Read new messages from stream as part of consumer group. RedisStreamSubscriber calls this in blocking loop with groupName="sse-gateways" and consumerName="gateway-{hostname}".</usage>
+    </interface>
+    <interface>
+      <name>RStream.range(String start, String end)</name>
+      <kind>method</kind>
+      <signature>Map&lt;StreamMessageId, Map&lt;K, V&gt;&gt; range(String start, String end)</signature>
+      <path>org.redisson.api.RStream</path>
+      <usage>Read historical messages for catchup. SseCatchupService calls this with start=lastEventId and end="+" to fetch missed events during reconnection.</usage>
+    </interface>
+    <interface>
+      <name>SseEmitter.send(Object event)</name>
+      <kind>method</kind>
+      <signature>void send(Object event) throws IOException</signature>
+      <path>org.springframework.web.servlet.mvc.method.annotation.SseEmitter</path>
+      <usage>Send SSE event to client. SseConnectionManager calls this to broadcast OutboxEnvelope to connected clients. Must handle IOException for broken connections.</usage>
+    </interface>
+    <interface>
+      <name>SseEmitter.onCompletion(Runnable callback)</name>
+      <kind>method</kind>
+      <signature>void onCompletion(Runnable callback)</signature>
+      <path>org.springframework.web.servlet.mvc.method.annotation.SseEmitter</path>
+      <usage>Register callback for connection completion. SseController uses this to trigger unregister() from SseConnectionManager.</usage>
+    </interface>
+    <interface>
+      <name>SseEmitter.onError(Consumer&lt;Throwable&gt; callback)</name>
+      <kind>method</kind>
+      <signature>void onError(Consumer&lt;Throwable&gt; callback)</signature>
+      <path>org.springframework.web.servlet.mvc.method.annotation.SseEmitter</path>
+      <usage>Register callback for connection errors. SseController uses this to trigger unregister() and log errors.</usage>
+    </interface>
+    <interface>
+      <name>SseEmitter.onTimeout(Runnable callback)</name>
+      <kind>method</kind>
+      <signature>void onTimeout(Runnable callback)</signature>
+      <path>org.springframework.web.servlet.mvc.method.annotation.SseEmitter</path>
+      <usage>Register callback for connection timeout (though timeout set to Long.MAX_VALUE). SseController uses this to trigger unregister().</usage>
+    </interface>
+    <interface>
+      <name>Principal.getName()</name>
+      <kind>method</kind>
+      <signature>String getName()</signature>
+      <path>java.security.Principal</path>
+      <usage>Extract authenticated user ID from JWT principal. SseController calls this to get userId for connection registration and event filtering.</usage>
+    </interface>
+    <interface>
+      <name>ObjectMapper.readValue(String content, Class&lt;T&gt; valueType)</name>
+      <kind>method</kind>
+      <signature>&lt;T&gt; T readValue(String content, Class&lt;T&gt; valueType) throws JsonProcessingException</signature>
+      <path>com.fasterxml.jackson.databind.ObjectMapper</path>
+      <usage>Deserialize OutboxEnvelope from Redis Stream JSON payload. RedisStreamSubscriber uses this to convert JSON string to OutboxEnvelope record.</usage>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Use JUnit 5 with @SpringBootTest for integration tests and @Testcontainers for Redis/PostgreSQL containers. Unit tests use Mockito for mocking dependencies. Integration tests activate specific profiles (@ActiveProfiles("app")) and use TestRestTemplate or WebClient for HTTP requests. Metrics assertions use MeterRegistry to verify counter increments and gauge values. Follow naming convention: *Test for unit tests, *IntegrationTest for integration tests.
+    </standards>
+    <locations>
+      backend/src/test/java/io/monosense/synergyflow/sse/api/SseControllerTest.java
+      backend/src/test/java/io/monosense/synergyflow/sse/internal/SseConnectionManagerTest.java
+      backend/src/test/java/io/monosense/synergyflow/sse/internal/RedisStreamSubscriberTest.java
+      backend/src/test/java/io/monosense/synergyflow/sse/internal/SseCatchupServiceTest.java
+      backend/src/test/java/io/monosense/synergyflow/sse/SseGatewayIntegrationTest.java
+    </locations>
+    <ideas>
+      <idea ac_id="AC1">Test SseController endpoint authentication: call /api/sse/events without JWT → verify 401 Unauthorized. Call with valid JWT → verify 200 OK with text/event-stream content type.</idea>
+      <idea ac_id="AC1">Test SseEmitter creation: verify emitter has Long.MAX_VALUE timeout, connection registered in SseConnectionManager with correct userId from Principal.</idea>
+      <idea ac_id="AC2">Test reconnection catchup: disconnect client after receiving 5 events, publish 10 more events to Redis Stream, reconnect with Last-Event-ID header → verify all 10 missed events received in order within 1s.</idea>
+      <idea ac_id="AC3">Test RedisStreamSubscriber consumption: mock Redisson RStream, publish OutboxEnvelope to stream → verify RedisStreamSubscriber deserializes correctly and calls SseConnectionManager.broadcast().</idea>
+      <idea ac_id="AC4">Test user filtering: create 2 users (userA owns ticketA, userB owns ticketB), connect both SSE clients, publish TicketCreated event for ticketA → verify only userA receives event, userB does not.</idea>
+      <idea ac_id="AC5">Test connection cleanup: connect SSE client, trigger emitter.onError(), verify emitter unregistered from SseConnectionManager, sse_active_connections gauge decremented, structured log emitted with user_id, connection_id, duration_seconds.</idea>
+      <idea ac_id="AC6">Test metrics instrumentation: connect 3 clients, send 5 events → verify sse_active_connections=3, sse_events_sent_total=15 (3 clients × 5 events), sse_connection_duration_seconds histogram populated.</idea>
+      <idea ac_id="AC7">Test E2E latency: insert event into outbox with occurred_at timestamp, wait for Event Worker to publish to Redis Stream, SSE Gateway to broadcast → measure time from occurred_at to SSE client receipt → assert p95 ≤ 2s.</idea>
+      <idea ac_id="AC8">Test concurrent connections: spawn 250 SSE client threads using WebClient with SSE codec, sustain for 5 minutes, publish 1000 events → verify all clients receive all events, no exceptions, memory heap growth &lt;5%.</idea>
+    </ideas>
+  </tests>
+</story-context>

@@ -1,3 +1,5 @@
+import org.gradle.api.tasks.Exec
+
 plugins {
     java
     id("org.springframework.boot") version "3.4.0"
@@ -17,6 +19,15 @@ repositories {
     mavenCentral()
 }
 
+configurations {
+    compileOnly {
+        extendsFrom(configurations.annotationProcessor.get())
+    }
+    testCompileOnly {
+        extendsFrom(configurations.testAnnotationProcessor.get())
+    }
+}
+
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
@@ -27,6 +38,16 @@ dependencies {
     implementation("org.flywaydb:flyway-core")
     implementation("org.flywaydb:flyway-database-postgresql")
     implementation("com.nimbusds:nimbus-jose-jwt")
+    implementation("org.redisson:redisson-spring-boot-starter:3.35.0")
+    implementation("org.mapstruct:mapstruct:1.5.5.Final")
+
+    compileOnly("org.projectlombok:lombok")
+    annotationProcessor("org.projectlombok:lombok")
+    annotationProcessor("org.mapstruct:mapstruct-processor:1.5.5.Final")
+
+    testCompileOnly("org.projectlombok:lombok")
+    testAnnotationProcessor("org.projectlombok:lombok")
+    testAnnotationProcessor("org.mapstruct:mapstruct-processor:1.5.5.Final")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
@@ -46,6 +67,49 @@ dependencyManagement {
     }
 }
 
-tasks.withType<Test> {
-    useJUnitPlatform()
+tasks.withType<Test>().configureEach {
+    useJUnitPlatform {
+        val include = System.getProperty("includeTags")
+        if (!include.isNullOrBlank()) {
+            includeTags(*include.split(',').map { it.trim() }.toTypedArray())
+        } else {
+            excludeTags("load")
+        }
+    }
+
+    // Tame memory usage and avoid agent/OOM issues during CI
+    minHeapSize = System.getProperty("test.minHeap", "256m")
+    maxHeapSize = System.getProperty("test.maxHeap", "1024m")
+    jvmArgs(
+        "-XX:+UseG1GC",
+        "-XX:MaxGCPauseMillis=200",
+        "-XX:+HeapDumpOnOutOfMemoryError",
+        "-Dio.netty.leakDetection.level=disabled"
+    )
+
+    // Keep tests sequential to reduce resource pressure
+    systemProperty("junit.jupiter.execution.parallel.enabled", "false")
+
+    // Ensure Redis auth works across all tests
+    systemProperty("spring.redis.password", System.getProperty("spring.redis.password") ?: System.getenv("REDIS_PASSWORD") ?: "integration-secret")
+}
+
+val infrastructureDir = projectDir.resolve("../infrastructure").normalize()
+
+val dockerComposeUp by tasks.registering(Exec::class) {
+    workingDir = infrastructureDir
+    commandLine("docker", "compose", "up", "-d", "redis")
+    environment("REDIS_PASSWORD", "integration-secret")
+}
+
+val dockerComposeDown by tasks.registering(Exec::class) {
+    workingDir = infrastructureDir
+    commandLine("docker", "compose", "down")
+    environment("REDIS_PASSWORD", "integration-secret")
+}
+
+tasks.withType<Test>().configureEach {
+    dependsOn(dockerComposeUp)
+    finalizedBy(dockerComposeDown)
+    environment("REDIS_PASSWORD", "integration-secret")
 }

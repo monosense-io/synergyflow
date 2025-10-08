@@ -1,0 +1,44 @@
+# Application Profile - HTTP/SSE Gateway Configuration
+# This profile runs the web application with SSE (Server-Sent Events) support
+# Activated with: --spring.profiles.active=app
+
+spring:
+  application:
+    name: synergyflow-app
+
+# SSE Gateway Configuration
+synergyflow:
+  outbox:
+    redis:
+      stream-name: domain-events  # Redis Stream name for event fan-out
+  sse:
+    consumer-group: sse-gateways  # Redis consumer group for SSE Gateway instances
+    catchup:
+      max-events: 100  # Maximum number of missed events to send during reconnection catchup
+
+# Server Configuration
+server:
+  port: 8080
+  shutdown: graceful
+
+# Spring Boot Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    tags:
+      application: ${spring.application.name}
+      profile: app
+
+# Logging
+logging:
+  level:
+    io.monosense.synergyflow.sse: DEBUG
+    io.monosense.synergyflow.eventing: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"

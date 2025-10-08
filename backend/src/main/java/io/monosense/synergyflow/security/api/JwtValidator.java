@@ -1,5 +1,6 @@
 package io.monosense.synergyflow.security.api;
 
+import org.springframework.context.annotation.Profile;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtException;
@@ -10,11 +11,12 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Service for validating JWT tokens and extracting claims.
+ * Service for validating JWT tokens and extracting claims for authentication and authorization.
  *
  * <p>This service provides the public API for JWT validation used by other modules.
  * It decodes and validates JWT tokens issued by Keycloak, extracting essential claims
- * for authentication and authorization.
+ * for authentication and authorization. The service leverages Spring Security's JWT
+ * infrastructure to provide robust token validation with automatic key rotation support.</p>
  *
  * <p>Token validation includes:
  * <ul>
@@ -25,16 +27,45 @@ import java.util.Map;
  * </ul>
  *
  * <p>This class is part of the security module's public API (api package) and can be
- * injected by other modules for authentication purposes.
+ * injected by other modules for authentication purposes. It's active only in non-worker
+ * profiles to avoid unnecessary validation in background processing contexts.</p>
+ *
+ * <p>Usage example:
+ * <pre>{@code
+ * @RestController
+ * class TicketController {
+ *     private final JwtValidator jwtValidator;
+ *
+ *     public ResponseEntity<List<Ticket>> getTickets(
+ *             @RequestHeader("Authorization") String authHeader) {
+ *         String token = authHeader.substring(7); // Remove "Bearer " prefix
+ *         JwtClaims claims = jwtValidator.validateAndExtractClaims(token);
+ *
+ *         // Use claims for authorization or user identification
+ *         List<Ticket> tickets = ticketService.findByAssignee(claims.subject());
+ *         return ResponseEntity.ok(tickets);
+ *     }
+ * }</pre>
+ *
+ * @author monosense
+ * @since 1.0.0
+ * @version 1.0.0
  *
  * @see JwtClaims
  * @see InvalidTokenException
  */
 @Service
+@Profile("!worker")
 public class JwtValidator {
 
     private final JwtDecoder jwtDecoder;
 
+    /**
+     * Constructs a new JwtValidator with the required JWT decoder.
+     *
+     * @param jwtDecoder the Spring Security JWT decoder configured for Keycloak validation
+     * @throws IllegalArgumentException if jwtDecoder is null
+     */
     public JwtValidator(JwtDecoder jwtDecoder) {
         this.jwtDecoder = jwtDecoder;
     }

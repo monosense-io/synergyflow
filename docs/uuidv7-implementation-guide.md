@@ -8,11 +8,10 @@
 
 ## Executive Summary
 
-This document provides comprehensive guidance for implementing UUIDv7 primary keys in the SynergyFlow platform using Hibernate ORM. Based on extensive research, we recommend **upgrading to Hibernate 7.0 for native UUIDv7 support** or implementing a custom generator with Hibernate 6.x.
+This document provides comprehensive guidance for implementing UUIDv7 primary keys in the SynergyFlow platform using Hibernate ORM. We have **adopted Hibernate 7.0 for native UUIDv7 support** across the ITSM module.
 
-**Key Findings:**
-- ✅ **Hibernate 7.0** has **native UUIDv7 support** via `@UuidGenerator(style = Style.VERSION_7)`
-- ❌ **Hibernate 6.x** (6.0-6.6) does **NOT** have native UUIDv7 support - requires custom implementation
+**Key Points:**
+- ✅ **Hibernate 7.0** provides **native UUIDv7 support** via `@UuidGenerator(style = Style.VERSION_7)` (adopted)
 - 🚀 **UUIDv7 performance**: ~6.6x faster inserts than UUIDv4 in PostgreSQL (36s vs 4min for 10M records)
 - 📊 **Index efficiency**: Better locality, lower write amplification, compact B-tree indexes
 
@@ -91,17 +90,6 @@ UUIDv7 Structure (128 bits):
 
 ## Hibernate Version Comparison
 
-### Hibernate 6.x (6.0 - 6.6)
-
-**UUID Support:**
-- ✅ UUIDv1 (TIME): `@UuidGenerator(style = Style.TIME)` - RFC 4122 version 1 with IP address
-- ✅ UUIDv4 (RANDOM): `@UuidGenerator(style = Style.RANDOM)` - RFC 4122 version 4 (default)
-- ❌ **UUIDv7: NOT SUPPORTED** - Requires custom implementation
-
-**Status:**
-- Latest: Hibernate 6.6.x (released August 2024)
-- No UUIDv7 backport planned for 6.x series
-
 ### Hibernate 7.0
 
 **UUID Support:**
@@ -110,11 +98,7 @@ UUIDv7 Structure (128 bits):
 - ✅ UUIDv6: `@UuidGenerator(style = Style.VERSION_6)` (Incubating)
 - ✅ **UUIDv7: `@UuidGenerator(style = Style.VERSION_7)`** ← **NATIVE SUPPORT**
 
-**Status:**
-- Released: May 22, 2025
-- Stable: 7.0.0.Final
-- Jakarta Persistence 3.2 compatible
-- Jakarta Data 1.0 implementation
+**Status:** Adopted in this project (ITS Module) as of 2025-10-08.
 
 **Implementation:**
 - Class: `org.hibernate.id.uuid.UuidVersion7Strategy`
@@ -125,7 +109,7 @@ UUIDv7 Structure (128 bits):
 
 ## Recommended Approach
 
-### Recommendation: Hibernate 7.0 (Native UUIDv7 Support)
+### Adopted: Hibernate 7.0 (Native UUIDv7 Support)
 
 **Rationale:**
 1. **Native support**: No custom code, fully tested by Hibernate team
@@ -139,23 +123,14 @@ UUIDv7 Structure (128 bits):
 - Migration from Hibernate 6.x to 7.0 requires testing
 - May require dependency version updates (Jakarta EE 10)
 
-### Alternative: Hibernate 6.x + Custom Generator
-
-**When to use:**
-- Cannot upgrade to Spring Boot 3.4+ / Hibernate 7.0 immediately
-- Need UUIDv7 support in existing Hibernate 6.x project
-- Phased migration approach (custom generator → native in future)
-
-**Trade-offs:**
-- Requires external dependency: `f4b6a3/uuid-creator`
-- Custom code maintenance
-- Less battle-tested than Hibernate's native implementation
+### Alternative (not used here): Hibernate 6.x + Custom Generator
+Kept for reference only; we are not using this path.
 
 ---
 
 ## Implementation Option 1: Hibernate 7.0 (Native Support)
 
-### Step 1: Upgrade Dependencies
+### Step 1: Dependencies
 
 **build.gradle.kts** (Gradle Kotlin DSL):
 ```kotlin
@@ -181,8 +156,9 @@ repositories {
 }
 
 dependencies {
-    // Spring Boot 3.4+ includes Hibernate 7.0 by default
-    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+// Spring Boot + Hibernate ORM 7.x
+implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+implementation("org.hibernate.orm:hibernate-core:7.0.0.Final")
     implementation("org.springframework.boot:spring-boot-starter-web")
 
     // PostgreSQL JDBC Driver

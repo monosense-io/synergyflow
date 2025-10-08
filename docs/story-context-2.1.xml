@@ -1,0 +1,356 @@
+<story-context id="story-2.1-context" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>1</storyId>
+    <title>Ticket Domain Entities (Base, Incident, ServiceRequest)</title>
+    <status>Draft</status>
+    <generatedAt>2025-10-08</generatedAt>
+    <generator>BMAD Story Context Workflow v6.0</generator>
+    <sourceStoryPath>/Users/monosense/repository/research/itsm/docs/stories/story-2.1.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>Development Team</asA>
+    <iWant>domain entities for tickets (base, incident, service request) with proper JPA mappings, UUIDv7 primary keys, and optimistic locking</iWant>
+    <soThat>we can persist ticket data with time-ordered IDs, version control, and inheritance support for Epic 2 ITSM features</soThat>
+    <tasks>
+      <task id="1" ac="AC1,AC7,AC8">Create Ticket base entity and enums</task>
+      <task id="2" ac="AC2,AC3,AC7,AC8">Create Incident and ServiceRequest subclasses</task>
+      <task id="3" ac="AC4,AC5,AC7,AC8">Create TicketComment and RoutingRule entities</task>
+      <task id="4" ac="AC6,AC8">Create JPA repositories</task>
+      <task id="5" ac="IT1,IT2,IT3,IT7">Integration tests - Entity persistence</task>
+      <task id="6" ac="IT4,IT5,IT6">Integration tests - Optimistic locking and queries</task>
+      <task id="7" ac="LT1,LT2">Load tests</task>
+      <task id="8">Documentation and code review</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="AC1" priority="high">Create Ticket base entity with UUIDv7 primary key using @UuidGenerator(style = Style.VERSION_7), fields: id, ticketType, title, description, status, priority, category, requesterId, assigneeId, version (@Version), createdAt, updatedAt with @PrePersist/@PreUpdate lifecycle callbacks</ac>
+    <ac id="AC2" priority="high">Create Incident entity extending Ticket with additional fields: severity, resolutionNotes, resolvedAt; constructor sets ticketType=INCIDENT</ac>
+    <ac id="AC3" priority="high">Create ServiceRequest entity extending Ticket with additional fields: requestType, approvalStatus, fulfillerId, fulfilledAt; constructor sets ticketType=SERVICE_REQUEST</ac>
+    <ac id="AC4" priority="medium">Create TicketComment entity with UUIDv7 ID, ticketId FK, author, commentText, isInternal, createdAt with @PrePersist lifecycle callback</ac>
+    <ac id="AC5" priority="medium">Create RoutingRule entity with UUIDv7 ID, ruleName, conditionType, conditionValue, targetTeamId, targetAgentId, priority, enabled</ac>
+    <ac id="AC6" priority="high">Create Spring Data JPA repositories: TicketRepository, IncidentRepository, ServiceRequestRepository, TicketCommentRepository, RoutingRuleRepository with custom query methods</ac>
+    <ac id="AC7" priority="medium">Create enum types: TicketType (INCIDENT, SERVICE_REQUEST), TicketStatus (NEW, ASSIGNED, IN_PROGRESS, RESOLVED, CLOSED), Priority (CRITICAL, HIGH, MEDIUM, LOW), ApprovalStatus (PENDING, APPROVED, REJECTED), ConditionType (CATEGORY, PRIORITY, SUBCATEGORY, ROUND_ROBIN)</ac>
+    <ac id="AC8" priority="low">All entities follow Spring Modulith conventions: internal/domain package, Lombok annotations, Javadoc with @since 2.1 tag</ac>
+    <ac id="IT1" priority="high">Integration test: Ticket persistence, retrieval, UUIDv7 time-ordering verification</ac>
+    <ac id="IT2" priority="high">Integration test: Incident subclass persistence with severity and resolutionNotes</ac>
+    <ac id="IT3" priority="high">Integration test: ServiceRequest subclass persistence with approvalStatus</ac>
+    <ac id="IT4" priority="high">Integration test: Optimistic locking with concurrent updates (verify OptimisticLockException)</ac>
+    <ac id="IT5" priority="medium">Integration test: TicketComment persistence and chronological query</ac>
+    <ac id="IT6" priority="medium">Integration test: RoutingRule query by enabled and priority order</ac>
+    <ac id="IT7" priority="medium">Integration test: Timestamp lifecycle callbacks (@PrePersist/@PreUpdate)</ac>
+    <ac id="LT1" priority="medium">Load test: Bulk insert 1000 tickets in &lt;5s, verify UUIDv7 time-ordering, p99 latency &lt;50ms</ac>
+    <ac id="LT2" priority="medium">Load test: 500 concurrent reads + 50 writes/sec for 5 minutes, p95 read &lt;10ms, write &lt;50ms, zero OptimisticLockExceptions</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/epics/epic-2-itsm-tech-spec.md</path>
+        <title>Epic 2 ITSM Technical Specification</title>
+        <section>Technical Details - Ticket Domain Entity (UUIDv7 Primary Keys)</section>
+        <snippet>Lines 139-263: Complete Ticket.java entity definition with UUIDv7, @Version, lifecycle callbacks, inheritance strategy discussion</snippet>
+        <relevance>Authoritative source for all entity requirements, field definitions, JPA annotations, and implementation patterns</relevance>
+      </doc>
+      <doc>
+        <path>docs/uuidv7-implementation-guide.md</path>
+        <title>UUIDv7 Implementation Guide</title>
+        <section>Hibernate 7.0 Native Support</section>
+        <snippet>Complete guide on @UuidGenerator annotation, performance characteristics (6.6x faster inserts vs UUIDv4), time-ordering properties</snippet>
+        <relevance>Required for AC1 UUIDv7 implementation; explains annotation usage and benefits</relevance>
+      </doc>
+      <doc>
+        <path>docs/architecture/module-boundaries.md</path>
+        <title>Module Boundaries</title>
+        <section>Allowed Dependencies Matrix</section>
+        <snippet>ITSM module location: io.monosense.synergyflow.itsm; internal/ for domain entities (package-private); spi/ for cross-module interfaces</snippet>
+        <relevance>Defines package structure for AC8; enforces Spring Modulith conventions</relevance>
+      </doc>
+      <doc>
+        <path>docs/architecture/data-model.md</path>
+        <title>Data Model v1</title>
+        <section>ERD and UUID Policy</section>
+        <snippet>TICKETS table structure with UUID primary keys, INCIDENTS and SERVICE_REQUESTS inheritance, read models (ticket_card)</snippet>
+        <relevance>Shows expected database schema, confirms UUIDv7 policy for all primary keys</relevance>
+      </doc>
+      <doc>
+        <path>docs/architecture/architecture-decisions.md</path>
+        <title>Architecture Decision Records</title>
+        <section>ADR-002 UUIDv7, ADR-009 Integration Tests</section>
+        <snippet>Rationale for UUIDv7 choice, Testcontainers integration test requirements</snippet>
+        <relevance>Context for UUIDv7 decision, testing strategy guidance for IT1-IT7</relevance>
+      </doc>
+      <doc>
+        <path>docs/epics/epic-2-itsm-tech-spec.md</path>
+        <title>Epic 2 ITSM Tech Spec - Implementation Guide</title>
+        <section>Week 3-4: Ticket CRUD + Routing Engine (Sprint 3) - Story 2.1</section>
+        <snippet>Lines 1388-1398: Story 2.1 breakdown with 8 story points, tasks list, acceptance criteria summary</snippet>
+        <relevance>Sprint context, story points estimate, original task breakdown</relevance>
+      </doc>
+    </docs>
+
+    <code>
+      <artifact>
+        <path>backend/src/main/java/io/monosense/synergyflow/itsm/internal/Ticket.java</path>
+        <kind>entity</kind>
+        <symbol>Ticket</symbol>
+        <lines>1-166</lines>
+        <status>exists-needs-modification</status>
+        <reason>Existing Ticket entity from Epic 1 uses manual UUID generation (UUID.randomUUID()) and String fields for status/priority. Story 2.1 requires: (1) Replace with @UuidGenerator for UUIDv7, (2) Convert status/priority to enums, (3) Add ticketType enum field, (4) Add @PrePersist/@PreUpdate callbacks, (5) Prepare for inheritance (Incident, ServiceRequest subclasses)</reason>
+        <changes>
+          <change>Replace UUID id manual generation with @UuidGenerator(style = Style.VERSION_7)</change>
+          <change>Add ticketType field with TicketType enum (INCIDENT, SERVICE_REQUEST)</change>
+          <change>Convert status String to TicketStatus enum (NEW, ASSIGNED, IN_PROGRESS, RESOLVED, CLOSED)</change>
+          <change>Convert priority String to Priority enum (CRITICAL, HIGH, MEDIUM, LOW)</change>
+          <change>Add description field (TEXT column)</change>
+          <change>Add category field (String)</change>
+          <change>Add @PrePersist/@PreUpdate lifecycle callbacks for timestamp management</change>
+          <change>Add incrementVersion() public method for explicit version bumps</change>
+          <change>Add @Inheritance annotation to support Incident/ServiceRequest subclasses</change>
+          <change>Remove ticketNumber field (not in Story 2.1 requirements)</change>
+        </changes>
+      </artifact>
+
+      <artifact>
+        <path>backend/src/main/java/io/monosense/synergyflow/itsm/internal/TicketRepository.java</path>
+        <kind>repository</kind>
+        <symbol>TicketRepository</symbol>
+        <lines>N/A</lines>
+        <status>exists-needs-extension</status>
+        <reason>Repository exists from Epic 1; needs custom query methods per AC6: findByStatus, findByRequesterId, findByAssigneeId</reason>
+        <changes>
+          <change>Add findByStatus(TicketStatus status) query method</change>
+          <change>Add findByRequesterId(UUID requesterId) query method</change>
+          <change>Add findByAssigneeId(UUID assigneeId) query method</change>
+        </changes>
+      </artifact>
+
+      <artifact>
+        <path>backend/src/main/java/io/monosense/synergyflow/eventing/api/EventPublisher.java</path>
+        <kind>interface</kind>
+        <symbol>EventPublisher</symbol>
+        <lines>N/A</lines>
+        <status>exists-reuse</status>
+        <reason>Outbox pattern interface from Epic 1 Story 1.5; used by TicketService (Story 2.2) to publish events, no changes needed for Story 2.1</reason>
+      </artifact>
+
+      <artifact>
+        <path>backend/src/main/java/io/monosense/synergyflow/eventing/internal/OutboxEvent.java</path>
+        <kind>entity</kind>
+        <symbol>OutboxEvent</symbol>
+        <lines>N/A</lines>
+        <status>exists-reuse</status>
+        <reason>Outbox table entity from Story 1.5; TicketService will write domain events here (Story 2.2), no changes needed for Story 2.1</reason>
+      </artifact>
+
+      <artifact>
+        <path>backend/src/main/java/io/monosense/synergyflow/itsm/events/TicketCreated.java</path>
+        <kind>event</kind>
+        <symbol>TicketCreated</symbol>
+        <lines>N/A</lines>
+        <status>exists-needs-update</status>
+        <reason>Domain event from Epic 1; may need fields updated to match new Ticket entity structure (ticketType, status/priority enums)</reason>
+      </artifact>
+
+      <artifact>
+        <path>backend/src/main/java/io/monosense/synergyflow/itsm/events/TicketAssigned.java</path>
+        <kind>event</kind>
+        <symbol>TicketAssigned</symbol>
+        <lines>N/A</lines>
+        <status>exists-reuse</status>
+        <reason>Domain event for ticket assignment, used in Story 2.2 (TicketService), no changes needed for Story 2.1</reason>
+      </artifact>
+
+      <artifact>
+        <path>backend/src/main/java/io/monosense/synergyflow/eventing/readmodel/TicketCardEntity.java</path>
+        <kind>entity</kind>
+        <symbol>TicketCardEntity</symbol>
+        <lines>N/A</lines>
+        <status>exists-reference</status>
+        <reason>Read model projection for ticket queue view (Epic 1 Story 1.6); will be updated by Event Worker when ticket domain events published (Story 2.2+), no direct changes in Story 2.1</reason>
+      </artifact>
+    </code>
+
+    <dependencies>
+      <java>
+        <framework name="Spring Boot" version="3.4.0"/>
+        <framework name="Spring Data JPA" version="3.x (via Spring Boot)"/>
+        <framework name="Spring Modulith" version="1.2.4"/>
+        <dependency name="hibernate-core" version="7.x (via spring-boot-starter-data-jpa)">
+          <note>Required for @UuidGenerator(style = Style.VERSION_7) annotation - Hibernate 7.0+ native UUIDv7 support</note>
+        </dependency>
+        <dependency name="postgresql" version="latest">
+          <note>Database driver for PostgreSQL integration</note>
+        </dependency>
+        <dependency name="lombok" version="latest" scope="compileOnly + annotationProcessor">
+          <note>For @Getter, @Setter, @NoArgsConstructor, @AllArgsConstructor annotations per AC8</note>
+        </dependency>
+        <dependency name="testcontainers-postgresql" version="1.20.4" scope="test">
+          <note>Required for integration tests IT1-IT7 with PostgreSQL container</note>
+        </dependency>
+        <dependency name="testcontainers-junit-jupiter" version="1.20.4" scope="test">
+          <note>JUnit 5 integration for Testcontainers</note>
+        </dependency>
+        <dependency name="spring-boot-testcontainers" version="3.4.0" scope="test">
+          <note>Spring Boot Testcontainers support for @ServiceConnection annotation</note>
+        </dependency>
+        <dependency name="archunit-junit5" version="1.3.0" scope="test">
+          <note>For Spring Modulith modularity tests (enforce internal package access rules)</note>
+        </dependency>
+      </java>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint id="C1" category="architecture">
+      <rule>All domain entities must be placed in internal/domain/ package with package-private visibility (no public modifier on class)</rule>
+      <source>docs/architecture/module-boundaries.md - Spring Modulith conventions</source>
+      <impact>Enforces encapsulation; prevents direct access from other modules</impact>
+    </constraint>
+
+    <constraint id="C2" category="architecture">
+      <rule>All repositories must be placed in internal/repository/ package with package-private visibility</rule>
+      <source>docs/architecture/module-boundaries.md - Spring Modulith conventions</source>
+      <impact>Service layer (internal/service/) accesses repositories, but external modules cannot</impact>
+    </constraint>
+
+    <constraint id="C3" category="data">
+      <rule>All primary keys must use UUIDv7 with @UuidGenerator(style = Style.VERSION_7) annotation</rule>
+      <source>docs/uuidv7-implementation-guide.md, ADR-002</source>
+      <impact>Ensures time-ordered IDs, better index locality, 6.6x faster inserts vs UUIDv4</impact>
+    </constraint>
+
+    <constraint id="C4" category="data">
+      <rule>All write entities must include @Version field for optimistic locking</rule>
+      <source>docs/epics/epic-2-itsm-tech-spec.md - Ticket domain entity section</source>
+      <impact>Prevents lost updates from concurrent modifications; JPA auto-increments version on save</impact>
+    </constraint>
+
+    <constraint id="C5" category="data">
+      <rule>Timestamp fields must use Instant type (not LocalDateTime or Date)</rule>
+      <source>docs/epics/epic-2-itsm-tech-spec.md - Ticket domain entity section</source>
+      <impact>Timezone-agnostic UTC timestamps; maps to PostgreSQL timestamptz</impact>
+    </constraint>
+
+    <constraint id="C6" category="data">
+      <rule>Entity timestamps must be managed via @PrePersist and @PreUpdate lifecycle callbacks (not @CreationTimestamp/@UpdateTimestamp)</rule>
+      <source>docs/epics/epic-2-itsm-tech-spec.md - AC1</source>
+      <impact>Explicit control over timestamp logic; testable without database</impact>
+    </constraint>
+
+    <constraint id="C7" category="code-quality">
+      <rule>Use Lombok @Getter, @Setter, @NoArgsConstructor for boilerplate reduction, but provide explicit constructors for aggregate creation</rule>
+      <source>docs/epics/epic-2-itsm-tech-spec.md - AC8</source>
+      <impact>Reduces code duplication while maintaining domain logic clarity</impact>
+    </constraint>
+
+    <constraint id="C8" category="code-quality">
+      <rule>All public methods must have Javadoc with @since 2.1 tag</rule>
+      <source>docs/epics/epic-2-itsm-tech-spec.md - AC8</source>
+      <impact>Documents API evolution for future stories</impact>
+    </constraint>
+
+    <constraint id="C9" category="testing">
+      <rule>Integration tests must use Testcontainers PostgreSQL, not H2 or in-memory databases</rule>
+      <source>docs/architecture/adr/ADR-009-integration-tests-requirements-testcontainers.md</source>
+      <impact>Tests run against real PostgreSQL; catches database-specific issues</impact>
+    </constraint>
+
+    <constraint id="C10" category="testing">
+      <rule>Integration tests must be tagged with @Tag("integration") and excluded from default test runs (only run explicitly)</rule>
+      <source>backend/build.gradle.kts - test configuration</source>
+      <impact>Avoids slow container startup during rapid development; run via ./gradlew test -DincludeTags=integration</impact>
+    </constraint>
+
+    <constraint id="C11" category="testing">
+      <rule>Load tests must be tagged with @Tag("load") and excluded from CI pipeline (run manually or nightly)</rule>
+      <source>backend/build.gradle.kts - test configuration line 76: excludeTags("load")</source>
+      <impact>Prevents long-running load tests from blocking CI; run via ./gradlew test -DincludeTags=load</impact>
+    </constraint>
+
+    <constraint id="C12" category="architecture">
+      <rule>JPA inheritance strategy decision deferred to implementation: choose JOINED (normalized) or SINGLE_TABLE (faster reads); document choice in code comments with rationale</rule>
+      <source>docs/epics/epic-2-itsm-tech-spec.md - Technical Details section</source>
+      <impact>Developer discretion; must document trade-offs (JOINED: cleaner schema, SINGLE_TABLE: faster polymorphic queries)</impact>
+    </constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>EventPublisher</name>
+      <kind>service-interface</kind>
+      <signature>void publish(Object event)</signature>
+      <path>backend/src/main/java/io/monosense/synergyflow/eventing/api/EventPublisher.java</path>
+      <usage>Used by TicketService (Story 2.2) to publish domain events (TicketCreated, TicketAssigned, etc.) to outbox table; not directly used in Story 2.1 entity layer</usage>
+    </interface>
+
+    <interface>
+      <name>JpaRepository</name>
+      <kind>spring-interface</kind>
+      <signature>interface TicketRepository extends JpaRepository&lt;Ticket, UUID&gt;</signature>
+      <path>N/A (Spring Data JPA framework)</path>
+      <usage>All repositories extend JpaRepository for CRUD operations + custom query methods; provides save(), findById(), findAll(), etc.</usage>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      <paragraph>
+        Testing follows Spring Boot Test framework with Testcontainers for integration tests. Unit tests use JUnit 5 with no mocking (pure POJO tests for lifecycle callbacks and helper methods). Integration tests use @DataJpaTest for repository layer tests or @SpringBootTest for full context tests. All integration tests must use Testcontainers PostgreSQL (not H2) per ADR-009. Tests are tagged with @Tag("integration") or @Tag("load") and excluded from default runs. Coverage target: &gt;80% for domain logic. Load tests measure performance targets: LT1 requires &gt;200 inserts/sec with p99 &lt;50ms, LT2 requires sustained 500 reads/sec + 50 writes/sec with p95 read &lt;10ms and write &lt;50ms.
+      </paragraph>
+    </standards>
+
+    <locations>
+      <location>backend/src/test/java/io/monosense/synergyflow/itsm/internal/domain/</location>
+      <location>backend/src/test/java/io/monosense/synergyflow/itsm/internal/repository/</location>
+      <location>backend/src/test/java/io/monosense/synergyflow/itsm/integration/</location>
+      <note>Unit tests mirror source structure in test/java; integration tests in separate integration/ package</note>
+    </locations>
+
+    <ideas>
+      <idea ac="AC1" type="unit">
+        <test>TicketTest.testPrePersistSetsTimestamps() - Create Ticket, manually invoke onCreate(), verify createdAt and updatedAt both set to non-null Instant</test>
+        <test>TicketTest.testPreUpdateUpdatesTimestamp() - Create Ticket, invoke onCreate(), wait 10ms, invoke onUpdate(), verify updatedAt &gt; createdAt</test>
+        <test>TicketTest.testIncrementVersion() - Create Ticket with version=1L, call incrementVersion(), verify version==2L</test>
+      </idea>
+
+      <idea ac="AC2,AC3" type="unit">
+        <test>IncidentTest.testConstructorSetsTicketType() - Create Incident(), verify ticketType == TicketType.INCIDENT</test>
+        <test>ServiceRequestTest.testConstructorSetsTicketType() - Create ServiceRequest(), verify ticketType == TicketType.SERVICE_REQUEST</test>
+      </idea>
+
+      <idea ac="IT1" type="integration">
+        <test>TicketEntityIntegrationTest.testTicketPersistenceAndRetrieval() - Save Ticket to DB, retrieve by ID, verify all fields match</test>
+        <test>TicketEntityIntegrationTest.testUuidV7TimeOrdering() - Create two Tickets sequentially, verify ID1 &lt; ID2 lexicographically (UUIDv7 time-ordering property)</test>
+      </idea>
+
+      <idea ac="IT2,IT3" type="integration">
+        <test>TicketEntityIntegrationTest.testIncidentSubclassPersistence() - Save Incident with severity=CRITICAL, resolutionNotes="Rebooted server", retrieve, verify subclass fields and ticketType</test>
+        <test>TicketEntityIntegrationTest.testServiceRequestSubclassPersistence() - Save ServiceRequest with approvalStatus=PENDING, retrieve, verify subclass fields and ticketType</test>
+      </idea>
+
+      <idea ac="IT4" type="integration">
+        <test>TicketEntityIntegrationTest.testOptimisticLocking() - Save Ticket (version=0), load in two transactions, update+save in tx1 (version→1), update+save in tx2 → expect OptimisticLockException</test>
+      </idea>
+
+      <idea ac="IT5,IT6" type="integration">
+        <test>TicketCommentIntegrationTest.testCommentPersistenceAndChronologicalQuery() - Create Ticket, add 3 comments with different timestamps, query by ticketId, verify chronological order (createdAt ASC)</test>
+        <test>RoutingRuleIntegrationTest.testQueryEnabledRulesByPriority() - Create 3 rules with priority=1,2,3 enabled=true, 1 rule enabled=false, query findByEnabledTrueOrderByPriorityAsc(), verify 3 rules returned in correct order</test>
+      </idea>
+
+      <idea ac="IT7" type="integration">
+        <test>TicketEntityIntegrationTest.testLifecycleCallbacks() - Create Ticket, save, verify createdAt populated; wait 100ms, update title, save, verify updatedAt &gt; createdAt</test>
+      </idea>
+
+      <idea ac="LT1" type="load">
+        <test>TicketEntityLoadTest.testBulkTicketCreation() - Insert 1000 tickets in loop, measure total time (&lt;5s), calculate throughput (&gt;200/sec), measure p99 latency (&lt;50ms per insert), verify all UUIDs time-ordered with ≤1% inversions</test>
+      </idea>
+
+      <idea ac="LT2" type="load">
+        <test>TicketEntityLoadTest.testConcurrentReadWrite() - Spawn 10 read threads (50 reads/sec each = 500 total) + 5 write threads (10 writes/sec each = 50 total), run for 5 minutes, measure p95 latency (read &lt;10ms, write &lt;50ms), verify zero OptimisticLockExceptions, verify connection pool stable</test>
+      </idea>
+    </ideas>
+  </tests>
+</story-context>

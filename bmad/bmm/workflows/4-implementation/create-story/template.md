@@ -10,7 +10,31 @@ so that {{benefit}}.
 
 ## Acceptance Criteria
 
-1. [Add acceptance criteria from epics/PRD]
+### Functional Requirements
+
+1. [Add functional acceptance criteria from epics/PRD]
+
+### Integration Tests (Testcontainers)
+
+**REQUIRED**: Each story must specify integration test scenarios with Testcontainers.
+
+1. [Integration test scenario 1 with specific test case description]
+   - Container setup required: [e.g., PostgreSQL, Kafka, Redis]
+   - Test data requirements: [specific test data or fixtures]
+   - Expected behavior: [what the integration should verify]
+
+2. [Additional integration test scenarios as needed]
+
+### Load Tests (@Tag("load"))
+
+**REQUIRED**: Each story with performance implications must specify load test targets.
+
+1. [Load test scenario 1]
+   - Performance target: [e.g., 1000 requests/second, response time < 200ms]
+   - Test duration: [e.g., 5 minutes sustained load]
+   - Success criteria: [e.g., 99th percentile < 500ms, zero errors]
+
+2. [Additional load test scenarios as needed]
 
 ## Tasks / Subtasks
 
@@ -24,6 +48,24 @@ so that {{benefit}}.
 - Relevant architecture patterns and constraints
 - Source tree components to touch
 - Testing standards summary
+
+### Testing Strategy
+
+**Integration Tests**:
+- Container dependencies: [List all Testcontainers needed: PostgreSQL, Kafka, Redis, etc.]
+- Test scope: [What layers/components will be tested together]
+- Data setup approach: [How test data will be initialized and cleaned up]
+- Key scenarios covered: [Map to Integration Tests ACs above]
+
+**Load Tests**:
+- Performance baseline: [Current performance metrics if available]
+- Test environment: [Describe load test setup - containers, resource limits]
+- Monitoring approach: [What metrics will be collected during load tests]
+- Acceptance thresholds: [Map to Load Tests ACs above]
+
+**Unit Tests**:
+- Coverage expectations: [Minimum coverage % or critical paths]
+- Mocking strategy: [What will be mocked vs real dependencies]
 
 ### Project Structure Notes
 

@@ -3,3 +3,8 @@
 - [0002-uuidv7.md](docs/architecture/adr/0002-uuidv7.md)
 - [0003-redis-streams-vs-kafka.md](docs/architecture/adr/0003-redis-streams-vs-kafka.md)
 - [0004-sse-vs-websocket.md](docs/architecture/adr/0004-sse-vs-websocket.md)
+- [ADR-005-db-level-idempotency.md](docs/architecture/adr/ADR-005-db-level-idempotency.md)
+- [ADR-006-event-id-format-redis-stream-ids-for-sse.md](docs/architecture/adr/ADR-006-event-id-format-redis-stream-ids-for-sse.md)
+- [ADR-007-authorization-before-broadcast.md](docs/architecture/adr/ADR-007-authorization-before-broadcast.md)
+- [ADR-008-load-testing-approach.md](docs/architecture/adr/ADR-008-load-testing-approach.md)
+- [ADR-009-integration-tests-requirements-testcontainers.md](docs/architecture/adr/ADR-009-integration-tests-requirements-testcontainers.md)

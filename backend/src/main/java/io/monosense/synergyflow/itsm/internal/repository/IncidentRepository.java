@@ -2,7 +2,6 @@ package io.monosense.synergyflow.itsm.internal.repository;
 
 import io.monosense.synergyflow.itsm.internal.domain.Incident;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Service;
 
 import java.util.UUID;
 
@@ -21,7 +20,6 @@ import java.util.UUID;
  * @author monosense
  * @since 2.1
  */
-@Service
 public interface IncidentRepository extends JpaRepository<Incident, UUID> {
     // Inherits findById, save, findAll, delete, etc. from JpaRepository
     // Custom query methods can be added here as needed for Incident-specific queries

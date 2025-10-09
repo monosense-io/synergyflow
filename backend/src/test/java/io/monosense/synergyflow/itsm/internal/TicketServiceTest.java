@@ -11,9 +11,10 @@ import io.monosense.synergyflow.itsm.api.dto.CreateTicketCommand;
 import io.monosense.synergyflow.itsm.internal.domain.*;
 import io.monosense.synergyflow.itsm.internal.exception.ConcurrentUpdateException;
 import io.monosense.synergyflow.itsm.internal.exception.TicketNotFoundException;
+import io.monosense.synergyflow.itsm.internal.repository.SlaTrackingRepository;
 import io.monosense.synergyflow.itsm.internal.repository.TicketCommentRepository;
 import io.monosense.synergyflow.itsm.internal.repository.TicketRepository;
-import io.monosense.synergyflow.itsm.internal.StateTransitionValidator;
+import io.monosense.synergyflow.itsm.internal.service.SlaCalculator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -61,6 +62,12 @@ class TicketServiceTest {
     private TicketCommentRepository commentRepository;
 
     @Mock
+    private SlaTrackingRepository slaTrackingRepository;
+
+    @Mock
+    private SlaCalculator slaCalculator;
+
+    @Mock
     private EventPublisher eventPublisher;
 
     @Mock
@@ -85,6 +92,8 @@ class TicketServiceTest {
         ticketService = new TicketService(
                 ticketRepository,
                 commentRepository,
+                slaTrackingRepository,
+                slaCalculator,
                 eventPublisher,
                 stateTransitionValidator,
                 meterRegistry,

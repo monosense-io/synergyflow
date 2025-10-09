@@ -158,7 +158,9 @@ public class RedisStreamSubscriber {
                     continue;
                 }
 
-                log.debug("Consumed {} events from Redis Stream: consumer_name={}", messages.size(), consumerName);
+                if (log.isTraceEnabled()) {
+                    log.trace("Consumed {} events from Redis Stream: consumer_name={}", messages.size(), consumerName);
+                }
 
                 for (Map.Entry<StreamMessageId, Map<String, String>> entry : messages.entrySet()) {
                     StreamMessageId messageId = entry.getKey();

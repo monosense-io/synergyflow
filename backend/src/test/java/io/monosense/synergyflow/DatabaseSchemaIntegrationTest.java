@@ -54,19 +54,19 @@ class DatabaseSchemaIntegrationTest {
 
     @Test
     void testFlywayMigrationsExecuted() {
-        // AC1: Verify 10 migrations executed successfully
+        // AC1: Verify migrations executed successfully (updated for Story 2.3)
         Integer migrationCount = jdbcTemplate.queryForObject(
             "SELECT COUNT(*) FROM " + testSchema + ".flyway_schema_history WHERE success = true AND version IS NOT NULL",
             Integer.class
         );
-        assertThat(migrationCount).isEqualTo(10);
+        assertThat(migrationCount).isEqualTo(12);
 
         // Verify migration versions in order
         List<String> versions = jdbcTemplate.queryForList(
             "SELECT version FROM " + testSchema + ".flyway_schema_history WHERE success = true AND version IS NOT NULL ORDER BY installed_rank",
             String.class
         );
-        assertThat(versions).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10");
+        assertThat(versions).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12");
     }
 
     @Test
@@ -187,7 +187,8 @@ class DatabaseSchemaIntegrationTest {
             "idx_tickets_status",
             "idx_issues_status",
             "idx_outbox_unprocessed",
-            "idx_sla_tracking_response_due",
+            // Story 2.3: SLA tracking index on due_at for breach detection queries
+            "idx_sla_tracking_due_at",
             "idx_ticket_card_sla_due"
         );
 
@@ -282,7 +283,7 @@ class DatabaseSchemaIntegrationTest {
             "SELECT version, description, checksum, success FROM " + testSchema + ".flyway_schema_history WHERE version IS NOT NULL ORDER BY installed_rank"
         );
 
-        assertThat(migrations).hasSize(10); // Includes V8 (reopen_count), V9 (ticket performance indexes), V10 (outbox idempotency index)
+        assertThat(migrations).hasSize(12); // Includes V11 (sla_tracking), V12 (nullable ticket priority)
 
         // Verify all migrations succeeded
         for (Map<String, Object> migration : migrations) {
@@ -307,5 +308,8 @@ class DatabaseSchemaIntegrationTest {
         assertThat(migrations.get(7).get("description")).isEqualTo("add reopen count to tickets");
         assertThat(migrations.get(8).get("description")).isEqualTo("add ticket performance indexes");
         assertThat(migrations.get(9).get("description")).isEqualTo("modify outbox idempotency index");
+        // Story 2.3 additions
+        assertThat(migrations.get(10).get("description")).isEqualTo("create sla tracking table");
+        assertThat(migrations.get(11).get("description")).isEqualTo("make ticket priority nullable");
     }
 }

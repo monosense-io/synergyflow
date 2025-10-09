@@ -13,9 +13,12 @@ import io.monosense.synergyflow.itsm.events.TicketReopenAudit;
 import io.monosense.synergyflow.itsm.events.TicketResolutionAudit;
 import io.monosense.synergyflow.itsm.internal.domain.*;
 import io.monosense.synergyflow.itsm.internal.exception.ConcurrentUpdateException;
+import io.monosense.synergyflow.itsm.internal.exception.InvalidStateTransitionException;
 import io.monosense.synergyflow.itsm.internal.exception.TicketNotFoundException;
+import io.monosense.synergyflow.itsm.internal.repository.SlaTrackingRepository;
 import io.monosense.synergyflow.itsm.internal.repository.TicketCommentRepository;
 import io.monosense.synergyflow.itsm.internal.repository.TicketRepository;
+import io.monosense.synergyflow.itsm.internal.service.SlaCalculator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.OptimisticLockingFailureException;
@@ -69,6 +72,8 @@ public class TicketService {
 
     private final TicketRepository repository;
     private final TicketCommentRepository commentRepository;
+    private final SlaTrackingRepository slaTrackingRepository;
+    private final SlaCalculator slaCalculator;
     private final EventPublisher eventPublisher;
     private final StateTransitionValidator stateTransitionValidator;
     private final MeterRegistry meterRegistry;
@@ -79,6 +84,8 @@ public class TicketService {
      *
      * @param repository the JPA repository for ticket persistence
      * @param commentRepository the JPA repository for ticket comment persistence
+     * @param slaTrackingRepository the JPA repository for SLA tracking persistence (Story 2.3)
+     * @param slaCalculator the service for calculating SLA deadlines (Story 2.3)
      * @param eventPublisher the event publisher for domain events
      * @param stateTransitionValidator the validator for state transitions
      * @param meterRegistry the Micrometer meter registry for metrics tracking
@@ -88,12 +95,16 @@ public class TicketService {
      */
     public TicketService(TicketRepository repository,
                          TicketCommentRepository commentRepository,
+                         SlaTrackingRepository slaTrackingRepository,
+                         SlaCalculator slaCalculator,
                          EventPublisher eventPublisher,
                          StateTransitionValidator stateTransitionValidator,
                          MeterRegistry meterRegistry,
                          ObjectMapper objectMapper) {
         this.repository = repository;
         this.commentRepository = commentRepository;
+        this.slaTrackingRepository = slaTrackingRepository;
+        this.slaCalculator = slaCalculator;
         this.eventPublisher = eventPublisher;
         this.stateTransitionValidator = stateTransitionValidator;
         this.meterRegistry = meterRegistry;
@@ -157,13 +168,22 @@ public class TicketService {
         // Persist ticket (ID generated automatically by @UuidGenerator)
         ticket = repository.save(ticket);
 
+        // Create SLA tracking record for incidents with priority (Story 2.3 AC-5)
+        if (ticket.getTicketType() == TicketType.INCIDENT && ticket.getPriority() != null) {
+            java.time.Instant dueAt = slaCalculator.calculateDueAt(ticket.getPriority(), ticket.getCreatedAt());
+            SlaTracking slaTracking = new SlaTracking(ticket.getId(), ticket.getPriority(), dueAt);
+            slaTrackingRepository.save(slaTracking);
+            log.debug("Created SLA tracking for incident {} with priority {} (due at {})",
+                    ticket.getId(), ticket.getPriority(), dueAt);
+        }
+
         // Prepare and publish TicketCreatedEvent
         TicketCreated event = new TicketCreated(
                 ticket.getId(),
                 "T-" + ticket.getId(), // Generate ticket number for event
                 ticket.getTitle(),
                 ticket.getStatus().name(),
-                ticket.getPriority().name(),
+                ticket.getPriority() != null ? ticket.getPriority().name() : null,
                 ticket.getRequesterId(),
                 ticket.getCreatedAt(),
                 ticket.getUpdatedAt(),
@@ -1124,9 +1144,9 @@ public class TicketService {
      * <p>Validates that the ticket is not RESOLVED or CLOSED, as priority is locked
      * after resolution.</p>
      *
-     * <p>Business validation is performed first to ensure exceptions are thrown without
-     * Spring Retry wrapping. The actual state mutation is delegated to a retry-protected
-     * internal method.</p>
+     * <p>This method handles concurrent updates with retry logic via @Retryable.
+     * If OptimisticLockingFailureException occurs, the operation will be retried up to 4 times
+     * with exponential backoff (50ms → 100ms → 200ms with jitter).</p>
      *
      * @param ticketId the unique identifier of the ticket
      * @param newPriority the new priority level
@@ -1138,47 +1158,53 @@ public class TicketService {
      * @since 2.2
      */
     @Transactional
-    public Ticket updatePriority(UUID ticketId, Priority newPriority, UUID currentUserId) {
-        // Load ticket for validation
-        Ticket ticket = repository.findById(ticketId)
-                .orElseThrow(() -> new TicketNotFoundException(ticketId));
-
-        // Validate priority lock (prevents Spring Retry exception wrapping)
-        validatePriorityUpdate(ticket);
-
-        // Delegate to retry-protected internal method
-        return updatePriorityInternal(ticketId, newPriority, currentUserId);
-    }
-
-    /**
-     * Internal retry-protected method for updating ticket priority.
-     * This method handles concurrent updates with retry logic.
-     *
-     * @param ticketId the unique identifier of the ticket
-     * @param newPriority the new priority level
-     * @param currentUserId the unique identifier of the user updating the priority
-     * @return the updated Ticket entity
-     * @since 2.2
-     */
     @Retryable(
-        value = {OptimisticLockingFailureException.class},
+        include = {OptimisticLockingFailureException.class},
         maxAttempts = 4,
         backoff = @Backoff(delay = 50, multiplier = 2, maxDelay = 200, random = true)
     )
-    Ticket updatePriorityInternal(UUID ticketId, Priority newPriority, UUID currentUserId) {
+    public Ticket updatePriority(UUID ticketId, Priority newPriority, UUID currentUserId) {
         meterRegistry.counter("ticket.updatePriority.attempts").increment();
 
         // Reload ticket for fresh state (required for retry safety)
         Ticket ticket = repository.findById(ticketId)
                 .orElseThrow(() -> new TicketNotFoundException(ticketId));
 
-        // Re-validate priority lock (handles race conditions during retries)
+        // Validate priority lock (must be done on each retry attempt to handle race conditions)
         validatePriorityUpdate(ticket);
 
         // Update priority
         TicketStatus currentStatus = ticket.getStatus();
         ticket.updatePriority(newPriority);
         ticket = repository.saveAndFlush(ticket);
+
+        // Recalculate SLA for incidents (Story 2.3 AC-6, AC-7)
+        // Skip if ticket is resolved or closed (AC-7: SLA frozen for historical accuracy)
+        if (ticket.getTicketType() == TicketType.INCIDENT &&
+            currentStatus != TicketStatus.RESOLVED &&
+            currentStatus != TicketStatus.CLOSED) {
+
+            // Fetch existing SLA record or create new one if ticket was created without priority
+            var existingSla = slaTrackingRepository.findByTicketId(ticket.getId());
+
+            // Recalculate dueAt from ORIGINAL ticket.createdAt (not current time) to preserve fairness
+            java.time.Instant newDueAt = slaCalculator.calculateDueAt(newPriority, ticket.getCreatedAt());
+
+            if (existingSla.isPresent()) {
+                // Update existing SLA record
+                SlaTracking slaTracking = existingSla.get();
+                slaTracking.updateSla(newPriority, newDueAt);
+                slaTrackingRepository.save(slaTracking);
+                log.debug("Recalculated SLA for incident {} with new priority {} (due at {})",
+                        ticket.getId(), newPriority, newDueAt);
+            } else {
+                // Create new SLA record (handles case where ticket was created without priority)
+                SlaTracking slaTracking = new SlaTracking(ticket.getId(), newPriority, newDueAt);
+                slaTrackingRepository.save(slaTracking);
+                log.debug("Created SLA tracking for incident {} after priority added (due at {})",
+                        ticket.getId(), newDueAt);
+            }
+        }
 
         // Publish TicketStateChanged event
         io.monosense.synergyflow.itsm.events.TicketStateChanged event =
@@ -1204,16 +1230,25 @@ public class TicketService {
     }
 
     @Recover
-    public Ticket recoverUpdatePriority(OptimisticLockingFailureException ex,
+    public Ticket recoverUpdatePriority(Exception ex,
                                         UUID ticketId,
                                         Priority newPriority,
                                         UUID currentUserId) {
-        log.error("Failed to update priority for ticket {} after 4 attempts due to concurrent updates", ticketId, ex);
-        meterRegistry.counter("ticket.updatePriority.retries_exhausted").increment();
-        throw new ConcurrentUpdateException(
-                "Ticket is being updated by another user. Please try again.",
-                ex
-        );
+        // Handle retryable exceptions that exhausted retries
+        if (ex instanceof OptimisticLockingFailureException) {
+            log.error("Failed to update priority for ticket {} after 4 attempts due to concurrent updates", ticketId, ex);
+            meterRegistry.counter("ticket.updatePriority.retries_exhausted").increment();
+            throw new ConcurrentUpdateException(
+                    "Ticket is being updated by another user. Please try again.",
+                    ex
+            );
+        }
+
+        // For non-retryable exceptions (like InvalidStateTransitionException), just rethrow them
+        if (ex instanceof RuntimeException) {
+            throw (RuntimeException) ex;
+        }
+        throw new RuntimeException(ex);
     }
 
     /**

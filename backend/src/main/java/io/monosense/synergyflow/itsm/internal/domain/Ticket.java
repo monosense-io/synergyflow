@@ -99,9 +99,10 @@ public class Ticket {
      * Priority level indicating urgency and impact.
      *
      * <p>Valid levels: CRITICAL, HIGH, MEDIUM, LOW</p>
+     * <p>Nullable to support incidents created without initial priority (Story 2.3).
+     * Priority can be added later via updatePriority(), which triggers SLA tracking.</p>
      */
-    @NotNull(message = "Ticket priority is required")
-    @Column(nullable = false, length = 20)
+    @Column(length = 20)
     @Enumerated(EnumType.STRING)
     private Priority priority;
 

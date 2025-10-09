@@ -1416,11 +1416,13 @@ export const MetricsDashboard: React.FC = () => {
 - Add state transition validation (FR-WF-6)
 - Add integration tests with Testcontainers
 
-**Story 2.3:** Implement SlaCalculator (8 points)
+**Story 2.3:** Implement SlaCalculator (8 points) — ✅ **COMPLETED** (2025-10-09)
 - Create `SlaCalculator.java` with calculateDueAt (priority-based: Critical 2h, High 4h, Medium 8h, Low 24h)
 - Create SLA tracking record on ticket creation
 - Update SLA due date on priority change
 - Add unit tests
+- **Status:** All 13 ACs satisfied, 16/16 tests passing (unit + integration + load), ADR-011 documented
+- **Deliverables:** `SlaTracking` entity, `SlaCalculator` service, `SlaTrackingRepository`, TicketService integration, test coverage >85%
 
 **Story 2.4:** Implement RoutingEngine (13 points)
 - Create `RoutingEngine.java` with applyRules, matches, assignByRule

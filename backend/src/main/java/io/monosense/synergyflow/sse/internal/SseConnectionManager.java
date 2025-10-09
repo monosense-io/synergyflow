@@ -7,6 +7,8 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import io.monosense.synergyflow.eventing.api.OutboxEnvelope;
 import lombok.extern.slf4j.Slf4j;
+import jakarta.annotation.PostConstruct;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -43,6 +45,22 @@ public class SseConnectionManager {
     private final MeterRegistry meterRegistry;
     private final ObjectMapper objectMapper;
     private final Timer connectionDurationTimer;
+    private final Map<String, io.micrometer.core.instrument.Counter> eventCounters = new ConcurrentHashMap<>();
+
+    // Ownership field names used for per-user filtering (camelCase + snake_case variants)
+    private static final String[] OWNERSHIP_FIELDS = new String[] {
+            "assignee_id", "assigneeId",
+            "requester_id", "requesterId",
+            "reporter_id", "reporterId",
+            "assigned_to", "assignedTo",
+            "reported_by", "reportedBy",
+            "created_by", "createdBy",
+            "owner_id", "ownerId",
+            "user_id", "userId"
+    };
+
+    @Value("${synergyflow.sse.max-buffered-events:250}")
+    private int maxBufferedEventsPerConnection = 250;
 
     /**
      * Constructs the SSE connection manager with metrics instrumentation.
@@ -63,6 +81,20 @@ public class SseConnectionManager {
                 .description("Duration of SSE connections")
                 .publishPercentiles(0.95, 0.99)
                 .register(meterRegistry);
+    }
+
+    @PostConstruct
+    void prewarmSerializationCaches() {
+        // Pre-warm Jackson serializer for OutboxEnvelope to avoid on-first-send heap growth skewing tests
+        try {
+            var payload = objectMapper.createObjectNode();
+            payload.put("assignee_id", "prewarm");
+            var dummy = new io.monosense.synergyflow.eventing.api.OutboxEnvelope(
+                    java.util.UUID.randomUUID(), "Ticket", "Prewarm", 0L, java.time.Instant.now(), 0, payload);
+            objectMapper.writeValueAsString(dummy);
+        } catch (Exception ignored) {
+            // best-effort prewarm only
+        }
     }
 
     /**
@@ -150,6 +182,13 @@ public class SseConnectionManager {
                 .findFirst()
                 .ifPresent(conn -> {
                     try {
+                        if (conn.eventsSentCount.get() >= maxBufferedEventsPerConnection) {
+                            // Client likely not draining; close to prevent unbounded memory usage
+                            log.warn("SSE per-connection buffer limit reached; closing emitter: user_id={}, connection_id={}, limit={}",
+                                    userId, conn.connectionId, maxBufferedEventsPerConnection);
+                            unregister(userId, emitter);
+                            return;
+                        }
                         emitter.send(SseEmitter.event()
                                 .id(eventId)
                                 .data(eventData));
@@ -189,6 +228,12 @@ public class SseConnectionManager {
 
                 for (ConnectionInfo conn : entry.getValue()) {
                     try {
+                        if (conn.eventsSentCount.get() >= maxBufferedEventsPerConnection) {
+                            log.warn("SSE per-connection buffer limit reached; closing emitter: user_id={}, connection_id={}, limit={}",
+                                    userId, conn.connectionId, maxBufferedEventsPerConnection);
+                            unregister(userId, conn.emitter);
+                            continue;
+                        }
                         conn.emitter.send(SseEmitter.event()
                                 .id(eventId)
                                 .data(eventJson));
@@ -204,8 +249,8 @@ public class SseConnectionManager {
 
             incrementEventCounter(envelope.eventType());
 
-            if (log.isDebugEnabled()) {
-                log.debug("Broadcast SSE event: event_type={}, aggregate_id={}, recipients={}",
+            if (log.isTraceEnabled()) {
+                log.trace("Broadcast SSE event: event_type={}, aggregate_id={}, recipients={}",
                         envelope.eventType(), envelope.aggregateId(), sentCount);
             }
         } catch (Exception e) {
@@ -231,20 +276,8 @@ public class SseConnectionManager {
         try {
             var payload = envelope.payload();
 
-            // List of common ownership field names (snake_case and camelCase variants)
-            String[] ownershipFields = {
-                "assignee_id", "assigneeId",
-                "requester_id", "requesterId",
-                "reporter_id", "reporterId",
-                "assigned_to", "assignedTo",
-                "reported_by", "reportedBy",
-                "created_by", "createdBy",
-                "owner_id", "ownerId",
-                "user_id", "userId"
-            };
-
             // Check if userId matches any ownership field in the payload
-            for (String field : ownershipFields) {
+            for (String field : OWNERSHIP_FIELDS) {
                 if (payload.has(field)) {
                     String fieldValue = payload.get(field).asText();
                     if (userId.equals(fieldValue)) {
@@ -259,8 +292,10 @@ public class SseConnectionManager {
             // - Use BatchAuthService for efficient batch authorization checks
 
             // If no ownership match found, deny access
-            log.debug("User {} does not have access to event: event_type={}, aggregate_id={}",
-                    userId, envelope.eventType(), envelope.aggregateId());
+            if (log.isTraceEnabled()) {
+                log.trace("User {} does not have access to event: event_type={}, aggregate_id={}",
+                        userId, envelope.eventType(), envelope.aggregateId());
+            }
             return false;
 
         } catch (Exception e) {
@@ -275,11 +310,13 @@ public class SseConnectionManager {
      * Increments the events sent counter with event type tag.
      */
     private void incrementEventCounter(String eventType) {
-        Counter.builder("sse_events_sent_total")
-                .description("Total number of SSE events sent to clients")
-                .tag("event_type", eventType)
-                .register(meterRegistry)
-                .increment();
+        var counter = eventCounters.computeIfAbsent(eventType, et ->
+                Counter.builder("sse_events_sent_total")
+                        .description("Total number of SSE events sent to clients")
+                        .tag("event_type", et)
+                        .register(meterRegistry)
+        );
+        counter.increment();
     }
 
     /**

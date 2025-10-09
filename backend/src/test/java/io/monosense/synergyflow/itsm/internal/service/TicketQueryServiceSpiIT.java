@@ -3,7 +3,6 @@ package io.monosense.synergyflow.itsm.internal.service;
 import io.monosense.synergyflow.itsm.api.dto.CreateTicketCommand;
 import io.monosense.synergyflow.itsm.internal.TicketService;
 import io.monosense.synergyflow.itsm.internal.domain.Priority;
-import io.monosense.synergyflow.itsm.internal.domain.TicketStatus;
 import io.monosense.synergyflow.itsm.internal.domain.TicketType;
 import io.monosense.synergyflow.itsm.spi.TicketQueryService;
 import io.monosense.synergyflow.itsm.spi.TicketSearchCriteria;
@@ -30,6 +29,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static java.util.Objects.requireNonNull;
 
 /**
  * Integration tests for TicketQueryService SPI contract.
@@ -50,6 +50,7 @@ class TicketQueryServiceSpiIT {
 
     @Container
     @ServiceConnection
+    @SuppressWarnings("resource")
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine")
             .withDatabaseName("synergyflow_test")
             .withUsername("test")
@@ -431,9 +432,9 @@ class TicketQueryServiceSpiIT {
                 "Ticket 3", "Desc 3", TicketType.SERVICE_REQUEST, Priority.LOW, "Access", requester2
         );
 
-        var ticket1 = ticketService.createTicket(cmd1, requester1); // NEW
+        ticketService.createTicket(cmd1, requester1); // NEW
         var ticket2 = ticketService.createTicket(cmd2, requester1); // NEW
-        var ticket3 = ticketService.createTicket(cmd3, requester2); // NEW
+        ticketService.createTicket(cmd3, requester2); // NEW
 
         // Assign ticket2 to change status
         ticketService.assignTicket(ticket2.getId(), agent1, requester1); // ASSIGNED
@@ -495,8 +496,7 @@ class TicketQueryServiceSpiIT {
         UUID ticketId = ticket.getId();
 
         // Get the tickets cache
-        Cache ticketsCache = cacheManager.getCache("tickets");
-        assertThat(ticketsCache).isNotNull();
+        Cache ticketsCache = requireNonNull(cacheManager.getCache("tickets"));
 
         // Verify cache is initially empty for this ticket
         assertThat(ticketsCache.get(ticketId)).isNull();
@@ -510,11 +510,10 @@ class TicketQueryServiceSpiIT {
         assertThat(firstResult.get().title()).isEqualTo("Test Cache Ticket");
 
         // Verify value is now in cache (Spring caches the unwrapped TicketSummaryDTO, not the Optional)
-        Cache.ValueWrapper cachedValue = ticketsCache.get(ticketId);
-        assertThat(cachedValue).isNotNull();
-        assertThat(cachedValue.get()).isNotNull();
-        assertThat(cachedValue.get()).isInstanceOf(TicketSummaryDTO.class);
-        TicketSummaryDTO cachedDTO = (TicketSummaryDTO) cachedValue.get();
+        Cache.ValueWrapper cachedValue = requireNonNull(ticketsCache.get(ticketId));
+        Object cachedRaw = requireNonNull(cachedValue.get());
+        assertThat(cachedRaw).isInstanceOf(TicketSummaryDTO.class);
+        TicketSummaryDTO cachedDTO = (TicketSummaryDTO) cachedRaw;
         assertThat(cachedDTO.id()).isEqualTo(ticketId);
         assertThat(cachedDTO.title()).isEqualTo("Test Cache Ticket");
 
@@ -537,8 +536,7 @@ class TicketQueryServiceSpiIT {
         UUID nonExistentId = UUID.randomUUID();
 
         // Get the tickets cache
-        Cache ticketsCache = cacheManager.getCache("tickets");
-        assertThat(ticketsCache).isNotNull();
+        Cache ticketsCache = requireNonNull(cacheManager.getCache("tickets"));
 
         // When: First call to findById with non-existent ID (cache MISS)
         Optional<TicketSummaryDTO> firstResult = ticketQueryService.findById(nonExistentId);
@@ -547,9 +545,9 @@ class TicketQueryServiceSpiIT {
         assertThat(firstResult).isEmpty();
 
         // Verify empty result IS cached as null (Spring unwraps Optional.empty() to null and caches it)
-        Cache.ValueWrapper cachedValue = ticketsCache.get(nonExistentId);
-        assertThat(cachedValue).isNotNull();  // ValueWrapper exists
-        assertThat(cachedValue.get()).isNull();  // But the wrapped value is null
+        Cache.ValueWrapper cachedValue = requireNonNull(ticketsCache.get(nonExistentId));
+        Object cached = cachedValue.get();
+        assertThat(cached).isNull();  // Spring caches null for Optional.empty()
 
         // When: Second call to findById with same non-existent ID (cache HIT)
         Optional<TicketSummaryDTO> secondResult = ticketQueryService.findById(nonExistentId);

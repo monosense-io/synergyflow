@@ -1,0 +1,630 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- BMAD Story Context (v6.0) - Auto-generated for Story 2.3 -->
+<!-- Generated: 2025-10-09 -->
+<!-- DO NOT EDIT MANUALLY - Regenerate using story-context workflow -->
+
+<story-context epic="2" story="3" status="Approved">
+
+  <metadata>
+    <title>Implement SLA Calculator and Tracking Integration</title>
+    <story_points>8</story_points>
+    <sprint>Sprint 3 (Week 3-4)</sprint>
+    <dependencies>
+      <dependency>Story 2.2-REVISED (Approved)</dependency>
+      <dependency>Epic 1.5 Transactional Outbox (Complete)</dependency>
+    </dependencies>
+    <generated_date>2025-10-09</generated_date>
+    <workflow_version>6.0.0</workflow_version>
+  </metadata>
+
+  <user_story>
+    <as_a>Development Team</as_a>
+    <i_want>SLA tracking integrated into the ticket lifecycle with priority-based deadline calculation</i_want>
+    <so_that>incidents have deadline enforcement and agents can prioritize work based on SLA risk in the Zero-Hunt Agent Console</so_that>
+  </user_story>
+
+  <context>
+    <summary>Epic 2 requires SLA countdown display in the Priority Queue (Story 2.10-2.13). SLA calculation must be implemented before frontend work begins. This story creates the SlaCalculator service, SlaTracking domain entity, and integrates SLA tracking into the TicketService operations from Story 2.2.</summary>
+
+    <sla_policy source="Epic 2 Tech Spec lines 24, 1420">
+      <critical>2 hours</critical>
+      <high>4 hours</high>
+      <medium>8 hours</medium>
+      <low>24 hours</low>
+    </sla_policy>
+
+    <scope>Only INCIDENT tickets get SLA tracking. Service requests follow approval workflows without time-based SLAs.</scope>
+  </context>
+
+  <acceptance_criteria>
+    <ac id="1" type="functional">
+      <title>Create SlaTracking entity</title>
+      <description>Create `SlaTracking` entity at `backend/src/main/java/io/monosense/synergyflow/itsm/internal/domain/SlaTracking.java` with UUIDv7 primary key, fields (id, ticketId, priority, dueAt, breached, createdAt, updatedAt, version), unique constraint on ticketId, foreign key to tickets table</description>
+    </ac>
+
+    <ac id="2" type="functional">
+      <title>Create SlaTrackingRepository</title>
+      <description>Create `SlaTrackingRepository` at `backend/src/main/java/io/monosense/synergyflow/itsm/internal/repository/SlaTrackingRepository.java` extending JpaRepository with query methods: findByTicketId, findByDueAtBeforeAndBreachedFalse</description>
+    </ac>
+
+    <ac id="3" type="functional">
+      <title>Create Flyway migration for sla_tracking table</title>
+      <description>Create Flyway migration `V11__create_sla_tracking_table.sql` (CORRECTED from V8 - V8/V9/V10 already exist) with table structure, indexes on ticket_id and due_at, foreign key constraint, unique constraint on ticket_id</description>
+    </ac>
+
+    <ac id="4" type="functional">
+      <title>Create SlaCalculator service</title>
+      <description>Create `SlaCalculator` service at `backend/src/main/java/io/monosense/synergyflow/itsm/internal/service/SlaCalculator.java` with method calculateDueAt(Priority, Instant) returning startTime + duration based on priority (CRITICAL: 2h, HIGH: 4h, MEDIUM: 8h, LOW: 24h)</description>
+    </ac>
+
+    <ac id="5" type="functional">
+      <title>Integrate SLA tracking into TicketService.createTicket()</title>
+      <description>After ticket persistence in createTicket(), if ticket type is INCIDENT and priority is not null, call slaCalculator.calculateDueAt(), create SlaTracking entity, save via slaTrackingRepository</description>
+    </ac>
+
+    <ac id="6" type="functional">
+      <title>Integrate SLA recalculation into TicketService.updatePriority()</title>
+      <description>After priority update in updatePriority(), if ticket type is INCIDENT, fetch existing SLA record, recalculate dueAt from original ticket.createdAt, update and save SLA record</description>
+    </ac>
+
+    <ac id="7" type="functional">
+      <title>Skip SLA updates for resolved/closed tickets</title>
+      <description>updatePriority() must check ticket status before recalculating SLA. If status is RESOLVED or CLOSED, skip SLA recalculation to preserve historical accuracy</description>
+    </ac>
+
+    <ac id="8" type="functional">
+      <title>Optimistic locking for concurrent SLA updates</title>
+      <description>SlaTracking entity has @Version field, concurrent priority changes trigger OptimisticLockException, TicketService @Retryable handles retries</description>
+    </ac>
+
+    <ac id="9" type="integration_test">
+      <title>Create SlaCalculatorIntegrationTest</title>
+      <description>6 integration test scenarios: IT-SLA-1 (SLA created on incident creation), IT-SLA-2 (SLA skipped for service request), IT-SLA-3 (SLA skipped without priority), IT-SLA-4 (SLA recalculated on priority change), IT-SLA-5 (SLA frozen for resolved ticket), IT-SLA-6 (SLA created when priority added later)</description>
+    </ac>
+
+    <ac id="10" type="integration_test">
+      <title>Create SlaTrackingConcurrencyTest</title>
+      <description>2 concurrency test scenarios: IT-SLA-7 (concurrent priority changes with retry), IT-SLA-8 (unique constraint enforcement)</description>
+    </ac>
+
+    <ac id="11" type="load_test">
+      <title>Create SlaTrackingLoadTest</title>
+      <description>2 load test scenarios: LT-SLA-1 (1000 incidents/minute with SLA tracking, p95 &lt;400ms), LT-SLA-2 (500 priority updates/minute with recalculation, p95 &lt;400ms, retry exhaustion &lt;10%)</description>
+    </ac>
+
+    <ac id="12" type="unit_test">
+      <title>Create SlaCalculatorTest</title>
+      <description>6 unit test scenarios: UT-SLA-1 to UT-SLA-4 (each priority level calculation), UT-SLA-5 (null priority exception), UT-SLA-6 (timezone independence)</description>
+    </ac>
+
+    <ac id="13" type="unit_test">
+      <title>Create SlaTrackingServiceTest</title>
+      <description>Unit tests mocking repository and calculator dependencies, testing SLA creation and recalculation logic, verifying edge cases (null checks, status checks)</description>
+    </ac>
+  </acceptance_criteria>
+
+  <tasks>
+    <task id="1" effort_hours="2" acs="3">
+      <name>Database Schema and Migration</name>
+      <subtasks>
+        <subtask>Create Flyway migration V11__create_sla_tracking_table.sql (CORRECTED)</subtask>
+        <subtask>Define table structure with columns, indexes, constraints</subtask>
+        <subtask>Test migration with ./gradlew flywayMigrate in local environment</subtask>
+        <subtask>Verify indexes created with EXPLAIN queries</subtask>
+      </subtasks>
+    </task>
+
+    <task id="2" effort_hours="1.5" acs="1">
+      <name>Domain Entity</name>
+      <subtasks>
+        <subtask>Create SlaTracking.java entity in internal/domain/ package</subtask>
+        <subtask>Add JPA annotations, UUIDv7 generator, optimistic locking</subtask>
+        <subtask>Add getters/setters and @PrePersist/@PreUpdate lifecycle methods</subtask>
+        <subtask>Create unit test for entity instantiation and field validation</subtask>
+      </subtasks>
+    </task>
+
+    <task id="3" effort_hours="1" acs="2">
+      <name>Repository Layer</name>
+      <subtasks>
+        <subtask>Create SlaTrackingRepository interface in internal/repository/ package</subtask>
+        <subtask>Define query methods: findByTicketId, findByDueAtBeforeAndBreachedFalse</subtask>
+        <subtask>Add repository integration test (Testcontainers) verifying CRUD operations</subtask>
+      </subtasks>
+    </task>
+
+    <task id="4" effort_hours="2" acs="4,12">
+      <name>SLA Calculator Service</name>
+      <subtasks>
+        <subtask>Create SlaCalculator service in internal/service/ package</subtask>
+        <subtask>Implement calculateDueAt(Priority, Instant) method with duration mapping</subtask>
+        <subtask>Add Javadoc with examples and edge case notes</subtask>
+        <subtask>Create SlaCalculatorTest with 6 unit tests (UT-SLA-1 to UT-SLA-6)</subtask>
+      </subtasks>
+    </task>
+
+    <task id="5" effort_hours="3" acs="5,6,7">
+      <name>TicketService Integration</name>
+      <subtasks>
+        <subtask>Inject SlaCalculator and SlaTrackingRepository into TicketService</subtask>
+        <subtask>Modify createTicket() to create SLA record for incidents with priority</subtask>
+        <subtask>Modify updatePriority() to recalculate SLA (skip if resolved/closed)</subtask>
+        <subtask>Add null checks and type checks (INCIDENT only)</subtask>
+        <subtask>Update existing TicketService unit tests to mock SLA components</subtask>
+      </subtasks>
+    </task>
+
+    <task id="6" effort_hours="4" acs="9,10">
+      <name>Integration Tests</name>
+      <subtasks>
+        <subtask>Create SlaCalculatorIntegrationTest with Testcontainers PostgreSQL</subtask>
+        <subtask>Implement IT-SLA-1 to IT-SLA-6 (creation, skipping, recalculation, frozen SLA)</subtask>
+        <subtask>Create SlaTrackingConcurrencyTest with IT-SLA-7 and IT-SLA-8</subtask>
+        <subtask>Verify SLA records in database after each test scenario</subtask>
+        <subtask>Test edge cases: null priority, service requests, resolved tickets</subtask>
+      </subtasks>
+    </task>
+
+    <task id="7" effort_hours="2" acs="11">
+      <name>Load Tests</name>
+      <subtasks>
+        <subtask>Create SlaTrackingLoadTest with @Tag("load")</subtask>
+        <subtask>Implement LT-SLA-1 (1000 concurrent creations with SLA tracking)</subtask>
+        <subtask>Implement LT-SLA-2 (500 concurrent priority updates with recalculation)</subtask>
+        <subtask>Run load tests with ./gradlew test -DincludeTags=load</subtask>
+        <subtask>Document p95/p99 latencies and retry exhaustion rates</subtask>
+      </subtasks>
+    </task>
+
+    <task id="8" effort_hours="1.5" acs="all">
+      <name>Documentation and Review</name>
+      <subtasks>
+        <subtask>Create ADR: "ADR-011: SLA Tracking with Priority-Based Deadlines"</subtask>
+        <subtask>Update docs/architecture/data-model.md with sla_tracking table schema</subtask>
+        <subtask>Update Epic 2 Tech Spec completion status (Story 2.3 → Done)</subtask>
+        <subtask>Code review: verify all ACs met, test coverage &gt;85%</subtask>
+        <subtask>Demo: Create incident, show SLA record in database, update priority, verify recalculation</subtask>
+      </subtasks>
+    </task>
+  </tasks>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/epics/epic-2-itsm-tech-spec.md</path>
+        <title>Epic 2 ITSM Technical Specification</title>
+        <section>Story 2.3 Implementation Guide (lines 1419-1424)</section>
+        <snippet>Story 2.3: Implement SlaCalculator (8 points) - Create SlaCalculator.java with calculateDueAt (priority-based: Critical 2h, High 4h, Medium 8h, Low 24h), Create SLA tracking record on ticket creation, Update SLA due date on priority change, Add unit tests</snippet>
+        <reason>Authoritative source for Story 2.3 scope, acceptance criteria, and SLA policy</reason>
+      </doc>
+
+      <doc>
+        <path>docs/epics/epic-2-itsm-tech-spec.md</path>
+        <title>Epic 2 ITSM Technical Specification</title>
+        <section>TicketService Integration (lines 308-311)</section>
+        <snippet>// 3. Calculate SLA (if incident with priority)
+if (ticket.getTicketType() == TicketType.INCIDENT &amp;&amp; ticket.getPriority() != null) {
+    Instant dueAt = slaCalculator.calculateDueAt(ticket, ticket.getCreatedAt());
+    slaTrackingRepository.save(new SlaTracking(ticket.getId(), ticket.getPriority(), dueAt));
+}</snippet>
+        <reason>Shows exact integration pattern for SLA tracking in TicketService.createTicket()</reason>
+      </doc>
+
+      <doc>
+        <path>docs/architecture/solution-architecture.md</path>
+        <title>Solution Architecture</title>
+        <section>Data Architecture (lines 33-36)</section>
+        <snippet>- OLTP schema for tickets/issues/approvals + audit/outbox (Flyway V1).
+- Read models: ticket_card, queue_row, issue_card, board_view, sprint_summary.
+- Primary keys: UUIDv7 (Hibernate 7 @UuidGenerator(style = VERSION_7) or custom fallback); time-ordered for index locality.</snippet>
+        <reason>Defines UUIDv7 primary key standard and database schema approach</reason>
+      </doc>
+
+      <doc>
+        <path>docs/architecture/module-boundaries.md</path>
+        <title>Module Boundaries</title>
+        <section>ITSM Module Package Structure</section>
+        <snippet>- internal/domain/: Domain entities (package-private)
+- internal/repository/: JPA repositories (package-private)
+- internal/service/: Business logic services (package-private)
+- spi/: Cross-module interfaces (@NamedInterface)
+- api/: REST controllers (public)</snippet>
+        <reason>Defines package structure and visibility rules for ITSM components</reason>
+      </doc>
+
+      <doc>
+        <path>docs/uuidv7-implementation-guide.md</path>
+        <title>UUIDv7 Implementation Guide</title>
+        <section>Hibernate 7.0 Native UUIDv7 Support</section>
+        <snippet>@Id
+@UuidGenerator(style = Style.VERSION_7)  // Native UUIDv7 (Hibernate 7.0, RFC 9562)
+@Column(name = "id", updatable = false, nullable = false)
+private UUID id;</snippet>
+        <reason>Shows exact annotation pattern for UUIDv7 primary keys in entities</reason>
+      </doc>
+
+      <doc>
+        <path>docs/stories/story-2.2-REVISED.md</path>
+        <title>Story 2.2 TicketService Implementation</title>
+        <section>Approved - TicketService with state machine and retry pattern</section>
+        <snippet>TicketService implements 10+ state transition methods, @Retryable optimistic lock handling, event publishing to outbox, TicketQueryService SPI</snippet>
+        <reason>Foundation for Story 2.3 - provides TicketService to integrate SLA tracking into</reason>
+      </doc>
+
+      <doc>
+        <path>docs/stories/story-2.1.md</path>
+        <title>Story 2.1 Ticket Domain Entities</title>
+        <section>Complete - Ticket, Incident, ServiceRequest entities</section>
+        <snippet>Created Ticket.java (base entity), Incident.java (extends Ticket), ServiceRequest.java (extends Ticket) with UUIDv7 PKs, JPA repositories, Flyway migrations</snippet>
+        <reason>Provides domain model foundation - Ticket and Incident entities referenced by SlaTracking</reason>
+      </doc>
+    </docs>
+
+    <code>
+      <artifact>
+        <path>backend/src/main/java/io/monosense/synergyflow/itsm/internal/TicketService.java</path>
+        <kind>service</kind>
+        <symbol>TicketService</symbol>
+        <lines>1-100</lines>
+        <reason>Target for SLA integration - needs SlaCalculator and SlaTrackingRepository injection, modify createTicket() and updatePriority() methods</reason>
+      </artifact>
+
+      <artifact>
+        <path>backend/src/main/java/io/monosense/synergyflow/itsm/internal/domain/Priority.java</path>
+        <kind>enum</kind>
+        <symbol>Priority</symbol>
+        <lines>16-36</lines>
+        <reason>Enum values (CRITICAL, HIGH, MEDIUM, LOW) determine SLA duration in calculateDueAt() method</reason>
+      </artifact>
+
+      <artifact>
+        <path>backend/src/main/java/io/monosense/synergyflow/itsm/internal/domain/Ticket.java</path>
+        <kind>entity</kind>
+        <symbol>Ticket</symbol>
+        <lines>full</lines>
+        <reason>Base entity for incidents - provides ticketType, priority, createdAt fields used in SLA calculation logic</reason>
+      </artifact>
+
+      <artifact>
+        <path>backend/src/main/java/io/monosense/synergyflow/itsm/internal/domain/Incident.java</path>
+        <kind>entity</kind>
+        <symbol>Incident</symbol>
+        <lines>full</lines>
+        <reason>Subtype of Ticket - only incidents get SLA tracking (not service requests)</reason>
+      </artifact>
+
+      <artifact>
+        <path>backend/src/main/java/io/monosense/synergyflow/itsm/internal/domain/TicketType.java</path>
+        <kind>enum</kind>
+        <symbol>TicketType</symbol>
+        <lines>full</lines>
+        <reason>Enum containing INCIDENT and SERVICE_REQUEST - used to filter which tickets get SLA tracking</reason>
+      </artifact>
+
+      <artifact>
+        <path>backend/src/main/java/io/monosense/synergyflow/itsm/internal/domain/TicketStatus.java</path>
+        <kind>enum</kind>
+        <symbol>TicketStatus</symbol>
+        <lines>full</lines>
+        <reason>Contains RESOLVED and CLOSED status values - used to skip SLA updates for resolved/closed tickets (AC-7)</reason>
+      </artifact>
+
+      <artifact>
+        <path>backend/src/main/java/io/monosense/synergyflow/itsm/internal/repository/TicketRepository.java</path>
+        <kind>repository</kind>
+        <symbol>TicketRepository</symbol>
+        <lines>full</lines>
+        <reason>Example JPA repository pattern - SlaTrackingRepository will follow same structure</reason>
+      </artifact>
+
+      <artifact>
+        <path>backend/src/main/resources/db/migration/V10__modify_outbox_idempotency_index.sql</path>
+        <kind>migration</kind>
+        <symbol>V10</symbol>
+        <lines>full</lines>
+        <reason>Latest migration is V10 - Story 2.3 should create V11__create_sla_tracking_table.sql (NOT V8 as originally stated)</reason>
+      </artifact>
+    </code>
+
+    <dependencies>
+      <java>
+        <dependency>
+          <name>spring-boot-starter-data-jpa</name>
+          <version>managed by Spring Boot 3.5.0 BOM</version>
+          <usage>JPA entity and repository support for SlaTracking</usage>
+        </dependency>
+        <dependency>
+          <name>hibernate-core</name>
+          <version>7.0.10.Final</version>
+          <usage>UUIDv7 generator (@UuidGenerator style VERSION_7)</usage>
+        </dependency>
+        <dependency>
+          <name>postgresql</name>
+          <version>42.7.8</version>
+          <usage>Database driver for sla_tracking table</usage>
+        </dependency>
+        <dependency>
+          <name>flyway-core</name>
+          <version>10.17.1</version>
+          <usage>Database migration for V11__create_sla_tracking_table.sql</usage>
+        </dependency>
+        <dependency>
+          <name>spring-retry</name>
+          <version>managed by Spring Boot BOM</version>
+          <usage>TicketService @Retryable handles OptimisticLockException for SLA updates</usage>
+        </dependency>
+        <dependency>
+          <name>testcontainers-postgresql</name>
+          <version>1.21.3</version>
+          <usage>Integration tests with realistic PostgreSQL environment</usage>
+        </dependency>
+      </java>
+    </dependencies>
+  </artifacts>
+
+  <interfaces>
+    <interface>
+      <name>SlaCalculator.calculateDueAt</name>
+      <kind>service_method</kind>
+      <signature>Instant calculateDueAt(Priority priority, Instant startTime)</signature>
+      <path>backend/src/main/java/io/monosense/synergyflow/itsm/internal/service/SlaCalculator.java</path>
+      <usage>Called by TicketService.createTicket() and updatePriority() to calculate SLA deadline based on priority</usage>
+    </interface>
+
+    <interface>
+      <name>SlaTrackingRepository.findByTicketId</name>
+      <kind>repository_method</kind>
+      <signature>Optional&lt;SlaTracking&gt; findByTicketId(UUID ticketId)</signature>
+      <path>backend/src/main/java/io/monosense/synergyflow/itsm/internal/repository/SlaTrackingRepository.java</path>
+      <usage>Called by TicketService.updatePriority() to fetch existing SLA record for recalculation</usage>
+    </interface>
+
+    <interface>
+      <name>TicketService.createTicket</name>
+      <kind>service_method</kind>
+      <signature>UUID createTicket(CreateTicketCommand command)</signature>
+      <path>backend/src/main/java/io/monosense/synergyflow/itsm/internal/TicketService.java</path>
+      <usage>MODIFY this method to call slaCalculator.calculateDueAt() and save SLA record after ticket persistence</usage>
+    </interface>
+
+    <interface>
+      <name>TicketService.updatePriority</name>
+      <kind>service_method</kind>
+      <signature>void updatePriority(UUID ticketId, Priority newPriority, UUID currentUserId)</signature>
+      <path>backend/src/main/java/io/monosense/synergyflow/itsm/internal/TicketService.java</path>
+      <usage>MODIFY this method to recalculate SLA when priority changes (skip if resolved/closed)</usage>
+    </interface>
+  </interfaces>
+
+  <constraints>
+    <architectural>
+      <constraint>
+        <name>Package-private visibility</name>
+        <description>All ITSM internal components (domain, repository, service) must be package-private. Only api/ and spi/ packages are public.</description>
+        <enforcement>Spring Modulith ModularityTests verifies internal/ not accessible from other modules</enforcement>
+      </constraint>
+
+      <constraint>
+        <name>UUIDv7 primary keys</name>
+        <description>All entities must use UUIDv7 (@UuidGenerator style VERSION_7) for time-ordered primary keys and better index locality</description>
+        <enforcement>Story 2.1 established pattern, docs/uuidv7-implementation-guide.md provides implementation guide</enforcement>
+      </constraint>
+
+      <constraint>
+        <name>Optimistic locking with @Version</name>
+        <description>Entities with concurrent updates must have @Version field for optimistic locking. TicketService @Retryable handles OptimisticLockException.</description>
+        <enforcement>Story 2.2 established retry pattern with exponential backoff (50ms, 100ms, 200ms with jitter)</enforcement>
+      </constraint>
+
+      <constraint>
+        <name>Flyway migration numbering</name>
+        <description>Latest migration is V10. Story 2.3 must create V11__create_sla_tracking_table.sql (NOT V8 as originally stated in story - V8/V9/V10 already exist)</description>
+        <enforcement>Flyway version numbering enforced by migration tool</enforcement>
+      </constraint>
+
+      <constraint>
+        <name>Service Layer Pattern</name>
+        <description>SlaCalculator is a stateless service with pure calculation logic (no database access). TicketService handles persistence.</description>
+        <enforcement>Separation of concerns improves testability - calculator can be unit tested without database</enforcement>
+      </constraint>
+    </architectural>
+
+    <testing>
+      <constraint>
+        <name>Integration tests with Testcontainers</name>
+        <description>All persistence-layer tests must use Testcontainers PostgreSQL for realistic environment. No embedded/H2 databases.</description>
+        <enforcement>Story 2.1/2.2 established pattern - see SlaCalculatorIntegrationTest, SlaTrackingConcurrencyTest</enforcement>
+      </constraint>
+
+      <constraint>
+        <name>Load tests with @Tag("load")</name>
+        <description>Performance-critical features must have load tests with @Tag("load") validating p95/p99 latencies under concurrent load</description>
+        <enforcement>Run with ./gradlew test -DincludeTags=load, document results in story completion notes</enforcement>
+      </constraint>
+
+      <constraint>
+        <name>Unit test coverage &gt;90% for services</name>
+        <description>SlaCalculator is simple logic - achieve &gt;90% coverage with 6 unit tests (UT-SLA-1 to UT-SLA-6)</description>
+        <enforcement>Gradle test coverage report, code review validation</enforcement>
+      </constraint>
+    </testing>
+
+    <performance>
+      <constraint>
+        <name>CRUD operations p95 &lt;400ms</name>
+        <description>SLA tracking must not degrade ticket creation/update performance. Target p95 &lt;400ms (same as Story 2.2 baseline without SLA)</description>
+        <enforcement>LT-SLA-1 and LT-SLA-2 load tests validate performance targets</enforcement>
+      </constraint>
+
+      <constraint>
+        <name>Index on ticket_id for O(1) lookup</name>
+        <description>sla_tracking table must have index on ticket_id column for fast lookups by TicketService.updatePriority()</description>
+        <enforcement>CREATE INDEX idx_sla_tracking_ticket_id ON sla_tracking(ticket_id) in V11 migration</enforcement>
+      </constraint>
+    </performance>
+  </constraints>
+
+  <tests>
+    <standards>
+      <framework>JUnit 5 with Spring Boot Test</framework>
+      <integration_tests>Testcontainers PostgreSQL 16 for realistic database environment</integration_tests>
+      <load_tests>@Tag("load") with JUnit 5, run via ./gradlew test -DincludeTags=load</load_tests>
+      <coverage_target>&gt;85% overall, &gt;90% for SlaCalculator service</coverage_target>
+      <naming_convention>&lt;Class&gt;Test (unit), &lt;Class&gt;IntegrationTest (integration), &lt;Class&gt;LoadTest (load)</naming_convention>
+    </standards>
+
+    <locations>
+      <unit_tests>backend/src/test/java/io/monosense/synergyflow/itsm/internal/service/</unit_tests>
+      <integration_tests>backend/src/test/java/io/monosense/synergyflow/itsm/internal/service/</integration_tests>
+      <load_tests>backend/src/test/java/io/monosense/synergyflow/itsm/internal/service/</load_tests>
+    </locations>
+
+    <ideas>
+      <test ac="1,2,3" type="integration">
+        <name>IT-PERSISTENCE: SLA entity persistence and repository operations</name>
+        <description>Verify SlaTracking entity can be persisted, queried by ticket_id, and cascade deleted with ticket. Test unique constraint on ticket_id.</description>
+      </test>
+
+      <test ac="4" type="unit">
+        <name>UT-CALCULATOR: Priority-based duration mapping</name>
+        <description>Test calculateDueAt() for all Priority values (CRITICAL=2h, HIGH=4h, MEDIUM=8h, LOW=24h), null priority exception, timezone independence</description>
+      </test>
+
+      <test ac="5" type="integration">
+        <name>IT-CREATE: SLA created on incident creation</name>
+        <description>Create CRITICAL incident via TicketService.createTicket() → verify sla_tracking record exists with due_at = created_at + 2h. Verify no SLA for service requests.</description>
+      </test>
+
+      <test ac="6,7" type="integration">
+        <name>IT-UPDATE: SLA recalculated on priority change, frozen for resolved tickets</name>
+        <description>Create LOW incident → change priority to CRITICAL → verify due_at recalculated. Resolve ticket → change priority → verify due_at unchanged (frozen).</description>
+      </test>
+
+      <test ac="8,10" type="integration">
+        <name>IT-CONCURRENCY: Concurrent priority changes with optimistic locking retry</name>
+        <description>Two threads update same ticket priority concurrently → both succeed with retry → verify final SLA matches last write. Measure retry exhaustion rate.</description>
+      </test>
+
+      <test ac="11" type="load">
+        <name>LT-PERFORMANCE: 1000 incidents/min with SLA tracking</name>
+        <description>Create 2000 incidents over 2 minutes with concurrent threads → measure p95/p99 latency → verify &lt;400ms p95 (no degradation from baseline). Verify all SLA records created correctly.</description>
+      </test>
+    </ideas>
+  </tests>
+
+  <dev_notes>
+    <critical_paths>
+      <path>
+        <name>Flyway Migration Version Correction</name>
+        <description>CRITICAL: Story originally specified V8__create_sla_tracking_table.sql, but V8/V9/V10 already exist. Must create V11__create_sla_tracking_table.sql instead.</description>
+        <impact>HIGH - Migration will fail if wrong version number used</impact>
+      </path>
+
+      <path>
+        <name>TicketService Modification Strategy</name>
+        <description>Story 2.3 MODIFIES existing TicketService from Story 2.2 (Approved). Changes must be additive (inject new dependencies, add logic in createTicket/updatePriority). Do not refactor existing methods.</description>
+        <impact>MEDIUM - Minimize risk of regressing Story 2.2 functionality</impact>
+      </path>
+
+      <path>
+        <name>SLA Recalculation from Original createdAt</name>
+        <description>When priority changes, recalculate due_at from ORIGINAL ticket.createdAt (not current time). This preserves fairness - if ticket created 1h ago as LOW (24h SLA), then escalated to CRITICAL (2h SLA), it's already breached.</description>
+        <impact>MEDIUM - Correct business logic for SLA enforcement</impact>
+      </path>
+    </critical_paths>
+
+    <implementation_order>
+      <step n="1">Create Flyway migration V11 first, test with ./gradlew flywayMigrate</step>
+      <step n="2">Create SlaTracking entity and SlaTrackingRepository, verify persistence with repository test</step>
+      <step n="3">Create SlaCalculator service with unit tests (6 tests), achieve &gt;90% coverage</step>
+      <step n="4">Inject SlaCalculator + SlaTrackingRepository into TicketService constructor</step>
+      <step n="5">Modify TicketService.createTicket() to add SLA tracking logic after ticket persistence</step>
+      <step n="6">Modify TicketService.updatePriority() to recalculate SLA (with status checks)</step>
+      <step n="7">Update existing TicketService unit tests to mock SLA components (avoid test failures)</step>
+      <step n="8">Create integration tests (SlaCalculatorIntegrationTest, SlaTrackingConcurrencyTest)</step>
+      <step n="9">Create load tests (SlaTrackingLoadTest), run and document results</step>
+      <step n="10">Create ADR-011, update architecture docs, complete code review</step>
+    </implementation_order>
+
+    <gotchas>
+      <gotcha>
+        <name>Service Request Exclusion</name>
+        <description>Only INCIDENT tickets get SLA tracking. Check ticket.getTicketType() == TicketType.INCIDENT before creating SLA record. Service requests have approval workflows instead.</description>
+      </gotcha>
+
+      <gotcha>
+        <name>Null Priority Handling</name>
+        <description>If ticket created without priority, no SLA record is created. If priority added later via updatePriority(), create SLA record at that time (AC-6 "If not found, create new SLA record").</description>
+      </gotcha>
+
+      <gotcha>
+        <name>Resolved/Closed Ticket SLA Freeze</name>
+        <description>AC-7 requires checking ticket status before recalculating SLA. If status is RESOLVED or CLOSED, skip recalculation to preserve historical accuracy.</description>
+      </gotcha>
+
+      <gotcha>
+        <name>Unique Constraint on ticket_id</name>
+        <description>sla_tracking table has UNIQUE constraint on ticket_id (one SLA record per ticket). Attempting to insert duplicate will throw constraint violation - handle gracefully in tests.</description>
+      </gotcha>
+    </gotchas>
+  </dev_notes>
+
+  <references>
+    <reference>
+      <title>Epic 2 Tech Spec - Story 2.3 Definition</title>
+      <path>docs/epics/epic-2-itsm-tech-spec.md</path>
+      <lines>1419-1424</lines>
+      <relevance>Authoritative source for Story 2.3 scope and acceptance criteria</relevance>
+    </reference>
+
+    <reference>
+      <title>Epic 2 Tech Spec - SLA Policy</title>
+      <path>docs/epics/epic-2-itsm-tech-spec.md</path>
+      <lines>24</lines>
+      <relevance>Defines SLA durations: Critical 2h, High 4h, Medium 8h, Low 24h</relevance>
+    </reference>
+
+    <reference>
+      <title>Epic 2 Tech Spec - TicketService Integration Example</title>
+      <path>docs/epics/epic-2-itsm-tech-spec.md</path>
+      <lines>308-311</lines>
+      <relevance>Shows exact code pattern for SLA tracking in createTicket() method</relevance>
+    </reference>
+
+    <reference>
+      <title>Solution Architecture - Data Architecture</title>
+      <path>docs/architecture/solution-architecture.md</path>
+      <lines>33-36</lines>
+      <relevance>Defines UUIDv7 primary key standard and OLTP schema approach</relevance>
+    </reference>
+
+    <reference>
+      <title>Module Boundaries - ITSM Internal Package Structure</title>
+      <path>docs/architecture/module-boundaries.md</path>
+      <lines>1-100</lines>
+      <relevance>Defines package-private visibility rules for internal/ components</relevance>
+    </reference>
+
+    <reference>
+      <title>UUIDv7 Implementation Guide</title>
+      <path>docs/uuidv7-implementation-guide.md</path>
+      <lines>full</lines>
+      <relevance>Provides annotation pattern for @UuidGenerator(style = VERSION_7)</relevance>
+    </reference>
+
+    <reference>
+      <title>Story 2.2-REVISED - TicketService Foundation</title>
+      <path>docs/stories/story-2.2-REVISED.md</path>
+      <lines>full</lines>
+      <relevance>Approved Story 2.2 provides TicketService to integrate SLA tracking into</relevance>
+    </reference>
+
+    <reference>
+      <title>Story 2.1 - Ticket Domain Entities</title>
+      <path>docs/stories/story-2.1.md</path>
+      <lines>full</lines>
+      <relevance>Complete Story 2.1 provides Ticket, Incident domain entities referenced by SlaTracking</relevance>
+    </reference>
+  </references>
+
+</story-context>

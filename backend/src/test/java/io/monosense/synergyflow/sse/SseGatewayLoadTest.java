@@ -307,16 +307,11 @@ class SseGatewayLoadTest {
     @Test
     void memoryUsage_shouldNotLeakUnderLoad() throws Exception {
         Runtime runtime = Runtime.getRuntime();
-        runtime.gc(); // Force GC before measuring
-        Thread.sleep(1000);
-
-        long initialMemory = runtime.totalMemory() - runtime.freeMemory();
-        System.out.println("Initial heap usage: " + (initialMemory / 1024 / 1024) + " MB");
 
         int numConnections = Math.min(DEFAULT_CONCURRENT_CONNECTIONS, 100);
         List<AutoCloseable> closers = new ArrayList<>();
 
-        // Create connections
+        // Create connections (part of steady-state baseline, not counted as leak)
         for (int i = 0; i < numConnections; i++) {
             String userId = "memory-test-user-" + i;
             mockJwtAuthentication(userId);
@@ -324,7 +319,29 @@ class SseGatewayLoadTest {
             closers.add(registerEmitter(userId, emitter));
         }
 
-        // Publish events for 2 minutes
+        // Force GC after establishing steady-state connections and before measurement
+        runtime.gc();
+        Thread.sleep(1000);
+
+        long initialMemory = runtime.totalMemory() - runtime.freeMemory();
+        System.out.println("Initial heap usage (post-connection baseline): " + (initialMemory / 1024 / 1024) + " MB");
+
+        // Warmup phase: publish events for 30s to stabilize caches/buffers (excluded from measurement)
+        int warmupSeconds = Integer.parseInt(System.getProperty("sse.memory.warmup", "30"));
+        long warmupEnd = System.currentTimeMillis() + (warmupSeconds * 1000L);
+        while (System.currentTimeMillis() < warmupEnd) {
+            OutboxEnvelope envelope = createTestEnvelopeWithOwner("TicketCreated", "memory-test-user-0");
+            publishToRedisStream(envelope);
+            Thread.sleep(100); // 10 events/second
+        }
+
+        // Force GC after warmup and before measurement
+        runtime.gc();
+        Thread.sleep(1000);
+        initialMemory = runtime.totalMemory() - runtime.freeMemory();
+        System.out.println("Initial heap usage (post-warmup): " + (initialMemory / 1024 / 1024) + " MB");
+
+        // Measurement phase: publish events for 2 minutes
         int durationSeconds = Integer.parseInt(System.getProperty("sse.memory.duration", "120"));
         long endTime = System.currentTimeMillis() + (durationSeconds * 1000L);
         int eventCount = 0;

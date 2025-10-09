@@ -142,27 +142,14 @@ class EventPublisherImpl implements EventPublisher {
 
         while (true) {
             try {
-            // Create envelope with stable JSON structure
-            OutboxEventEnvelope envelope = new OutboxEventEnvelope(
-                    aggregateId,
-                    aggregateType,
-                    eventType,
-                    version,
-                    occurredAt,
-                    payload
-            );
-
-            // Serialize envelope to JSON for storage
-            JsonNode envelopeJson = objectMapper.valueToTree(envelope);
-
-            // Create and persist outbox event
+            // Create and persist outbox event with RAW payload
             OutboxEvent event = new OutboxEvent(
                     aggregateId,
                     aggregateType,
                     eventType,
                     version,
                     occurredAt,
-                    envelopeJson
+                    payload
             );
 
             repository.save(event);

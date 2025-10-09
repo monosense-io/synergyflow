@@ -156,4 +156,17 @@ public class ServiceRequest extends Ticket {
     public void updateRequestType(String requestType) {
         this.requestType = requestType;
     }
+
+    /**
+     * Clears fulfillment fields when service request is reopened.
+     *
+     * <p>Sets fulfillerId and fulfilledAt to null, effectively reverting
+     * the service request to an unfulfilled state.</p>
+     *
+     * @since 2.2
+     */
+    public void clearFulfillment() {
+        this.fulfillerId = null;
+        this.fulfilledAt = null;
+    }
 }

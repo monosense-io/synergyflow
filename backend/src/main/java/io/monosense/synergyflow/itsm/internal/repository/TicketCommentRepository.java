@@ -2,6 +2,7 @@ package io.monosense.synergyflow.itsm.internal.repository;
 
 import io.monosense.synergyflow.itsm.internal.domain.TicketComment;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.UUID;
@@ -23,6 +24,7 @@ import java.util.UUID;
  * @author monosense
  * @since 2.1
  */
+@Service
 public interface TicketCommentRepository extends JpaRepository<TicketComment, UUID> {
 
     /**

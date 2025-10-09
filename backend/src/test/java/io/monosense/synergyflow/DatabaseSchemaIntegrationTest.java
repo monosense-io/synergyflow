@@ -1,10 +1,12 @@
 package io.monosense.synergyflow;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.beans.factory.annotation.Value;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -41,21 +43,30 @@ class DatabaseSchemaIntegrationTest {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    @Value("${test.schema:public}")
+    private String testSchema;
+
+    @BeforeEach
+    void setSearchPath() {
+        // Ensure queries in this test operate against the Flyway schema
+        jdbcTemplate.execute("SET search_path TO \"" + testSchema + "\"");
+    }
+
     @Test
     void testFlywayMigrationsExecuted() {
-        // AC1: Verify 7 migrations executed successfully (V6 added for SINGLE_TABLE refactoring, V7 for ticket_comments/routing_rules refactoring)
+        // AC1: Verify 10 migrations executed successfully
         Integer migrationCount = jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM flyway_schema_history WHERE success = true",
+            "SELECT COUNT(*) FROM " + testSchema + ".flyway_schema_history WHERE success = true AND version IS NOT NULL",
             Integer.class
         );
-        assertThat(migrationCount).isEqualTo(7);
+        assertThat(migrationCount).isEqualTo(10);
 
         // Verify migration versions in order
         List<String> versions = jdbcTemplate.queryForList(
-            "SELECT version FROM flyway_schema_history WHERE success = true ORDER BY installed_rank",
+            "SELECT version FROM " + testSchema + ".flyway_schema_history WHERE success = true AND version IS NOT NULL ORDER BY installed_rank",
             String.class
         );
-        assertThat(versions).containsExactly("1", "2", "3", "4", "5", "6", "7");
+        assertThat(versions).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10");
     }
 
     @Test
@@ -68,8 +79,9 @@ class DatabaseSchemaIntegrationTest {
 
         for (String tableName : itsmTables) {
             Integer count = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name = ?",
+                "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = ? AND table_name = ?",
                 Integer.class,
+                testSchema,
                 tableName
             );
             assertThat(count).as("Table %s should exist", tableName).isEqualTo(1);
@@ -101,8 +113,9 @@ class DatabaseSchemaIntegrationTest {
 
         for (String tableName : pmTables) {
             Integer count = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name = ?",
+                "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = ? AND table_name = ?",
                 Integer.class,
+                testSchema,
                 tableName
             );
             assertThat(count).as("Table %s should exist", tableName).isEqualTo(1);
@@ -119,8 +132,9 @@ class DatabaseSchemaIntegrationTest {
 
         for (String tableName : sharedTables) {
             Integer count = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name = ?",
+                "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = ? AND table_name = ?",
                 Integer.class,
+                testSchema,
                 tableName
             );
             assertThat(count).as("Table %s should exist", tableName).isEqualTo(1);
@@ -145,8 +159,9 @@ class DatabaseSchemaIntegrationTest {
 
         for (String tableName : readModels) {
             Integer count = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name = ?",
+                "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = ? AND table_name = ?",
                 Integer.class,
+                testSchema,
                 tableName
             );
             assertThat(count).as("Read model %s should exist", tableName).isEqualTo(1);
@@ -156,8 +171,9 @@ class DatabaseSchemaIntegrationTest {
         for (String tableName : readModels) {
             Integer versionCount = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM information_schema.columns " +
-                "WHERE table_name = ? AND column_name = 'version'",
+                "WHERE table_schema = ? AND table_name = ? AND column_name = 'version'",
                 Integer.class,
+                testSchema,
                 tableName
             );
             assertThat(versionCount).as("Read model %s should have version column", tableName).isEqualTo(1);
@@ -192,16 +208,18 @@ class DatabaseSchemaIntegrationTest {
         // tickets -> users FK
         Integer ticketsFkCount = jdbcTemplate.queryForObject(
             "SELECT COUNT(*) FROM information_schema.table_constraints " +
-            "WHERE table_name = 'tickets' AND constraint_type = 'FOREIGN KEY'",
-            Integer.class
+            "WHERE table_schema = ? AND table_name = 'tickets' AND constraint_type = 'FOREIGN KEY'",
+            Integer.class,
+            testSchema
         );
         assertThat(ticketsFkCount).as("tickets should have FK constraints").isGreaterThanOrEqualTo(2);
 
         // issues -> users, sprints FK
         Integer issuesFkCount = jdbcTemplate.queryForObject(
             "SELECT COUNT(*) FROM information_schema.table_constraints " +
-            "WHERE table_name = 'issues' AND constraint_type = 'FOREIGN KEY'",
-            Integer.class
+            "WHERE table_schema = ? AND table_name = 'issues' AND constraint_type = 'FOREIGN KEY'",
+            Integer.class,
+            testSchema
         );
         assertThat(issuesFkCount).as("issues should have FK constraints").isGreaterThanOrEqualTo(3);
 
@@ -249,8 +267,9 @@ class DatabaseSchemaIntegrationTest {
         // Breakdown: V1=5 ITSM → V6=3 ITSM (after SINGLE_TABLE refactoring), V2=5 PM, V3=8 shared, V4=6 read models
         // V6 drops incidents and service_requests tables (SINGLE_TABLE inheritance in tickets)
         Integer tableCount = jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public'",
-            Integer.class
+            "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = ?",
+            Integer.class,
+            testSchema
         );
         assertThat(tableCount).isEqualTo(23);
     }
@@ -260,10 +279,10 @@ class DatabaseSchemaIntegrationTest {
         // Verify Flyway checksums for migration immutability
         // Checksums ensure migration files haven't been modified after execution
         List<Map<String, Object>> migrations = jdbcTemplate.queryForList(
-            "SELECT version, description, checksum, success FROM flyway_schema_history ORDER BY installed_rank"
+            "SELECT version, description, checksum, success FROM " + testSchema + ".flyway_schema_history WHERE version IS NOT NULL ORDER BY installed_rank"
         );
 
-        assertThat(migrations).hasSize(7); // V7 added for Story 2.1 Task 3 (ticket_comments/routing_rules refactoring)
+        assertThat(migrations).hasSize(10); // Includes V8 (reopen_count), V9 (ticket performance indexes), V10 (outbox idempotency index)
 
         // Verify all migrations succeeded
         for (Map<String, Object> migration : migrations) {
@@ -285,5 +304,8 @@ class DatabaseSchemaIntegrationTest {
         assertThat(migrations.get(4).get("description")).isEqualTo("add foreign key constraints");
         assertThat(migrations.get(5).get("description")).isEqualTo("refactor tickets single table inheritance");
         assertThat(migrations.get(6).get("description")).isEqualTo("add ticket comments and routing rules");
+        assertThat(migrations.get(7).get("description")).isEqualTo("add reopen count to tickets");
+        assertThat(migrations.get(8).get("description")).isEqualTo("add ticket performance indexes");
+        assertThat(migrations.get(9).get("description")).isEqualTo("modify outbox idempotency index");
     }
 }

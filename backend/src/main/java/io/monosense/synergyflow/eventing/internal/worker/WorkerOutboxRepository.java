@@ -86,8 +86,23 @@ class WorkerOutboxRepository {
         String aggregateType = (String) row[2];
         String eventType = (String) row[3];
         Long version = row[4] != null ? ((Number) row[4]).longValue() : null;
-        java.sql.Timestamp occurredAtTimestamp = (java.sql.Timestamp) row[5];
-        Instant occurredAt = occurredAtTimestamp != null ? occurredAtTimestamp.toInstant() : Instant.now();
+
+        // occurred_at may come back as Timestamp, LocalDateTime, or Instant depending on driver/JPA
+        Instant occurredAt;
+        Object occurredAtObj = row[5];
+        if (occurredAtObj == null) {
+            occurredAt = Instant.now();
+        } else if (occurredAtObj instanceof java.sql.Timestamp ts) {
+            occurredAt = ts.toInstant();
+        } else if (occurredAtObj instanceof java.time.LocalDateTime ldt) {
+            occurredAt = java.sql.Timestamp.valueOf(ldt).toInstant();
+        } else if (occurredAtObj instanceof java.time.Instant i) {
+            occurredAt = i;
+        } else {
+            // Fallback: try to parse string representation
+            occurredAt = Instant.parse(occurredAtObj.toString());
+        }
+
         JsonNode payload = parseJson(row[6]);
         return new OutboxMessage(id, aggregateId, aggregateType, eventType, version, occurredAt, payload);
     }

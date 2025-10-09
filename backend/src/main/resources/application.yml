@@ -37,6 +37,10 @@ spring:
     baseline-on-migrate: false
     validate-on-migrate: true
 
+  cache:
+    type: simple
+    cache-names: tickets
+
 logging:
   level:
     org.flywaydb: INFO
@@ -47,8 +51,15 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics,prometheus
   endpoint:
     health:
       probes:
         enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    enable:
+      jvm: true
+      process: true
+      system: true

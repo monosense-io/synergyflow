@@ -1,4 +1,20 @@
+test:
+  # Stable, hyphen-free schema for integration tests
+  schema: it_test
+
 spring:
+  datasource:
+    hikari:
+      connection-init-sql: SET search_path TO ${test.schema}
   redis:
     host: ${REDIS_HOST:127.0.0.1}
     port: ${REDIS_PORT:6379}
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        default_schema: ${test.schema}
+  flyway:
+    default-schema: ${test.schema}
+    schemas: ${test.schema}

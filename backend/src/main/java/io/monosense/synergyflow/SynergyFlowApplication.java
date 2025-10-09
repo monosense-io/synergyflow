@@ -2,6 +2,8 @@ package io.monosense.synergyflow;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.retry.annotation.EnableRetry;
 
 /**
  * Main entry point for the SynergyFlow application.
@@ -33,6 +35,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * @version 1.0.0
  */
 @SpringBootApplication
+@EnableRetry
+@EnableCaching
 public class SynergyFlowApplication {
 
     /**

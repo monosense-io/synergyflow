@@ -115,4 +115,17 @@ public class Incident extends Ticket {
     public void updateSeverity(Severity severity) {
         this.severity = severity;
     }
+
+    /**
+     * Clears resolution fields when incident is reopened.
+     *
+     * <p>Sets resolutionNotes and resolvedAt to null, effectively reverting
+     * the incident to an unresolved state.</p>
+     *
+     * @since 2.2
+     */
+    public void clearResolution() {
+        this.resolutionNotes = null;
+        this.resolvedAt = null;
+    }
 }

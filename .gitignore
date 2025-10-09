@@ -5,9 +5,20 @@
 *.ear
 build/
 .gradle/
+.gradle-user-home/
 gradle-app.setting
 !gradle-wrapper.jar
 .gradletasknamecache
+out/
+bin/
+target/
+
+# Test artifacts
+test-results/
+.test-results/
+*.hprof
+hs_err_pid*.log
+replay_pid*.log
 
 # Node.js artifacts
 node_modules/
@@ -43,6 +54,11 @@ Thumbs.db
 # Test coverage
 coverage/
 *.lcov
+
+# Docker & Testcontainers
+.testcontainers.properties
+.dockerignore
+docker-compose.override.yml
 
 # BMAD tooling (local only)
 .bmad-core/

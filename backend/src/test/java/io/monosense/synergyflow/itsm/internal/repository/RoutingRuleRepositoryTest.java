@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -43,10 +44,21 @@ class RoutingRuleRepositoryTest {
     @Autowired
     private RoutingRuleRepository routingRuleRepository;
 
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    private void insertTeam(UUID teamId, String teamName) {
+        jdbcTemplate.update(
+                "INSERT INTO teams (id, team_name, description, is_active, version) VALUES (?, ?, ?, ?, ?)",
+                teamId, teamName, "Test team for routing rules", true, 1
+        );
+    }
+
     @Test
     void findByEnabledTrueOrderByPriorityAsc_shouldReturnEnabledRulesInPriorityOrder() {
         // Given: Create routing rules with different priorities and enabled states
         UUID teamId = UUID.randomUUID();
+        insertTeam(teamId, "Routing Team A");
 
         RoutingRule rule1 = new RoutingRule("Rule 1", ConditionType.CATEGORY, "Network",
                 teamId, null, 10, true);
@@ -78,6 +90,7 @@ class RoutingRuleRepositoryTest {
     void findByEnabledTrueOrderByPriorityAsc_shouldReturnEmptyListWhenNoEnabledRules() {
         // Given: Only disabled rules
         UUID teamId = UUID.randomUUID();
+        insertTeam(teamId, "Routing Team B");
 
         RoutingRule disabledRule = new RoutingRule("Disabled Rule", ConditionType.CATEGORY,
                 "Network", teamId, null, 5, false);
@@ -94,6 +107,7 @@ class RoutingRuleRepositoryTest {
     void findByEnabledTrueOrderByPriorityAsc_shouldExcludeDisabledRules() {
         // Given: Mix of enabled and disabled rules
         UUID teamId = UUID.randomUUID();
+        insertTeam(teamId, "Routing Team C");
 
         RoutingRule enabled1 = new RoutingRule("Enabled 1", ConditionType.CATEGORY, "Network",
                 teamId, null, 10, true);

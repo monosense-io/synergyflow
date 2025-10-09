@@ -35,6 +35,8 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-validation")
     // Force Hibernate ORM 7.x for UUIDv7 native support
     implementation("org.hibernate.orm:hibernate-core:7.0.0.Final")
+    // Force Jakarta Persistence API 3.2.0 to match Hibernate 7.0 requirements
+    implementation("jakarta.persistence:jakarta.persistence-api:3.2.0")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
     implementation("org.springframework.modulith:spring-modulith-starter-core")
@@ -44,6 +46,8 @@ dependencies {
     implementation("com.nimbusds:nimbus-jose-jwt")
     implementation("org.redisson:redisson-spring-boot-starter:3.35.0")
     implementation("org.mapstruct:mapstruct:1.5.5.Final")
+    // Spring Retry for @Retryable and OptimisticLockException handling (Story 2.2)
+    implementation("org.springframework.retry:spring-retry")
 
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")

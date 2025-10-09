@@ -153,6 +153,15 @@ public class Ticket {
     private Instant updatedAt;
 
     /**
+     * Counter tracking how many times this ticket has been reopened.
+     *
+     * <p>Incremented each time a ticket transitions from RESOLVED or CLOSED back to NEW.
+     * Used for reporting and quality metrics.</p>
+     */
+    @Column(name = "reopen_count")
+    private Integer reopenCount = 0;
+
+    /**
      * Creates a new ticket with the specified details.
      *
      * <p>Initializes a ticket with required fields. The ID is generated automatically
@@ -246,5 +255,84 @@ public class Ticket {
      */
     public void updateStatus(TicketStatus status) {
         this.status = status;
+    }
+
+    /**
+     * Clears the ticket assignment.
+     *
+     * <p>Sets the assignee ID to null, removing the current assignment.
+     * Used during unassignment and reopen operations.</p>
+     *
+     * @since 2.2
+     */
+    public void clearAssignment() {
+        this.assigneeId = null;
+    }
+
+    /**
+     * Updates the priority level of this ticket.
+     *
+     * <p>Changes the priority classification. The {@code updatedAt} timestamp
+     * will be updated automatically by the {@link #onUpdate()} callback.</p>
+     *
+     * @param priority the new priority level (required)
+     * @since 2.2
+     */
+    public void updatePriority(Priority priority) {
+        this.priority = priority;
+    }
+
+    /**
+     * Updates the category classification of this ticket.
+     *
+     * <p>Changes the category for routing and reporting. The {@code updatedAt}
+     * timestamp will be updated automatically by the {@link #onUpdate()} callback.</p>
+     *
+     * @param category the new category (can be null)
+     * @since 2.2
+     */
+    public void updateCategory(String category) {
+        this.category = category;
+    }
+
+    /**
+     * Updates the title of this ticket.
+     *
+     * <p>Changes the descriptive title. The {@code updatedAt} timestamp
+     * will be updated automatically by the {@link #onUpdate()} callback.</p>
+     *
+     * @param title the new title (required)
+     * @since 2.2
+     */
+    public void updateTitle(String title) {
+        this.title = title;
+    }
+
+    /**
+     * Updates the description of this ticket.
+     *
+     * <p>Changes the detailed description. The {@code updatedAt} timestamp
+     * will be updated automatically by the {@link #onUpdate()} callback.</p>
+     *
+     * @param description the new description (can be null)
+     * @since 2.2
+     */
+    public void updateDescription(String description) {
+        this.description = description;
+    }
+
+    /**
+     * Increments the reopen counter.
+     *
+     * <p>Called when a ticket is reopened from RESOLVED or CLOSED state.
+     * Initializes the counter to 0 if null before incrementing.</p>
+     *
+     * @since 2.2
+     */
+    public void incrementReopenCount() {
+        if (this.reopenCount == null) {
+            this.reopenCount = 0;
+        }
+        this.reopenCount++;
     }
 }

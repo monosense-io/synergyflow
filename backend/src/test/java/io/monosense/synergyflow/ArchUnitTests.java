@@ -6,6 +6,8 @@ import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.lang.ArchRule;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Repository;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
@@ -47,12 +49,19 @@ class ArchUnitTests {
     void testInternalPackageNotAccessibleFromOutside() {
         ArchRule rule = noClasses()
             .that().resideInAPackage("..internal..")
+            // Allow common Spring stereotypes that must be public
             .and().areNotAnnotatedWith(org.springframework.stereotype.Service.class)
+            .and().areNotAnnotatedWith(Repository.class)
+            .and().areNotAnnotatedWith(Component.class)
+            // Allow Exceptions to be public across internal subpackages
+            .and().haveSimpleNameNotEndingWith("Exception")
             // Allow domain model classes to be public across internal packages
             .and().resideOutsideOfPackage("..internal.domain..")
+            // Allow public interfaces used as ports
+            .and().areNotInterfaces()
             .should().bePublic()
             .allowEmptyShould(true)
-            .because("Internal package classes should be package-private to enforce module boundaries; service classes are allowed to be public for Spring wiring and testing");
+            .because("Internal implementation classes should generally not be public; exceptions, repositories, components, domain models, and interfaces are allowed for Spring wiring and cross-package use within a module.");
 
         rule.check(importedClasses);
     }

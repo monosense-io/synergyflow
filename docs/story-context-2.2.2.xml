@@ -1,0 +1,529 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>2.2</storyId>
+    <title>Complete TicketService Layer with State Machine, SPI, and Retry Pattern</title>
+    <status>Approved</status>
+    <generatedAt>2025-10-09</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>/Users/monosense/repository/research/itsm/docs/stories/story-2.2-REVISED.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>Development Team</asA>
+    <iWant>a complete TicketService layer with full state machine, cross-module SPI contract, retry pattern for concurrent updates, and comprehensive business rule enforcement</iWant>
+    <soThat>we can manage the complete ticket lifecycle with production-ready concurrency handling, enable cross-module queries, and provide a solid foundation for all ITSM features</soThat>
+    <tasks>
+      <task id="1" title="Setup &amp; Dependencies" hours="2">
+        <subtask>1.1: Add spring-retry and spring-aspects dependencies to build.gradle.kts</subtask>
+        <subtask>1.2: Add @EnableRetry to SynergyFlowApplication.java</subtask>
+        <subtask>1.3: Create internal/exception/ package with 5 exception classes</subtask>
+        <subtask>1.4: Create spi/ package structure (separate from internal/)</subtask>
+        <subtask>1.5: Configure retry metrics in application.yml</subtask>
+      </task>
+      <task id="2" title="State Machine Validator Component" hours="3">
+        <subtask>2.1: Create TicketStateTransitionValidator.java with @Component annotation</subtask>
+        <subtask>2.2: Implement VALID_TRANSITIONS map with all valid state pairs</subtask>
+        <subtask>2.3: Implement validateTransition() and isValidTransition() methods</subtask>
+        <subtask>2.4: Write unit tests for all 25 transition combinations (valid + invalid)</subtask>
+        <subtask>2.5: Test edge cases (null statuses, same-state transitions)</subtask>
+      </task>
+      <task id="3" title="TicketService - Core Operations" hours="4">
+        <subtask>3.1: Create TicketService.java with @Service, @Transactional annotations</subtask>
+        <subtask>3.2: Inject dependencies: TicketRepository, TicketCommentRepository, EventPublisher, TicketStateTransitionValidator, MeterRegistry</subtask>
+        <subtask>3.3: Implement createTicket() with @Retryable and @Recover</subtask>
+        <subtask>3.4: Implement addComment() method</subtask>
+        <subtask>3.5: Write unit tests for createTicket and addComment</subtask>
+      </task>
+      <task id="4" title="TicketService - State Transitions" hours="10">
+        <subtask>4.1: Implement assignTicket(), unassignTicket(), reassignTicket() with @Retryable</subtask>
+        <subtask>4.2: Implement startWork(), pauseWork() with authorization checks</subtask>
+        <subtask>4.3: Implement resolveTicket(), closeTicket() with field validation</subtask>
+        <subtask>4.4: Implement reopenTicket() with reopenCount increment</subtask>
+        <subtask>4.5: Implement updatePriority(), updateCategory(), updateTitle(), updateDescription()</subtask>
+        <subtask>4.6: Write unit tests for all 13 methods (valid cases)</subtask>
+        <subtask>4.7: Write unit tests for authorization failures (UnauthorizedOperationException)</subtask>
+        <subtask>4.8: Write unit tests for missing required fields (MissingRequiredFieldException)</subtask>
+      </task>
+      <task id="5" title="Retry Pattern Integration" hours="4">
+        <subtask>5.1: Configure @Retryable annotations on all write methods (delay=50, multiplier=2, maxDelay=200, random=true)</subtask>
+        <subtask>5.2: Implement @Recover methods for each @Retryable method</subtask>
+        <subtask>5.3: Add Micrometer counters for retry attempts and exhaustion</subtask>
+        <subtask>5.4: Write unit tests mocking OptimisticLockException (2 retries succeed, 4 retries exhaust)</subtask>
+        <subtask>5.5: Write integration test for concurrent assignment with retries</subtask>
+      </task>
+      <task id="6" title="SPI Implementation" hours="6">
+        <subtask>6.1: Create TicketQueryService interface in spi/ package with @NamedInterface</subtask>
+        <subtask>6.2: Create TicketSummaryDTO record with static from() method</subtask>
+        <subtask>6.3: Create TicketSearchCriteria record with Builder inner class</subtask>
+        <subtask>6.4: Create SPI enums (TicketStatus, TicketType, Priority) in spi/ package</subtask>
+        <subtask>6.5: Implement TicketQueryServiceImpl in internal/service/ with @Transactional(readOnly=true)</subtask>
+        <subtask>6.6: Implement findByCriteria() using Spring Data JPA Specification</subtask>
+        <subtask>6.7: Write SPI contract tests (IT-SPI-1 to IT-SPI-5)</subtask>
+        <subtask>6.8: Write ModularityTests to verify spi/ accessible, internal/ not accessible</subtask>
+      </task>
+      <task id="7" title="Integration Tests" hours="6">
+        <subtask>7.1: Create TicketServiceStateMachineIT with Testcontainers setup</subtask>
+        <subtask>7.2: Implement IT-SM-1 (full lifecycle), IT-SM-2 (reopen flow), IT-SM-3 (invalid transitions)</subtask>
+        <subtask>7.3: Implement IT-SM-4 (authorization), IT-SM-5 (required fields)</subtask>
+        <subtask>7.4: Create TicketServiceRetryIT with IT-RETRY-1, IT-RETRY-2, IT-RETRY-3</subtask>
+        <subtask>7.5: Create TicketQueryServiceSpiIT with IT-SPI-1 to IT-SPI-5</subtask>
+        <subtask>7.6: Implement IT-META-1, IT-META-2, IT-META-3</subtask>
+        <subtask>7.7: Verify all integration tests pass with Testcontainers PostgreSQL</subtask>
+      </task>
+      <task id="8" title="Load Tests &amp; Documentation" hours="3">
+        <subtask>8.1: Create TicketServiceLoadTest with @Tag("load")</subtask>
+        <subtask>8.2: Implement LT-SERVICE-1 (concurrent creation), LT-SERVICE-2 (concurrent assignment with retry)</subtask>
+        <subtask>8.3: Implement LT-SERVICE-3 (SPI query load)</subtask>
+        <subtask>8.4: Verify load test success criteria (p95 latencies, &lt;10% retry exhaustion)</subtask>
+        <subtask>8.5: Create ADR-010-ticket-state-machine.md documenting state machine design</subtask>
+        <subtask>8.6: Update module-boundaries.md with SPI usage examples</subtask>
+        <subtask>8.7: Add Javadoc to all TicketService and TicketQueryService methods</subtask>
+        <subtask>8.8: Story completion review and cleanup</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="AC-1" priority="critical">Create TicketService.java at backend/src/main/java/io/monosense/synergyflow/itsm/internal/service/TicketService.java with @Service annotation, @Transactional annotation at class level, package-private visibility, and constructor-injected dependencies: TicketRepository, TicketCommentRepository, EventPublisher, TicketStateTransitionValidator</ac>
+
+    <ac id="AC-2" priority="critical">Implement createTicket(CreateTicketCommand command, UUID currentUserId) method that validates command fields, creates new Ticket/Incident/ServiceRequest entity based on ticketType, sets initial values (status=NEW, createdAt=Instant.now(), updatedAt=Instant.now(), version=1L), persists via TicketRepository.save(), publishes TicketCreatedEvent to outbox with all fields, returns persisted Ticket entity, and is annotated with @Retryable for OptimisticLockException handling</ac>
+
+    <ac id="AC-3" priority="critical">Implement assignment methods: assignTicket(UUID ticketId, UUID assigneeId, UUID currentUserId) for NEW → ASSIGNED transition with TicketStateTransitionValidator validation, assigneeId validation (throws MissingRequiredFieldException if null), status update to ASSIGNED, TicketAssignedEvent publication, and @Retryable annotation</ac>
+
+    <ac id="AC-4" priority="critical">Implement work progression methods: startWork(UUID ticketId, UUID currentUserId) for ASSIGNED → IN_PROGRESS transition (validates current user is assignee), and pauseWork(UUID ticketId, UUID currentUserId) for IN_PROGRESS → ASSIGNED transition</ac>
+
+    <ac id="AC-5" priority="critical">Implement resolution and closure methods: resolveTicket(UUID ticketId, String resolutionNotes, UUID currentUserId) for IN_PROGRESS → RESOLVED transition (validates resolutionNotes not null and length ≥ 10 characters, sets resolvedAt/fulfilledAt timestamps), closeTicket(UUID ticketId, UUID currentUserId) for RESOLVED → CLOSED transition, and reopenTicket(UUID ticketId, String reopenReason, UUID currentUserId) for RESOLVED/CLOSED → NEW transition (validates reopenReason ≥ 10 characters, increments reopenCount field)</ac>
+
+    <ac id="AC-6" priority="high">Implement metadata update methods: updatePriority(UUID ticketId, Priority newPriority, UUID currentUserId), updateCategory(UUID ticketId, String newCategory, UUID currentUserId), updateTitle(UUID ticketId, String newTitle, UUID currentUserId), and updateDescription(UUID ticketId, String newDescription, UUID currentUserId) - all with @Retryable annotation and TicketStateChangedEvent publication</ac>
+
+    <ac id="AC-7" priority="medium">Implement addComment(UUID ticketId, AddCommentCommand command, UUID currentUserId) method that loads ticket by ID to verify existence, creates new TicketComment entity, persists comment via TicketCommentRepository.save(), and returns persisted TicketComment entity (note: comment events NOT published in this story, deferred)</ac>
+
+    <ac id="AC-8" priority="critical">Create TicketStateTransitionValidator component at backend/src/main/java/io/monosense/synergyflow/itsm/internal/service/TicketStateTransitionValidator.java with @Component annotation, package-private visibility, static transition matrix Map&lt;TicketStatus, Set&lt;TicketStatus&gt;&gt; VALID_TRANSITIONS defining allowed transitions (NEW → {ASSIGNED}, ASSIGNED → {NEW, IN_PROGRESS}, IN_PROGRESS → {ASSIGNED, RESOLVED}, RESOLVED → {NEW, CLOSED}, CLOSED → {NEW}), validateTransition(TicketStatus from, TicketStatus to) method that throws InvalidStateTransitionException if invalid, and isValidTransition(TicketStatus from, TicketStatus to) method that returns boolean</ac>
+
+    <ac id="AC-9" priority="critical">Create spi/ package and TicketQueryService interface at backend/src/main/java/io/monosense/synergyflow/itsm/spi/TicketQueryService.java with @org.springframework.modulith.NamedInterface annotation, public interface visibility, and methods: findById(UUID), findByAssignee(UUID), findByRequester(UUID), findByStatus(TicketStatus), findByPriority(Priority), findByCriteria(TicketSearchCriteria), existsById(UUID), countByStatus(TicketStatus), countByAssignee(UUID)</ac>
+
+    <ac id="AC-10" priority="critical">Create SPI DTOs in backend/src/main/java/io/monosense/synergyflow/itsm/spi/: TicketSummaryDTO record with fields (id, ticketType, title, description, status, priority, category, requesterId, assigneeId, createdAt, updatedAt) and static factory method from(Ticket ticket); TicketSearchCriteria record with Optional fields (status, priority, category, assigneeId, requesterId, createdAfter, createdBefore) and static builder() method returning Builder inner class with fluent API; SPI enums (TicketStatus, TicketType, Priority) duplicated in spi/ to avoid coupling</ac>
+
+    <ac id="AC-11" priority="critical">Create TicketQueryServiceImpl at backend/src/main/java/io/monosense/synergyflow/itsm/internal/service/TicketQueryServiceImpl.java with @Service annotation, @Transactional(readOnly=true) annotation, implements TicketQueryService interface, package-private visibility, constructor injection of TicketRepository, all methods convert internal entities to SPI DTOs, findByCriteria uses Spring Data JPA Specification for dynamic queries, and optionally add @Cacheable annotations for frequently accessed queries</ac>
+
+    <ac id="AC-12" priority="critical">Add spring-retry dependencies to backend/build.gradle.kts: implementation("org.springframework.retry:spring-retry") and implementation("org.springframework:spring-aspects") for @Retryable AOP</ac>
+
+    <ac id="AC-13" priority="critical">Add @EnableRetry annotation to SynergyFlowApplication.java</ac>
+
+    <ac id="AC-14" priority="critical">Annotate all TicketService write methods with @Retryable(retryFor = {ObjectOptimisticLockingFailureException.class}, maxAttempts = 4, backoff = @Backoff(delay = 50, multiplier = 2, maxDelay = 200, random = true)) for exponential backoff with jitter - applies to: createTicket, assignTicket, unassignTicket, reassignTicket, startWork, pauseWork, resolveTicket, closeTicket, reopenTicket, updatePriority, updateCategory, updateTitle, updateDescription</ac>
+
+    <ac id="AC-15" priority="critical">Create @Recover methods in TicketService for each @Retryable method with method signature matching @Retryable method plus additional first parameter ObjectOptimisticLockingFailureException ex, logs error "Failed to [operation] ticket {ticketId} after 4 attempts due to concurrent updates", throws ConcurrentUpdateException with message "Ticket is being updated by another user. Please try again.", and increments Micrometer counter ticket.[operation].retries_exhausted</ac>
+
+    <ac id="AC-16" priority="medium">Configure retry metrics in TicketService: add MeterRegistry dependency injection, increment counter ticket.[operation].attempts at start of each method, increment counter ticket.[operation].retries_exhausted in @Recover methods, with success rate calculated as (attempts - retries_exhausted) / attempts</ac>
+
+    <ac id="AC-17" priority="critical">Create custom exceptions in backend/src/main/java/io/monosense/synergyflow/itsm/internal/exception/: TicketNotFoundException extending RuntimeException with constructor(UUID ticketId) and message "Ticket not found: {ticketId}"; InvalidStateTransitionException extending RuntimeException with constructor(TicketStatus from, TicketStatus to) and message "Invalid state transition: {from} → {to}"; ConcurrentUpdateException extending RuntimeException with constructors (String message, UUID ticketId) and (String message, Throwable cause) and nullable UUID ticketId field; MissingRequiredFieldException extending RuntimeException with constructor(String field, String operation) and message "Required field '{field}' missing for operation: {operation}"; UnauthorizedOperationException extending RuntimeException with constructor(String operation, UUID userId) and message "User {userId} not authorized for operation: {operation}"</ac>
+
+    <ac id="AC-18" priority="medium">Create command classes in backend/src/main/java/io/monosense/synergyflow/itsm/api/dto/: CreateTicketCommand record with fields (title @NotBlank, description @NotBlank, ticketType @NotNull, priority @NotNull, category, requesterId @NotNull); AddCommentCommand record with fields (commentText @NotBlank @Size(min=1), isInternal default false); Note: State transition methods use primitives (UUID, String, enum) instead of command objects for simplicity</ac>
+
+    <ac id="AC-19" priority="medium">Create event classes in backend/src/main/java/io/monosense/synergyflow/itsm/events/: TicketCreatedEvent record implementing DomainEvent with fields (ticketId, title, ticketType, status, priority, requesterId, createdAt, version); TicketAssignedEvent record implementing DomainEvent with fields (ticketId, assigneeId, assignmentReason, updatedAt, version); TicketStateChangedEvent record implementing DomainEvent with fields (ticketId, oldStatus, newStatus, updatedAt, version) - all events serializable and immutable records</ac>
+
+    <ac id="AC-20" priority="critical">State Machine Integration Tests - Create TicketServiceStateMachineIT.java with IT-SM-1 (full lifecycle NEW → ASSIGNED → IN_PROGRESS → RESOLVED → CLOSED, verify each state transition persisted correctly, verify events published for each transition); IT-SM-2 (reopen flow RESOLVED → NEW and CLOSED → NEW, verify reopenCount incremented); IT-SM-3 (invalid transitions test all invalid transitions throw InvalidStateTransitionException: NEW → RESOLVED, CLOSED → ASSIGNED, IN_PROGRESS → CLOSED); IT-SM-4 (authorization checks: startWork() by non-assignee throws UnauthorizedOperationException, resolve() by non-assignee throws UnauthorizedOperationException); IT-SM-5 (required field validation: assign() without assigneeId throws MissingRequiredFieldException, resolve() without resolutionNotes throws MissingRequiredFieldException, reopen() without reopenReason throws MissingRequiredFieldException)</ac>
+
+    <ac id="AC-21" priority="critical">Retry Pattern Integration Tests - Create TicketServiceRetryIT.java with IT-RETRY-1 (concurrent assignment with retry: two threads assign same ticket, both succeed, final ticket has agent2 last write wins, version incremented twice v1 → v2 → v3); IT-RETRY-2 (retry exhaustion: mock 4 consecutive OptimisticLockExceptions, after 4 attempts throws ConcurrentUpdateException, verify retry counter metric incremented); IT-RETRY-3 (event publishing after retry: retry succeeds, event published only once, first attempt fails second succeeds, verify only one TicketAssignedEvent in outbox not two)</ac>
+
+    <ac id="AC-22" priority="high">SPI Contract Integration Tests - Create TicketQueryServiceSpiIT.java with IT-SPI-1 (findById returns TicketSummaryDTO for existing ticket); IT-SPI-2 (findByStatus returns filtered list of tickets by status); IT-SPI-3 (findByCriteria complex query with multiple criteria: status + priority + assignee); IT-SPI-4 (cross-module access verify PM module can inject TicketQueryService); IT-SPI-5 (ModularityTests Spring Modulith verifies spi/ accessible, internal/ not accessible)</ac>
+
+    <ac id="AC-23" priority="medium">Comment and Metadata Integration Tests: IT-META-1 (add comment verify comment persisted to ticket_comments table); IT-META-2 (update priority verify priority updated and event published); IT-META-3 (update priority on resolved ticket throws InvalidStateTransitionException)</ac>
+
+    <ac id="AC-24" priority="high">Load Test - Concurrent ticket operations with retries: LT-SERVICE-1 (concurrent ticket creation performance target 100 tickets/second, p95 &lt; 400ms, test duration 2 minutes = 12,000 tickets, success criteria p95 &lt; 400ms, p99 &lt; 800ms, zero failures); LT-SERVICE-2 (concurrent ticket assignment with retry performance target 200 assignments/second, p95 &lt; 400ms, test duration 1 minute = 12,000 assignments across 1,000 tickets, simulates high contention with 10 threads updating same 1,000 tickets, success criteria p95 &lt; 400ms, &lt;10% retry exhaustion, all assignments eventually succeed); LT-SERVICE-3 (SPI query load performance target 500 queries/second, p95 &lt; 100ms read-only, test duration 1 minute = 30,000 queries, mix 50% findById, 30% findByStatus, 20% findByCriteria, success criteria p95 &lt; 100ms, zero errors)</ac>
+
+    <ac id="AC-25" priority="critical">Spring Modulith compliance: run ApplicationModules.of(SynergyFlowApplication.class).verify() in test, verify spi/ package accessible from other modules (PM, Workflow, Dashboard), verify internal/ package NOT accessible from other modules, no ModularityTests violations</ac>
+
+    <ac id="AC-26" priority="medium">Documentation: all TicketService public methods have Javadoc with @since 2.2 tag; TicketQueryService interface documented with SPI contract stability requirements; update docs/architecture/module-boundaries.md with SPI usage examples; create docs/architecture/adr/ADR-010-ticket-state-machine.md formalizing state machine design</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/spikes/spike-ticket-state-machine.md</path>
+        <title>Spike: Ticket State Machine Definition</title>
+        <section>Complete state machine definition with all 13 methods and transition matrix</section>
+        <snippet>Defines the complete ticket state machine with valid state transitions, validation rules, and business constraints for implementation in TicketService. Includes: TicketStatus enum (NEW, ASSIGNED, IN_PROGRESS, RESOLVED, CLOSED), transition matrix with 8 valid transitions, business rules BR-1.1 to BR-5.4 covering assignment, work progression, resolution, closure, and reopen workflows, exception hierarchy (InvalidStateTransitionException, MissingRequiredFieldException, UnauthorizedOperationException), TicketService method signatures for all 10+ state transition methods, and implementation guidelines for TicketStateTransitionValidator component with static transition map.</snippet>
+      </doc>
+
+      <doc>
+        <path>docs/spikes/spike-optimistic-lock-retry-pattern.md</path>
+        <title>Spike: OptimisticLockException Retry Pattern</title>
+        <section>Spring @Retryable pattern with exponential backoff and retry metrics</section>
+        <snippet>Designs robust retry pattern for handling OptimisticLockException in TicketService methods using Spring @Retryable annotation. Recommends Option A (Spring @Retryable) with maximum 4 attempts (1 initial + 3 retries), exponential backoff strategy (50ms → 100ms → 200ms with jitter), @Recover methods throwing ConcurrentUpdateException after exhaustion, and retry metrics tracking (ticket.[operation].attempts, ticket.[operation].retries_exhausted). Includes unit test examples for retry behavior, integration tests for concurrent assignment with retries, and performance considerations (p95 latency impact +50ms for 1 retry, expected &lt;5% operations require retries in production).</snippet>
+      </doc>
+
+      <doc>
+        <path>docs/spikes/spike-ticket-query-service-spi.md</path>
+        <title>Spike: TicketQueryService SPI Contract Design</title>
+        <section>Complete SPI contract design with interface, DTOs, impl, and cross-module usage examples</section>
+        <snippet>Defines Service Provider Interface (SPI) for cross-module ticket queries, enabling PM, Workflow, and Dashboard modules to query ticket data without violating Spring Modulith module boundaries. Includes: TicketQueryService interface with @NamedInterface annotation in spi/ package (public visibility), 9 query methods (findById, findByAssignee, findByRequester, findByStatus, findByPriority, findByCriteria, existsById, countByStatus, countByAssignee), TicketSummaryDTO record exposing only essential ticket data, TicketSearchCriteria record with builder pattern for complex queries, SPI enums duplicated in spi/ package to avoid coupling to internal/, TicketQueryServiceImpl in internal/service/ with @Transactional(readOnly=true), and cross-module usage examples for PM module linking tasks to tickets and Dashboard module aggregating metrics.</snippet>
+      </doc>
+
+      <doc>
+        <path>docs/spikes/spike-story-2.2-scope-clarification.md</path>
+        <title>Spike: Story 2.2 Scope Clarification</title>
+        <section>Approved Option A scope (Service Layer Only) with 10 points estimate and task breakdown</section>
+        <snippet>Defines precise scope boundary for Story 2.2 as Option A (Service Layer Only), excluding REST API controllers which are deferred to Story 2.3. IN SCOPE: TicketService with 10+ state transition methods (assign, unassign, reassign, startWork, pauseWork, resolve, close, reopen, updatePriority, updateCategory, updateTitle, updateDescription), TicketStateTransitionValidator, @Retryable optimistic lock handling, TicketQueryService SPI implementation, event publishing to transactional outbox, exception hierarchy, and comprehensive testing (unit tests, integration tests, load tests). Story points estimate: 10 points, sprint allocation: 1 sprint (2 weeks), task breakdown: 8 tasks with 36 hours total effort. Recommended story sequencing allows parallel work with Story 2.3 (REST API) starting in week 2 of Story 2.2.</snippet>
+      </doc>
+
+      <doc>
+        <path>docs/epics/epic-2-itsm-tech-spec.md</path>
+        <title>Epic 2: Core ITSM Module - Technical Specification</title>
+        <section>TicketService implementation details (lines 265-413)</section>
+        <snippet>Epic 2 delivers core ITSM platform with incident management, service requests, agent console, and SLA tracking. Technical specification includes: Ticket domain entity with UUIDv7 primary keys using @UuidGenerator(style = Style.VERSION_7) for Hibernate 7.0 native support, optimistic locking with @Version field, @PrePersist and @PreUpdate lifecycle callbacks for timestamp management, TicketService.java with createTicket() and assignTicket() methods publishing events to transactional outbox via EventPublisher interface, Spring Modulith module structure with internal/ (package-private domain, repository, service layers) and spi/ (public cross-module API) packages, and event-driven architecture publishing TicketCreatedEvent, TicketAssignedEvent, TicketStateChangedEvent, and SlaBreachedEvent to outbox for eventual consistency.</snippet>
+      </doc>
+
+      <doc>
+        <path>docs/architecture/data-model.md</path>
+        <title>Data Model v1 - SynergyFlow</title>
+        <section>tickets table schema</section>
+        <snippet>High-level ERD and table schema for SynergyFlow ITSM and PM modules. TICKETS table: uuid id PK (UUIDv7), string ticket_type (INCIDENT or SERVICE_REQUEST discriminator), string title, string status (NEW, ASSIGNED, IN_PROGRESS, RESOLVED, CLOSED), string priority (CRITICAL, HIGH, MEDIUM, LOW), uuid requester_id FK, uuid assignee_id (nullable), bigint version (optimistic locking), timestamptz created_at, timestamptz updated_at. Read models (CQRS-lite): ticket_card (queue rows for ITSM, denormalized, ≤6KB/row typical), queue_row (list view backing store). UUID Policy: All primary keys are UUIDv7 (see docs/uuidv7-implementation-guide.md). Migrations: Initial Flyway DDL at docs/architecture/db/migrations/V1__core_schema.sql.</snippet>
+      </doc>
+
+      <doc>
+        <path>docs/architecture/module-boundaries.md</path>
+        <title>Module Boundaries - SynergyFlow</title>
+        <section>SPI patterns and Spring Modulith rules</section>
+        <snippet>Spring Modulith module boundary enforcement for SynergyFlow. Allowed Dependencies Matrix: itsm module may depend on security, eventing, sla, sse, audit; pm module may depend on security, eventing, sla, sse, audit; workflow module may depend on itsm/pm via SPI only. Cross-module calls MUST go via spi/ packages annotated with @NamedInterface. internal/ packages are NOT referenced from other modules, access enforced by tests. @NamedInterface Catalog includes io.monosense.synergyflow.itsm.spi.TicketQueryService for cross-module ticket queries. Enforcement: Spring Modulith module declarations with @org.springframework.modulith.ApplicationModule annotation on package-info.java, @org.springframework.modulith.NamedInterface annotation on spi/ package-info.java, ModularityTests verify with ApplicationModules.of(SynergyFlowApplication.class).verify(), and ArchUnit rule enforces no access to internal/ packages from outside modules.</snippet>
+      </doc>
+
+      <doc>
+        <path>docs/architecture/adr/ADR-010-ticket-state-machine.md</path>
+        <title>ADR-010: Ticket State Machine and Transition Rules</title>
+        <section>State machine decision and implementation components</section>
+        <snippet>ADR documenting decision to implement finite state machine for ticket lifecycle with strict validation. Context: ITSM ticket lifecycle requires well-defined state transitions to ensure data integrity, business rule enforcement, and audit compliance. Decision: Implement state machine with TicketStateTransitionValidator maintaining valid transition map, TicketService state transition methods (assignTicket, unassignTicket, reassignTicket, startWork, pauseWork, resolveTicket, closeTicket, reopenTicket), business rules enforcement (BR-1 to BR-6 covering assignment, work progression, resolution, closure, reopen), event publishing (TicketStateChangedEvent to transactional outbox), Incident-specific extensions (severity field, escalation rules, resolvedAt timestamp), ServiceRequest-specific extensions (approval workflow, fulfilledAt timestamp). Consequences: ✅ Data integrity (invalid transitions prevented), ✅ Auditability (all state changes logged), ✅ Testability (state machine rules isolated), ⚠️ Implementation complexity (10+ service methods, 20+ test cases). Alternatives considered and rejected: No State Machine (ad-hoc transitions), Database Check Constraints, Spring State Machine Framework.</snippet>
+      </doc>
+
+      <doc>
+        <path>docs/architecture/adr/ADR-009-integration-tests-requirements-testcontainers.md</path>
+        <title>ADR-009: Integration Test Requirements (Testcontainers Mandatory)</title>
+        <section>Testcontainers usage and test configuration</section>
+        <snippet>All integration tests MUST provision dependencies via Testcontainers. No in-memory substitutes for DB/Redis/OAuth. Context: Deterministic integration tests require realistic infrastructure (PostgreSQL, Redis Streams, Keycloak). In-memory substitutes (H2, embedded Redis) diverge from production and hide issues. Decision: PostgreSQL via PostgreSQLContainer with Flyway migrations, Redis Streams via GenericContainer("redis:7.4"), OAuth via GenericContainer for Keycloak or WireMock stubs. Spring configuration via @DynamicPropertySource from container endpoints. Containers run per test class or per suite. Execution: Local development uses container reuse (~/.testcontainers.properties: testcontainers.reuse.enable=true) for speed; CI disables reuse, pins images, balances parallelism to avoid port contention. Consequences: Higher fidelity and fewer production surprises, slightly slower than in-memory tests but mitigated by reuse and class-scoped containers.</snippet>
+      </doc>
+
+      <doc>
+        <path>docs/stories/story-2.1.md</path>
+        <title>Story 2.1: Ticket Domain Entities (Base, Incident, ServiceRequest)</title>
+        <section>Completed entity implementation with UUIDv7 and optimistic locking</section>
+        <snippet>Story 2.1 completed: Created Ticket base entity with UUIDv7 primary keys using @UuidGenerator(style = Style.VERSION_7) for Hibernate 7.0, optimistic locking with @Version field, lifecycle callbacks (@PrePersist, @PreUpdate) for timestamp management, Incident and ServiceRequest subclasses using SINGLE_TABLE inheritance strategy with discriminator column, TicketComment entity with UUIDv7 primary key and ticketId FK, RoutingRule entity for auto-assignment logic. Spring Data JPA repositories created: TicketRepository with custom query methods (findByStatus, findByRequesterId, findByAssigneeId), IncidentRepository, ServiceRequestRepository, TicketCommentRepository, RoutingRuleRepository. Enum types created: TicketType (INCIDENT, SERVICE_REQUEST), TicketStatus (NEW, ASSIGNED, IN_PROGRESS, RESOLVED, CLOSED), Priority (CRITICAL, HIGH, MEDIUM, LOW), ApprovalStatus (PENDING, APPROVED, REJECTED), Severity (CRITICAL, HIGH, MEDIUM, LOW), ConditionType (CATEGORY, PRIORITY, SUBCATEGORY, ROUND_ROBIN). Integration tests validated: ticket persistence and retrieval with time-ordered UUIDv7 IDs, subclass persistence for Incident and ServiceRequest, optimistic locking with OptimisticLockException on concurrent updates, TicketComment persistence and chronological query ordering, RoutingRule query by enabled=true ordered by priority.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <artifact>
+        <path>backend/src/main/java/io/monosense/synergyflow/itsm/internal/domain/Ticket.java</path>
+        <kind>entity</kind>
+        <symbol>Ticket</symbol>
+        <lines>1-250</lines>
+        <reason>Base entity with UUIDv7 primary keys, optimistic locking (@Version field), domain methods assignTo(UUID assigneeId) and updateStatus(TicketStatus status), JPA lifecycle callbacks (@PrePersist, @PreUpdate) for timestamp management. Story 2.2 TicketService will use this entity extensively for all state transition methods.</reason>
+      </artifact>
+
+      <artifact>
+        <path>backend/src/main/java/io/monosense/synergyflow/itsm/internal/repository/TicketRepository.java</path>
+        <kind>repository</kind>
+        <symbol>TicketRepository</symbol>
+        <lines>1-57</lines>
+        <reason>Spring Data JPA repository with custom query methods: findByStatus(TicketStatus), findByRequesterId(UUID), findByAssigneeId(UUID). TicketService will inject this repository for all CRUD and query operations. TicketQueryServiceImpl (SPI) will also inject this to implement cross-module query contract.</reason>
+      </artifact>
+
+      <artifact>
+        <path>backend/src/main/java/io/monosense/synergyflow/eventing/api/EventPublisher.java</path>
+        <kind>interface</kind>
+        <symbol>EventPublisher</symbol>
+        <lines>1-102</lines>
+        <reason>Public API for publishing domain events to transactional outbox. TicketService will inject this to publish TicketCreatedEvent, TicketAssignedEvent, and TicketStateChangedEvent in the same transaction as aggregate state changes, implementing the transactional outbox pattern (Epic 1 Story 1.5). Method signature: publish(UUID aggregateId, String aggregateType, String eventType, Long version, Instant occurredAt, JsonNode payload).</reason>
+      </artifact>
+
+      <artifact>
+        <path>backend/src/main/java/io/monosense/synergyflow/itsm/internal/TicketService.java</path>
+        <kind>service</kind>
+        <symbol>TicketService</symbol>
+        <lines>1-178</lines>
+        <reason>Existing TicketService with PARTIAL implementation: createTicket(String title, String priorityString, UUID requesterId) and assignTicket(UUID ticketId, UUID assigneeId, UUID assignedBy) methods already implemented from Epic 1 demo. Story 2.2 will EXPAND this service by adding 10+ state transition methods (unassignTicket, reassignTicket, startWork, pauseWork, resolveTicket, closeTicket, reopenTicket, updatePriority, updateCategory, updateTitle, updateDescription), @Retryable annotations with exponential backoff, @Recover methods for retry exhaustion, TicketStateTransitionValidator injection and validation calls, and comprehensive business rule enforcement. IMPORTANT: Do NOT create new TicketService file - expand this existing file.</reason>
+      </artifact>
+
+      <artifact>
+        <path>backend/src/main/java/io/monosense/synergyflow/itsm/events/TicketCreated.java</path>
+        <kind>event</kind>
+        <symbol>TicketCreated</symbol>
+        <lines>1-20</lines>
+        <reason>Existing TicketCreated event record from Epic 1. Story 2.2 TicketService.createTicket() method already publishes this event. May need to verify event structure matches Story 2.2 AC-19 requirements (TicketCreatedEvent with fields: ticketId, title, ticketType, status, priority, requesterId, createdAt, version).</reason>
+      </artifact>
+
+      <artifact>
+        <path>backend/src/main/java/io/monosense/synergyflow/itsm/events/TicketAssigned.java</path>
+        <kind>event</kind>
+        <symbol>TicketAssigned</symbol>
+        <lines>1-20</lines>
+        <reason>Existing TicketAssigned event record from Epic 1. Story 2.2 TicketService.assignTicket() method already publishes this event. May need to verify event structure matches Story 2.2 AC-19 requirements (TicketAssignedEvent with fields: ticketId, assigneeId, assignmentReason, updatedAt, version).</reason>
+      </artifact>
+
+      <artifact>
+        <path>backend/src/main/java/io/monosense/synergyflow/itsm/internal/domain/TicketStatus.java</path>
+        <kind>enum</kind>
+        <symbol>TicketStatus</symbol>
+        <lines>1-10</lines>
+        <reason>Enum defining ticket lifecycle states: NEW, ASSIGNED, IN_PROGRESS, RESOLVED, CLOSED. Used in TicketStateTransitionValidator transition matrix and throughout TicketService state transition methods. Story 2.2 SPI will duplicate this enum in spi/ package to avoid coupling to internal/ package.</reason>
+      </artifact>
+
+      <artifact>
+        <path>backend/src/main/java/io/monosense/synergyflow/itsm/internal/domain/Priority.java</path>
+        <kind>enum</kind>
+        <symbol>Priority</symbol>
+        <lines>1-10</lines>
+        <reason>Enum defining priority levels: CRITICAL, HIGH, MEDIUM, LOW. Used in Ticket entity and TicketService updatePriority() method. Story 2.2 SPI will duplicate this enum in spi/ package for TicketSummaryDTO and TicketSearchCriteria.</reason>
+      </artifact>
+
+      <artifact>
+        <path>backend/src/main/java/io/monosense/synergyflow/itsm/internal/domain/TicketType.java</path>
+        <kind>enum</kind>
+        <symbol>TicketType</symbol>
+        <lines>1-10</lines>
+        <reason>Enum defining ticket types: INCIDENT, SERVICE_REQUEST. Used as discriminator in JPA inheritance strategy. Story 2.2 SPI will duplicate this enum in spi/ package for TicketSummaryDTO.</reason>
+      </artifact>
+
+      <artifact>
+        <path>backend/src/main/java/io/monosense/synergyflow/itsm/internal/domain/Incident.java</path>
+        <kind>entity</kind>
+        <symbol>Incident</symbol>
+        <lines>1-50</lines>
+        <reason>Incident subclass extending Ticket with additional fields: severity (CRITICAL, HIGH, MEDIUM, LOW), resolutionNotes (TEXT), resolvedAt (Instant). TicketService.resolveTicket() method will set resolvedAt = Instant.now() for Incident subtype per AC-5.</reason>
+      </artifact>
+
+      <artifact>
+        <path>backend/src/main/java/io/monosense/synergyflow/itsm/internal/domain/ServiceRequest.java</path>
+        <kind>entity</kind>
+        <symbol>ServiceRequest</symbol>
+        <lines>1-50</lines>
+        <reason>ServiceRequest subclass extending Ticket with additional fields: requestType (String), approvalStatus (PENDING, APPROVED, REJECTED), fulfillerId (UUID), fulfilledAt (Instant). TicketService.resolveTicket() method will set fulfilledAt = Instant.now() for ServiceRequest subtype per AC-5.</reason>
+      </artifact>
+
+      <artifact>
+        <path>backend/src/main/java/io/monosense/synergyflow/itsm/internal/domain/TicketComment.java</path>
+        <kind>entity</kind>
+        <symbol>TicketComment</symbol>
+        <lines>1-50</lines>
+        <reason>TicketComment entity with UUIDv7 primary key and fields: ticketId (UUID FK), author (UUID FK), commentText (TEXT), isInternal (boolean), createdAt (Instant). TicketService.addComment() method will create and persist TicketComment entities per AC-7.</reason>
+      </artifact>
+
+      <artifact>
+        <path>backend/src/main/java/io/monosense/synergyflow/itsm/internal/repository/TicketCommentRepository.java</path>
+        <kind>repository</kind>
+        <symbol>TicketCommentRepository</symbol>
+        <lines>1-30</lines>
+        <reason>Spring Data JPA repository for TicketComment with custom query method findByTicketIdOrderByCreatedAtAsc(UUID). TicketService will inject this repository for addComment() method per AC-7.</reason>
+      </artifact>
+    </code>
+
+    <dependencies>
+      <java>
+        <version>21</version>
+        <vendor>OpenJDK</vendor>
+      </java>
+      <spring-boot>
+        <version>3.4.0</version>
+      </spring-boot>
+      <hibernate>
+        <version>7.0.0.Final</version>
+        <note>Forced version for UUIDv7 native support with @UuidGenerator(style = Style.VERSION_7)</note>
+      </hibernate>
+      <spring-modulith>
+        <version>1.2.4</version>
+        <note>Used for module boundary enforcement with @ApplicationModule and @NamedInterface annotations. ModularityTests verify spi/ accessible, internal/ not accessible.</note>
+      </spring-modulith>
+      <spring-retry>
+        <status>TO BE ADDED IN STORY 2.2</status>
+        <note>Required for @Retryable and @Recover annotations. Story 2.2 Task 1 will add: implementation("org.springframework.retry:spring-retry") and implementation("org.springframework:spring-aspects") to build.gradle.kts</note>
+      </spring-retry>
+      <lombok>
+        <version>Latest via Spring Boot BOM</version>
+        <note>Used in entities with @Getter, @NoArgsConstructor(access = AccessLevel.PROTECTED)</note>
+      </lombok>
+      <jakarta-validation>
+        <version>Via spring-boot-starter-validation</version>
+        <note>Used for Bean Validation annotations (@NotBlank, @NotNull, @Size) in CreateTicketCommand and AddCommentCommand</note>
+      </jakarta-validation>
+      <postgresql>
+        <version>Latest via Spring Boot BOM</version>
+        <note>Production database for ticket persistence</note>
+      </postgresql>
+      <testcontainers>
+        <version>1.20.4</version>
+        <note>Required for integration tests per ADR-009. PostgreSQLContainer used in all integration tests (TicketServiceStateMachineIT, TicketServiceRetryIT, TicketQueryServiceSpiIT)</note>
+      </testcontainers>
+      <micrometer>
+        <version>Via spring-boot-starter-actuator</version>
+        <note>Used for retry metrics: MeterRegistry injected in TicketService to increment counters ticket.[operation].attempts and ticket.[operation].retries_exhausted</note>
+      </micrometer>
+      <jackson>
+        <version>Via spring-boot-starter-web</version>
+        <note>ObjectMapper used for event serialization: objectMapper.valueToTree(event) before publishing to EventPublisher</note>
+      </jackson>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="architectural">Spring Modulith module boundary rules: TicketService must be package-private in internal/service/ package (implementation detail of ITSM module), TicketQueryService must be public interface in spi/ package with @NamedInterface annotation (cross-module boundary), internal/ packages are NOT accessible from other modules (PM, Workflow, Dashboard), cross-module calls MUST go via spi/ packages only, ModularityTests verify boundaries with ApplicationModules.of(SynergyFlowApplication.class).verify()</constraint>
+
+    <constraint type="architectural">Service Layer Pattern: TicketService is package-private (internal visibility) in itsm.internal.service package, business logic encapsulated in service layer not exposed directly to API layer, API layer (TicketController, future Story 2.3) will delegate to this service, service layer is the ONLY component that writes to tickets table</constraint>
+
+    <constraint type="architectural">Event-Driven Architecture: All state-changing operations publish domain events via EventPublisher (Epic 1 OutboxWriter) to transactional outbox pattern, events enable eventual consistency for read models (ticket_card, queue_row projections), event schema includes version field for optimistic concurrency tracking, events published AFTER successful save to prevent duplicate events on retry</constraint>
+
+    <constraint type="pattern">State Machine Pattern: TicketStateTransitionValidator enforces all valid transitions per state machine matrix, each state transition method focuses on single responsibility (assign, start, pause, resolve, close, reopen), authorization integrated into service methods via currentUserId parameter, business rules BR-1.1 to BR-5.4 enforced at service layer</constraint>
+
+    <constraint type="pattern">SPI Pattern: TicketQueryService is a public SPI contract marked with @NamedInterface, SPI exposes ONLY DTOs never internal entities (prevents coupling), SPI enums duplicated in spi/ package (TicketStatus, TicketType, Priority) to avoid internal dependencies, SPI is a stable API boundary - breaking changes require deprecation cycle, cross-module access: PM, Workflow, Dashboard modules inject TicketQueryService for read-only queries</constraint>
+
+    <constraint type="pattern">Retry Pattern: Spring @Retryable with exponential backoff handles OptimisticLockException, backoff strategy: 50ms → 100ms → 200ms with jitter (reduces contention), maximum 4 attempts (1 initial + 3 retries), @Recover methods throw ConcurrentUpdateException after retry exhaustion, metrics track retry attempts and exhaustion rate (alert if &gt;1%)</constraint>
+
+    <constraint type="pattern">Optimistic Locking: Ticket entity has @Version field for concurrency control, JPA auto-increments version on each save, JPA throws OptimisticLockException if version mismatch (concurrent update detected), @Retryable pattern handles retries transparently - loads fresh entity on each retry</constraint>
+
+    <constraint type="implementation">All TicketService methods annotated with @Retryable MUST have corresponding @Recover method, @Recover method signature matches @Retryable method with additional first parameter ObjectOptimisticLockingFailureException ex, @Recover methods MUST log error and throw ConcurrentUpdateException, @Recover methods MUST increment Micrometer counter ticket.[operation].retries_exhausted</constraint>
+
+    <constraint type="implementation">State transition methods MUST validate current state before transition using TicketStateTransitionValidator.validateTransition(from, to), state transition methods MUST validate required fields and throw MissingRequiredFieldException if missing (e.g., assigneeId for assign(), resolutionNotes for resolve(), reopenReason for reopen()), state transition methods MUST validate authorization and throw UnauthorizedOperationException if current user not authorized (e.g., startWork() by non-assignee, resolve() by non-assignee)</constraint>
+
+    <constraint type="implementation">Event publishing MUST occur AFTER successful save to prevent duplicate events on retry, event payload MUST include version field matching saved entity version, event aggregateId MUST match ticket ID, event occurredAt MUST match entity updatedAt timestamp, use ObjectMapper.valueToTree(event) to convert event object to JsonNode before publishing</constraint>
+
+    <constraint type="testing">All integration tests MUST use Testcontainers PostgreSQL per ADR-009 (no in-memory H2 substitutes), integration tests MUST use @SpringBootTest with @Testcontainers annotations, integration tests MUST configure Spring via @DynamicPropertySource from container endpoints, load tests MUST be tagged with @Tag("load") and excluded from default test runs, load tests MUST verify performance targets (p95 latencies, success criteria)</constraint>
+
+    <constraint type="naming">Service methods use descriptive names matching state machine actions: assignTicket(), unassignTicket(), reassignTicket(), startWork(), pauseWork(), resolveTicket(), closeTicket(), reopenTicket(), updatePriority(), updateCategory(), updateTitle(), updateDescription(), addComment()</constraint>
+
+    <constraint type="validation">Use Bean Validation annotations (@NotBlank, @NotNull, @Size) in command objects (CreateTicketCommand, AddCommentCommand), use explicit validation in service methods for business rules (e.g., resolutionNotes length ≥ 10 characters, reopenReason length ≥ 10 characters), throw MissingRequiredFieldException for missing required fields with clear message "Required field '{field}' missing for operation: {operation}"</constraint>
+
+    <constraint type="documentation">All TicketService public methods MUST have Javadoc with @since 2.2 tag, TicketQueryService interface MUST be documented with SPI contract stability requirements, all custom exceptions MUST have Javadoc explaining when they are thrown, module-boundaries.md MUST be updated with SPI usage examples, ADR-010-ticket-state-machine.md MUST formalize state machine design</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>EventPublisher</name>
+      <kind>public-api</kind>
+      <signature>void publish(UUID aggregateId, String aggregateType, String eventType, Long version, Instant occurredAt, JsonNode payload)</signature>
+      <path>backend/src/main/java/io/monosense/synergyflow/eventing/api/EventPublisher.java</path>
+      <usage>TicketService MUST inject EventPublisher and call publish() method for all state-changing operations (createTicket, assignTicket, unassignTicket, reassignTicket, startWork, pauseWork, resolveTicket, closeTicket, reopenTicket, updatePriority, updateCategory, updateTitle, updateDescription). Event publishing MUST occur in same transaction as aggregate state change. Use ObjectMapper.valueToTree(event) to convert event object to JsonNode payload. Example: eventPublisher.publish(ticket.getId(), "TICKET", "TicketCreated", ticket.getVersion(), ticket.getCreatedAt(), payload)</usage>
+    </interface>
+
+    <interface>
+      <name>TicketRepository</name>
+      <kind>spring-data-jpa</kind>
+      <signature>extends JpaRepository&lt;Ticket, UUID&gt; with custom query methods: findByStatus(TicketStatus), findByRequesterId(UUID), findByAssigneeId(UUID)</signature>
+      <path>backend/src/main/java/io/monosense/synergyflow/itsm/internal/repository/TicketRepository.java</path>
+      <usage>TicketService MUST inject TicketRepository and use for all CRUD operations: save(ticket), findById(ticketId), saveAndFlush(ticket). TicketQueryServiceImpl MUST inject TicketRepository and use for SPI query methods: findByStatus(), findByRequesterId(), findByAssigneeId(), findAll(Specification). IMPORTANT: Use saveAndFlush() in methods that publish events to ensure @Version increments before event publishing.</usage>
+    </interface>
+
+    <interface>
+      <name>TicketCommentRepository</name>
+      <kind>spring-data-jpa</kind>
+      <signature>extends JpaRepository&lt;TicketComment, UUID&gt; with custom query method: findByTicketIdOrderByCreatedAtAsc(UUID)</signature>
+      <path>backend/src/main/java/io/monosense/synergyflow/itsm/internal/repository/TicketCommentRepository.java</path>
+      <usage>TicketService MUST inject TicketCommentRepository and use in addComment() method to persist TicketComment entities. Example: commentRepository.save(comment)</usage>
+    </interface>
+
+    <interface>
+      <name>Ticket (entity domain methods)</name>
+      <kind>domain-entity</kind>
+      <signature>void assignTo(UUID assigneeId), void updateStatus(TicketStatus status), void incrementVersion(), getters for all fields</signature>
+      <path>backend/src/main/java/io/monosense/synergyflow/itsm/internal/domain/Ticket.java</path>
+      <usage>TicketService MUST use Ticket entity domain methods for state changes instead of direct setters. Example: ticket.assignTo(assigneeId), ticket.updateStatus(TicketStatus.ASSIGNED). Do NOT bypass domain methods by calling setters directly. Entity provides @PrePersist and @PreUpdate lifecycle callbacks for automatic timestamp management.</usage>
+    </interface>
+
+    <interface>
+      <name>Spring @Retryable</name>
+      <kind>annotation</kind>
+      <signature>@Retryable(retryFor = {ObjectOptimisticLockingFailureException.class}, maxAttempts = 4, backoff = @Backoff(delay = 50, multiplier = 2, maxDelay = 200, random = true))</signature>
+      <path>org.springframework.retry.annotation.Retryable (spring-retry dependency)</path>
+      <usage>All TicketService write methods MUST be annotated with @Retryable for handling OptimisticLockException. Backoff strategy: exponential with jitter (50ms → 100ms → 200ms). Maximum 4 attempts (1 initial + 3 retries). Applies to: createTicket, assignTicket, unassignTicket, reassignTicket, startWork, pauseWork, resolveTicket, closeTicket, reopenTicket, updatePriority, updateCategory, updateTitle, updateDescription. IMPORTANT: Must add @EnableRetry to SynergyFlowApplication.java.</usage>
+    </interface>
+
+    <interface>
+      <name>Spring @Recover</name>
+      <kind>annotation</kind>
+      <signature>@Recover method signature matches @Retryable method with additional first parameter ObjectOptimisticLockingFailureException ex</signature>
+      <path>org.springframework.retry.annotation.Recover (spring-retry dependency)</path>
+      <usage>Each @Retryable method MUST have corresponding @Recover method for retry exhaustion handling. @Recover method MUST log error "Failed to [operation] ticket {ticketId} after 4 attempts due to concurrent updates", throw ConcurrentUpdateException with message "Ticket is being updated by another user. Please try again.", and increment Micrometer counter ticket.[operation].retries_exhausted. Example: public Ticket recoverFromOptimisticLock(ObjectOptimisticLockingFailureException ex, UUID ticketId, UUID assigneeId, UUID currentUserId) { ... }</usage>
+    </interface>
+
+    <interface>
+      <name>MeterRegistry (Micrometer metrics)</name>
+      <kind>public-api</kind>
+      <signature>Counter counter(String name), void increment()</signature>
+      <path>io.micrometer.core.instrument.MeterRegistry (spring-boot-starter-actuator)</path>
+      <usage>TicketService MUST inject MeterRegistry and increment retry metrics: meterRegistry.counter("ticket.[operation].attempts").increment() at start of each method, meterRegistry.counter("ticket.[operation].retries_exhausted").increment() in @Recover methods. Metrics enable monitoring of retry behavior and alert if retry exhaustion rate &gt; 1%.</usage>
+    </interface>
+
+    <interface>
+      <name>Spring Data JPA Specification</name>
+      <kind>api</kind>
+      <signature>Specification&lt;Ticket&gt; interface for dynamic queries</signature>
+      <path>org.springframework.data.jpa.domain.Specification (spring-boot-starter-data-jpa)</path>
+      <usage>TicketQueryServiceImpl.findByCriteria() MUST use Spring Data JPA Specification for dynamic queries based on TicketSearchCriteria. Example: Create TicketSpecifications class with static method fromCriteria(TicketSearchCriteria criteria) returning Specification&lt;Ticket&gt;, then use ticketRepository.findAll(specification) to execute dynamic query.</usage>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>All integration tests MUST use Testcontainers PostgreSQL per ADR-009 (no in-memory H2 substitutes). Tests use @SpringBootTest with @Testcontainers annotations, configure Spring via @DynamicPropertySource from container endpoints. Unit tests target &gt;90% coverage for TicketService methods, TicketStateTransitionValidator, exception classes. Load tests MUST be tagged with @Tag("load") and excluded from default test runs (configure in build.gradle.kts with excludeTags("load")). Integration tests verify: state machine transitions, retry behavior with concurrent updates, SPI contract compliance, Spring Modulith ModularityTests enforce module boundaries.</standards>
+
+    <locations>
+      <location>backend/src/test/java/io/monosense/synergyflow/itsm/internal/service/ (unit tests for TicketService, TicketStateTransitionValidator)</location>
+      <location>backend/src/test/java/io/monosense/synergyflow/itsm/internal/service/integration/ (integration tests: TicketServiceStateMachineIT, TicketServiceRetryIT, TicketQueryServiceSpiIT)</location>
+      <location>backend/src/test/java/io/monosense/synergyflow/itsm/internal/service/load/ (load tests: TicketServiceLoadTest with @Tag("load"))</location>
+      <location>backend/src/test/java/io/monosense/synergyflow/ (ModularityTests at root package to verify Spring Modulith module boundaries)</location>
+    </locations>
+
+    <ideas>
+      <test ac="AC-1,AC-2,AC-3">Unit test: TicketService.createTicket() creates ticket with status=NEW, persists to database, publishes TicketCreatedEvent with correct version, returns persisted ticket with non-null UUIDv7 ID</test>
+
+      <test ac="AC-3">Unit test: TicketService.assignTicket() validates transition from NEW to ASSIGNED, validates assigneeId not null (throws MissingRequiredFieldException if null), updates ticket assigneeId and status, publishes TicketAssignedEvent, increments version</test>
+
+      <test ac="AC-3">Unit test: TicketService.assignTicket() with null assigneeId throws MissingRequiredFieldException with message "Required field 'assigneeId' missing for operation: assign"</test>
+
+      <test ac="AC-4">Unit test: TicketService.startWork() validates current user is assignee (throws UnauthorizedOperationException if not), validates ticket status is ASSIGNED, updates status to IN_PROGRESS, publishes TicketStateChangedEvent</test>
+
+      <test ac="AC-4">Unit test: TicketService.startWork() by non-assignee throws UnauthorizedOperationException with message "User {userId} not authorized for operation: startWork"</test>
+
+      <test ac="AC-5">Unit test: TicketService.resolveTicket() validates current user is assignee, validates resolutionNotes not null and length ≥ 10 characters (throws MissingRequiredFieldException otherwise), updates status to RESOLVED, sets resolvedAt timestamp for Incident or fulfilledAt timestamp for ServiceRequest, publishes TicketStateChangedEvent</test>
+
+      <test ac="AC-5">Unit test: TicketService.resolveTicket() with resolutionNotes length &lt; 10 throws MissingRequiredFieldException with message "Required field 'resolutionNotes' missing for operation: resolve"</test>
+
+      <test ac="AC-5">Unit test: TicketService.reopenTicket() validates reopenReason not null and length ≥ 10 characters, clears assigneeId/resolutionNotes/resolvedAt/fulfilledAt, increments reopenCount field, updates status to NEW, publishes TicketStateChangedEvent</test>
+
+      <test ac="AC-8">Unit test: TicketStateTransitionValidator.validateTransition() throws InvalidStateTransitionException for invalid transitions (NEW → RESOLVED, CLOSED → ASSIGNED, IN_PROGRESS → CLOSED)</test>
+
+      <test ac="AC-8">Unit test: TicketStateTransitionValidator.validateTransition() succeeds for all 8 valid transitions (NEW → ASSIGNED, ASSIGNED → NEW, ASSIGNED → IN_PROGRESS, IN_PROGRESS → ASSIGNED, IN_PROGRESS → RESOLVED, RESOLVED → CLOSED, RESOLVED → NEW, CLOSED → NEW)</test>
+
+      <test ac="AC-14,AC-15">Unit test: TicketService.assignTicket() with mocked ObjectOptimisticLockingFailureException retries 2 times and succeeds on 3rd attempt (verify ticketRepository.save() called 3 times)</test>
+
+      <test ac="AC-14,AC-15">Unit test: TicketService.assignTicket() with 4 consecutive mocked ObjectOptimisticLockingFailureExceptions exhausts retries and @Recover method throws ConcurrentUpdateException with message "Ticket is being updated by another user. Please try again."</test>
+
+      <test ac="AC-20">Integration test IT-SM-1: Full lifecycle (NEW → ASSIGNED → IN_PROGRESS → RESOLVED → CLOSED) using Testcontainers PostgreSQL. Create ticket, assign to agent, start work, resolve with resolutionNotes, close. Verify each state transition persisted correctly. Verify events published for each transition (query outbox table).</test>
+
+      <test ac="AC-20">Integration test IT-SM-2: Reopen flow using Testcontainers PostgreSQL. Create ticket → assign → resolve → reopen (verify reopenCount incremented, assigneeId cleared, status=NEW). Create ticket → assign → resolve → close → reopen (verify reopenCount incremented).</test>
+
+      <test ac="AC-20">Integration test IT-SM-3: Invalid transitions throw InvalidStateTransitionException. Test NEW → RESOLVED (must go through ASSIGNED → IN_PROGRESS), CLOSED → ASSIGNED (must reopen first), IN_PROGRESS → CLOSED (must resolve first).</test>
+
+      <test ac="AC-20">Integration test IT-SM-4: Authorization checks using Testcontainers PostgreSQL. Create ticket, assign to agent1, attempt startWork() with agent2 userId (throws UnauthorizedOperationException). Attempt resolve() with non-assignee (throws UnauthorizedOperationException).</test>
+
+      <test ac="AC-20">Integration test IT-SM-5: Required field validation using Testcontainers PostgreSQL. Attempt assign() without assigneeId (throws MissingRequiredFieldException). Attempt resolve() without resolutionNotes (throws MissingRequiredFieldException). Attempt reopen() without reopenReason (throws MissingRequiredFieldException).</test>
+
+      <test ac="AC-21">Integration test IT-RETRY-1: Concurrent assignment with retry using Testcontainers PostgreSQL. Two threads assign same ticket to different agents concurrently. Thread 1 assigns to agent1, Thread 2 assigns to agent2 (triggers OptimisticLockException, retries, succeeds). Final ticket has agent2 (last write wins). Version incremented twice (v1 → v2 → v3). Both threads complete successfully.</test>
+
+      <test ac="AC-21">Integration test IT-RETRY-2: Retry exhaustion using Testcontainers PostgreSQL. Mock 4 consecutive OptimisticLockExceptions. After 4 attempts, throws ConcurrentUpdateException. Verify retry counter metric incremented (query metrics registry).</test>
+
+      <test ac="AC-21">Integration test IT-RETRY-3: Event publishing after retry using Testcontainers PostgreSQL. First attempt to assign ticket fails with OptimisticLockException, second attempt succeeds. Verify only one TicketAssignedEvent in outbox (not two). Query outbox_events table and count events for ticket ID.</test>
+
+      <test ac="AC-22">Integration test IT-SPI-1: TicketQueryService.findById() using Testcontainers PostgreSQL. Create and save ticket. Inject TicketQueryService (SPI interface). Call findById(ticketId). Verify TicketSummaryDTO returned with correct data (all fields match ticket entity).</test>
+
+      <test ac="AC-22">Integration test IT-SPI-2: TicketQueryService.findByStatus() using Testcontainers PostgreSQL. Create 3 tickets with status=NEW, 2 tickets with status=ASSIGNED. Call findByStatus(TicketStatus.NEW). Verify list returned with 3 TicketSummaryDTOs, all with status=NEW.</test>
+
+      <test ac="AC-22">Integration test IT-SPI-3: TicketQueryService.findByCriteria() complex query using Testcontainers PostgreSQL. Create multiple tickets with various combinations of status, priority, category, assignee. Build TicketSearchCriteria with status=ASSIGNED, priority=HIGH, category="Network", assigneeId=agent1. Call findByCriteria(criteria). Verify only tickets matching ALL criteria returned.</test>
+
+      <test ac="AC-22">Integration test IT-SPI-5: ModularityTests verify Spring Modulith module boundaries. Run ApplicationModules.of(SynergyFlowApplication.class).verify(). Verify spi/ package accessible from other modules (PM, Workflow, Dashboard). Verify internal/ package NOT accessible from other modules. No ModularityTests violations.</test>
+
+      <test ac="AC-24">Load test LT-SERVICE-1: Concurrent ticket creation using Testcontainers PostgreSQL with @Tag("load"). Performance target: 100 tickets/second, p95 &lt; 400ms. Test duration: 2 minutes (12,000 tickets). Use ExecutorService with thread pool to create tickets concurrently. Measure latencies with Micrometer Timer. Success criteria: p95 &lt; 400ms, p99 &lt; 800ms, zero failures.</test>
+
+      <test ac="AC-24">Load test LT-SERVICE-2: Concurrent ticket assignment with retry using Testcontainers PostgreSQL with @Tag("load"). Performance target: 200 assignments/second, p95 &lt; 400ms. Test duration: 1 minute (12,000 assignments across 1,000 tickets). Simulates high contention with 10 threads updating same 1,000 tickets. Success criteria: p95 &lt; 400ms, &lt;10% retry exhaustion, all assignments eventually succeed. Track retry exhaustion rate via Micrometer counter.</test>
+
+      <test ac="AC-24">Load test LT-SERVICE-3: SPI query load using Testcontainers PostgreSQL with @Tag("load"). Performance target: 500 queries/second, p95 &lt; 100ms (read-only). Test duration: 1 minute (30,000 queries). Mix: 50% findById, 30% findByStatus, 20% findByCriteria. Use ExecutorService to execute queries concurrently. Measure latencies. Success criteria: p95 &lt; 100ms, zero errors.</test>
+    </ideas>
+  </tests>
+</story-context>

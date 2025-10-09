@@ -21,14 +21,15 @@ import java.util.UUID;
  *     ticket.getPriority(),
  *     ticket.getRequesterId(),
  *     ticket.getCreatedAt(),
- *     ticket.getUpdatedAt()
+ *     ticket.getUpdatedAt(),
+ *     ticket.getVersion()
  * );
  *
  * eventPublisher.publish(
  *     event.ticketId(),
  *     "TICKET",
  *     "TicketCreated",
- *     1L, // initial version
+ *     event.version(),
  *     event.createdAt(),
  *     objectMapper.valueToTree(event)
  * );
@@ -36,7 +37,7 @@ import java.util.UUID;
  *
  * @author monosense
  * @since 1.0.0
- * @version 1.0.0
+ * @version 1.1.0
  *
  * @param ticketId the unique identifier of the created ticket
  * @param ticketNumber the human-readable ticket number
@@ -46,6 +47,7 @@ import java.util.UUID;
  * @param requesterId the unique identifier of the user who created the ticket
  * @param createdAt the timestamp when the ticket was created
  * @param updatedAt the timestamp when the ticket was last updated (same as createdAt for new tickets)
+ * @param version the optimistic locking version of the ticket (typically 1L for new tickets)
  */
 public record TicketCreated(
         UUID ticketId,
@@ -55,6 +57,7 @@ public record TicketCreated(
         String priority,
         UUID requesterId,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        Long version
 ) {
 }

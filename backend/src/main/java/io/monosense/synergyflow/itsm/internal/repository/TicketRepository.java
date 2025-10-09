@@ -3,6 +3,8 @@ package io.monosense.synergyflow.itsm.internal.repository;
 import io.monosense.synergyflow.itsm.internal.domain.Ticket;
 import io.monosense.synergyflow.itsm.internal.domain.TicketStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.UUID;
@@ -11,8 +13,8 @@ import java.util.UUID;
  * Spring Data JPA repository for Ticket aggregate persistence.
  *
  * <p>Provides database access operations for Ticket entities using UUIDv7 as the primary key.
- * This repository extends JpaRepository to inherit standard CRUD operations and includes
- * custom query methods for common ticket lookup patterns.</p>
+ * This repository extends JpaRepository to inherit standard CRUD operations and JpaSpecificationExecutor
+ * for dynamic query support, and includes custom query methods for common ticket lookup patterns.</p>
  *
  * <p>Custom query methods support filtering by:
  * <ul>
@@ -21,12 +23,16 @@ import java.util.UUID;
  *   <li>Assignee ID (user assigned to work on the ticket)</li>
  * </ul>
  *
+ * <p>Dynamic query support via JpaSpecificationExecutor enables complex criteria-based searches
+ * for the TicketQueryService SPI implementation.</p>
+ *
  * <p>Public visibility required for Spring dependency injection across internal packages.</p>
  *
  * @author monosense
  * @since 2.1
  */
-public interface TicketRepository extends JpaRepository<Ticket, UUID> {
+@Service
+public interface TicketRepository extends JpaRepository<Ticket, UUID>, JpaSpecificationExecutor<Ticket> {
 
     /**
      * Finds all tickets with the specified status.

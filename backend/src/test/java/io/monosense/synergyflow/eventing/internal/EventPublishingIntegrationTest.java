@@ -1,6 +1,9 @@
 package io.monosense.synergyflow.eventing.internal;
 
+import io.monosense.synergyflow.itsm.api.dto.CreateTicketCommand;
 import io.monosense.synergyflow.itsm.internal.TicketService;
+import io.monosense.synergyflow.itsm.internal.domain.Priority;
+import io.monosense.synergyflow.itsm.internal.domain.TicketType;
 import io.monosense.synergyflow.pm.internal.IssueService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -71,9 +74,17 @@ class EventPublishingIntegrationTest {
     void ticketCreatedEventIsPublished() {
         // Given
         UUID createdBy = testUserId;
+        CreateTicketCommand command = new CreateTicketCommand(
+                "Test Ticket",
+                "Test Description",
+                TicketType.INCIDENT,
+                Priority.HIGH,
+                null,
+                createdBy
+        );
 
         // When
-        UUID ticketId = ticketService.createTicket("Test Ticket", "HIGH", createdBy);
+        UUID ticketId = ticketService.createTicket(command, createdBy).getId();
 
         // Then
         List<OutboxEvent> events = outboxRepository.findAll();
@@ -85,10 +96,11 @@ class EventPublishingIntegrationTest {
         assertThat(event.getEventType()).isEqualTo("TicketCreated");
         assertThat(event.getVersion()).isEqualTo(1L); // First version after creation
         assertThat(event.getEventPayload()).isNotNull();
-        assertThat(event.getEventPayload().get("aggregate_type").asText()).isEqualTo("TICKET");
-        assertThat(event.getEventPayload().get("event_type").asText()).isEqualTo("TicketCreated");
-        assertThat(event.getEventPayload().get("version").asLong()).isEqualTo(1L);
-        assertThat(event.getEventPayload().get("payload").get("ticketId").asText()).isEqualTo(ticketId.toString());
+        // Envelope fields are available on the entity, payload contains raw domain event
+        assertThat(event.getAggregateType()).isEqualTo("TICKET");
+        assertThat(event.getEventType()).isEqualTo("TicketCreated");
+        assertThat(event.getVersion()).isEqualTo(1L);
+        assertThat(event.getEventPayload().get("ticketId").asText()).isEqualTo(ticketId.toString());
     }
 
     @Test
@@ -103,22 +115,32 @@ class EventPublishingIntegrationTest {
                 "INSERT INTO users (id, username, email, full_name, is_active, version) VALUES (?, ?, ?, ?, ?, ?)",
                 assigneeId, assigneeUsername, assigneeEmail, "Assignee User", true, 1
         );
-        UUID ticketId = ticketService.createTicket("Test Ticket", "HIGH", createdBy);
+        CreateTicketCommand command = new CreateTicketCommand(
+                "Test Ticket",
+                "Test Description",
+                TicketType.INCIDENT,
+                Priority.HIGH,
+                null,
+                createdBy
+        );
+        UUID ticketId = ticketService.createTicket(command, createdBy).getId();
         outboxRepository.deleteAll(); // Clear the created event
 
         // When
         ticketService.assignTicket(ticketId, assigneeId, createdBy);
 
-        // Then
-        List<OutboxEvent> events = outboxRepository.findAll();
-        assertThat(events).hasSize(1);
+        // Then: two events are published (business + audit). Assert the business event.
+        List<OutboxEvent> assignedEvents = outboxRepository.findAll().stream()
+                .filter(e -> e.getEventType().equals("TicketAssigned"))
+                .toList();
+        assertThat(assignedEvents).hasSize(1);
 
-        OutboxEvent event = events.get(0);
+        OutboxEvent event = assignedEvents.get(0);
         assertThat(event.getAggregateId()).isEqualTo(ticketId);
         assertThat(event.getAggregateType()).isEqualTo("TICKET");
         assertThat(event.getEventType()).isEqualTo("TicketAssigned");
         assertThat(event.getVersion()).isEqualTo(2L); // Version incremented from 1 to 2
-        assertThat(event.getEventPayload().get("payload").get("assigneeId").asText()).isEqualTo(assigneeId.toString());
+        assertThat(event.getEventPayload().get("assigneeId").asText()).isEqualTo(assigneeId.toString());
     }
 
     @Test
@@ -138,7 +160,7 @@ class EventPublishingIntegrationTest {
         assertThat(event.getAggregateType()).isEqualTo("ISSUE");
         assertThat(event.getEventType()).isEqualTo("IssueCreated");
         assertThat(event.getVersion()).isEqualTo(1L);
-        assertThat(event.getEventPayload().get("payload").get("issueId").asText()).isEqualTo(issueId.toString());
+        assertThat(event.getEventPayload().get("issueId").asText()).isEqualTo(issueId.toString());
     }
 
     @Test
@@ -160,8 +182,8 @@ class EventPublishingIntegrationTest {
         assertThat(event.getAggregateType()).isEqualTo("ISSUE");
         assertThat(event.getEventType()).isEqualTo("IssueStateChanged");
         assertThat(event.getVersion()).isEqualTo(2L); // Version incremented
-        assertThat(event.getEventPayload().get("payload").get("fromState").asText()).isEqualTo("TODO");
-        assertThat(event.getEventPayload().get("payload").get("toState").asText()).isEqualTo("IN_PROGRESS");
+        assertThat(event.getEventPayload().get("fromState").asText()).isEqualTo("TODO");
+        assertThat(event.getEventPayload().get("toState").asText()).isEqualTo("IN_PROGRESS");
     }
 
     @Test
@@ -176,15 +198,23 @@ class EventPublishingIntegrationTest {
                 assigneeId, assigneeUsername, assigneeEmail, "Assignee User", true, 1
         );
 
-        // When - create ticket (version 1), assign twice (versions 2, 3)
-        UUID ticketId = ticketService.createTicket("Test Ticket", "HIGH", createdBy);
+        // When - create ticket (version 1), assign once (version 2), start work (version 3)
+        CreateTicketCommand command = new CreateTicketCommand(
+                "Test Ticket",
+                "Test Description",
+                TicketType.INCIDENT,
+                Priority.HIGH,
+                null,
+                createdBy
+        );
+        UUID ticketId = ticketService.createTicket(command, createdBy).getId();
         ticketService.assignTicket(ticketId, assigneeId, createdBy);
-        ticketService.assignTicket(ticketId, assigneeId, createdBy);
+        ticketService.startWork(ticketId, assigneeId);
 
-        // Then - verify all 3 events with sequential versions
+        // Then - verify versions reach 3 sequentially; assignment emits an extra audit event at version 2
         List<OutboxEvent> events = outboxRepository.findAll();
-        assertThat(events).hasSize(3);
-        assertThat(events).extracting(OutboxEvent::getVersion)
+        assertThat(events).hasSize(4);
+        assertThat(events.stream().map(OutboxEvent::getVersion).distinct().toList())
                 .containsExactly(1L, 2L, 3L);
     }
 
@@ -192,7 +222,15 @@ class EventPublishingIntegrationTest {
     void duplicatePublishIsRejectedAndDoesNotCreateExtraRow() {
         // Given
         UUID createdBy = testUserId;
-        UUID ticketId = ticketService.createTicket("Dup Ticket", "MEDIUM", createdBy);
+        CreateTicketCommand command = new CreateTicketCommand(
+                "Dup Ticket",
+                "Test Description",
+                TicketType.INCIDENT,
+                Priority.MEDIUM,
+                null,
+                createdBy
+        );
+        UUID ticketId = ticketService.createTicket(command, createdBy).getId();
         assertThat(outboxRepository.findAll()).hasSize(1);
 
         // When/Then - attempt duplicate publish for same aggregate/version

@@ -1,6 +1,9 @@
 package io.monosense.synergyflow.eventing.internal;
 
+import io.monosense.synergyflow.itsm.api.dto.CreateTicketCommand;
 import io.monosense.synergyflow.itsm.internal.TicketService;
+import io.monosense.synergyflow.itsm.internal.domain.Priority;
+import io.monosense.synergyflow.itsm.internal.domain.TicketType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -69,7 +72,15 @@ class TransactionalSemanticsIntegrationTest {
                 @Override
                 protected void doInTransactionWithoutResult(@NonNull TransactionStatus status) {
                     // Domain write + publish
-                    ticketService.createTicket("Rollback Ticket", "MEDIUM", testUserId);
+                    CreateTicketCommand command = new CreateTicketCommand(
+                            "Rollback Ticket",
+                            "Test rollback scenario",
+                            TicketType.INCIDENT,
+                            Priority.MEDIUM,
+                            null,
+                            testUserId
+                    );
+                    ticketService.createTicket(command, testUserId);
                     // Force rollback after publish
                     status.setRollbackOnly();
                 }

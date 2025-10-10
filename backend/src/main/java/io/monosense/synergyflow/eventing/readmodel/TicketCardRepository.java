@@ -8,4 +8,6 @@ import java.util.UUID;
 public interface TicketCardRepository extends JpaRepository<TicketCardEntity, UUID>, TicketCardRepositoryCustom {
 
     Optional<TicketCardEntity> findByTicketId(UUID ticketId);
+
+    // Custom least-loaded agent selection implemented in TicketCardRepositoryImpl
 }

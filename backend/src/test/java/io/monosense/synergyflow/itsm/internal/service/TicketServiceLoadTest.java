@@ -367,7 +367,7 @@ class TicketServiceLoadTest {
                 try {
                     Instant operationStart = Instant.now();
 
-                    List<TicketSummaryDTO> results = ticketQueryService.findByStatus(status);
+                    ticketQueryService.findByStatus(status);
 
                     long latencyMs = Duration.between(operationStart, Instant.now()).toMillis();
                     latencies.add(latencyMs);
@@ -394,7 +394,7 @@ class TicketServiceLoadTest {
                 try {
                     Instant operationStart = Instant.now();
 
-                    List<TicketSummaryDTO> results = ticketQueryService.findByCriteria(criteria);
+                    ticketQueryService.findByCriteria(criteria);
 
                     long latencyMs = Duration.between(operationStart, Instant.now()).toMillis();
                     latencies.add(latencyMs);

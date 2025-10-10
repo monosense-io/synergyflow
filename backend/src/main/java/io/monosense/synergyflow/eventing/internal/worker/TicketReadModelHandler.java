@@ -29,9 +29,18 @@ public class TicketReadModelHandler {
 
     private final TicketCardRepository ticketCardRepository;
     private final TicketCardMapper ticketCardMapper;
+    private final UserLookup userLookup;
 
     public ReadModelUpdateResult handleTicketCreated(TicketCreatedMessage message, long version) {
         TicketCardEntity mapped = ticketCardMapper.toTicketCard(message, version);
+        // If assignee present on creation, enrich with user details for read model
+        if (message.assigneeId() != null) {
+            userLookup.nameEmailById(message.assigneeId())
+                    .ifPresent(map -> {
+                        mapped.setAssigneeName(map.getOrDefault("name", "Assigned"));
+                        mapped.setAssigneeEmail(map.getOrDefault("email", "assigned@example.com"));
+                    });
+        }
         applyRequesterDefaults(mapped, message);
 
         boolean updated = ticketCardRepository.upsertWithVersionGuard(mapped);

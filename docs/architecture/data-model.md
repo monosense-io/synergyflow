@@ -113,3 +113,52 @@ CREATE UNIQUE INDEX idx_sla_tracking_ticket_id_unique ON sla_tracking(ticket_id)
 - Entity: `io.monosense.synergyflow.itsm.internal.domain.SlaTracking`
 - Story: Story 2.3 - SLA Calculator and Tracking Integration
 - ADR: ADR-011 - SLA Tracking with Priority-Based Deadlines
+
+### teams
+
+**Purpose:** Resolver groups used for auto-assignment and workload distribution.
+
+**Schema:**
+```sql
+CREATE TABLE teams (
+    id           UUID PRIMARY KEY,
+    name         VARCHAR(100) NOT NULL UNIQUE,
+    description  TEXT,
+    enabled      BOOLEAN DEFAULT TRUE NOT NULL,
+    created_at   TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at   TIMESTAMP WITH TIME ZONE NOT NULL
+);
+
+CREATE UNIQUE INDEX idx_teams_name ON teams(name);
+```
+
+**Related:**
+- Migration: `V13__create_teams_table.sql`
+- Entity: `io.monosense.synergyflow.itsm.internal.domain.Team`
+- Repository: `io.monosense.synergyflow.itsm.internal.repository.TeamRepository`
+- Story: Story 2.4 - Routing Engine & Auto-Assignment
+
+### team_members
+
+**Purpose:** Many-to-many mapping of users to teams for round-robin assignment.
+
+**Schema:**
+```sql
+CREATE TABLE team_members (
+    id        UUID PRIMARY KEY,
+    team_id   UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+    user_id   UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    added_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    added_by  UUID,
+    version   BIGINT NOT NULL DEFAULT 1
+);
+
+CREATE UNIQUE INDEX uk_team_members_team_user ON team_members(team_id, user_id);
+CREATE INDEX idx_team_members_team ON team_members(team_id);
+CREATE INDEX idx_team_members_user ON team_members(user_id);
+```
+
+**Related:**
+- Migrations: `V15__create_team_members_table.sql`, `V16__seed_team_memberships.sql`
+- Usage: `TicketCardRepository.findAgentWithFewestTickets(teamId)`
+- Story: Story 2.4 - Routing Engine & Auto-Assignment

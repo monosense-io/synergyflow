@@ -19,6 +19,7 @@ import io.monosense.synergyflow.itsm.internal.repository.SlaTrackingRepository;
 import io.monosense.synergyflow.itsm.internal.repository.TicketCommentRepository;
 import io.monosense.synergyflow.itsm.internal.repository.TicketRepository;
 import io.monosense.synergyflow.itsm.internal.service.SlaCalculator;
+import io.monosense.synergyflow.itsm.internal.service.RoutingEngine;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.OptimisticLockingFailureException;
@@ -76,6 +77,7 @@ public class TicketService {
     private final SlaCalculator slaCalculator;
     private final EventPublisher eventPublisher;
     private final StateTransitionValidator stateTransitionValidator;
+    private final RoutingEngine routingEngine;
     private final MeterRegistry meterRegistry;
     private final ObjectMapper objectMapper;
 
@@ -100,7 +102,8 @@ public class TicketService {
                          EventPublisher eventPublisher,
                          StateTransitionValidator stateTransitionValidator,
                          MeterRegistry meterRegistry,
-                         ObjectMapper objectMapper) {
+                         ObjectMapper objectMapper,
+                         RoutingEngine routingEngine) {
         this.repository = repository;
         this.commentRepository = commentRepository;
         this.slaTrackingRepository = slaTrackingRepository;
@@ -109,6 +112,7 @@ public class TicketService {
         this.stateTransitionValidator = stateTransitionValidator;
         this.meterRegistry = meterRegistry;
         this.objectMapper = objectMapper;
+        this.routingEngine = routingEngine;
     }
 
     /**
@@ -177,6 +181,14 @@ public class TicketService {
                     ticket.getId(), ticket.getPriority(), dueAt);
         }
 
+        // Apply routing rules (auto-assignment) before publishing TicketCreated
+        try {
+            routingEngine.applyRules(ticket);
+        } catch (Exception ex) {
+            log.warn("Routing engine failed for ticket {}: {}", ticket.getId(), ex.toString());
+            meterRegistry.counter("routing.failures").increment();
+        }
+
         // Prepare and publish TicketCreatedEvent
         TicketCreated event = new TicketCreated(
                 ticket.getId(),
@@ -185,6 +197,7 @@ public class TicketService {
                 ticket.getStatus().name(),
                 ticket.getPriority() != null ? ticket.getPriority().name() : null,
                 ticket.getRequesterId(),
+                ticket.getAssigneeId(),
                 ticket.getCreatedAt(),
                 ticket.getUpdatedAt(),
                 ticket.getVersion()

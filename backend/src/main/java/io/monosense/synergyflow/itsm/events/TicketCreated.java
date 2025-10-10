@@ -56,6 +56,7 @@ public record TicketCreated(
         String status,
         String priority,
         UUID requesterId,
+        UUID assigneeId,
         Instant createdAt,
         Instant updatedAt,
         Long version

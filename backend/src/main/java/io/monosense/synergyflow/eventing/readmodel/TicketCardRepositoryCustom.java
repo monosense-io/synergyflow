@@ -31,5 +31,11 @@ public interface TicketCardRepositoryCustom {
                                              String assigneeEmail,
                                              Instant updatedAt,
                                              long version);
-}
 
+    /**
+     * Finds the agent with the fewest open tickets (global workload heuristic).
+     *
+     * <p>Team filtering is deferred until team membership is modeled.</p>
+     */
+    java.util.Optional<UUID> findAgentWithFewestTickets(UUID teamId);
+}

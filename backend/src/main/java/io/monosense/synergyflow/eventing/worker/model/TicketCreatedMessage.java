@@ -77,6 +77,7 @@ public record TicketCreatedMessage(
         String status,
         String priority,
         UUID requesterId,
+        UUID assigneeId,
         String requesterName,
         String requesterEmail,
         Instant createdAt,

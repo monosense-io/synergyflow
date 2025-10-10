@@ -51,8 +51,8 @@ class RoutingRuleIntegrationTest {
 
     private void insertTeam(UUID teamId, String teamName) {
         jdbcTemplate.update(
-                "INSERT INTO teams (id, team_name, description, is_active, version) VALUES (?, ?, ?, ?, ?)",
-                teamId, teamName, "Test team for routing rules", true, 1
+                "INSERT INTO teams (id, name, description, enabled, created_at, updated_at) VALUES (?, ?, ?, ?, now(), now())",
+                teamId, teamName, "Test team for routing rules", true
         );
     }
 
@@ -63,11 +63,11 @@ class RoutingRuleIntegrationTest {
         UUID supportTeamId = UUID.randomUUID();
         UUID archivedTeamId = UUID.randomUUID();
 
-        // Insert teams to satisfy foreign key constraints
-        insertTeam(networkTeamId, "Network Team");
-        insertTeam(infrastructureTeamId, "Infrastructure Team");
-        insertTeam(supportTeamId, "Support Team");
-        insertTeam(archivedTeamId, "Archived Team");
+        // Insert teams to satisfy foreign key constraints (use unique names to avoid seed collisions)
+        insertTeam(networkTeamId, "ITR-Network Team");
+        insertTeam(infrastructureTeamId, "ITR-Infrastructure Team");
+        insertTeam(supportTeamId, "ITR-Support Team");
+        insertTeam(archivedTeamId, "ITR-Archived Team");
 
         // Create 3 enabled routing rules with different priorities
         RoutingRule rule1 = new RoutingRule(

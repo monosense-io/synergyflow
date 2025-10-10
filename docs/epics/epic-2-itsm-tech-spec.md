@@ -1424,7 +1424,7 @@ export const MetricsDashboard: React.FC = () => {
 - **Status:** All 13 ACs satisfied, 16/16 tests passing (unit + integration + load), ADR-011 documented
 - **Deliverables:** `SlaTracking` entity, `SlaCalculator` service, `SlaTrackingRepository`, TicketService integration, test coverage >85%
 
-**Story 2.4:** Implement RoutingEngine (13 points)
+**Story 2.4:** Implement RoutingEngine (13 points) — In Progress (2025-10-10)
 - Create `RoutingEngine.java` with applyRules, matches, assignByRule
 - Support condition types: CATEGORY, PRIORITY, SUBCATEGORY, ROUND_ROBIN
 - Integrate with TicketService (auto-assign on ticket creation)

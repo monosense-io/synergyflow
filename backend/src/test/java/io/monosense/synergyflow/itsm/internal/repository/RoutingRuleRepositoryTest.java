@@ -49,8 +49,8 @@ class RoutingRuleRepositoryTest {
 
     private void insertTeam(UUID teamId, String teamName) {
         jdbcTemplate.update(
-                "INSERT INTO teams (id, team_name, description, is_active, version) VALUES (?, ?, ?, ?, ?)",
-                teamId, teamName, "Test team for routing rules", true, 1
+                "INSERT INTO teams (id, name, description, enabled, created_at, updated_at) VALUES (?, ?, ?, ?, now(), now())",
+                teamId, teamName, "Test team for routing rules", true
         );
     }
 

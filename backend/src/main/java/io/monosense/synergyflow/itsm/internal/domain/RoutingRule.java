@@ -230,4 +230,13 @@ public class RoutingRule {
     public void updatePriority(int priority) {
         this.priority = priority;
     }
+
+    /**
+     * Optional association to the target team specified by {@code target_team_id}.
+     *
+     * <p>Mapped as read-only to avoid duplicate source-of-truth with targetTeamId.</p>
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "target_team_id", insertable = false, updatable = false)
+    private Team team;
 }

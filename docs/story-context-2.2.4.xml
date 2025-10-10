@@ -1,0 +1,357 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>2.4</storyId>
+    <title>Implement Routing Engine for Auto-Assignment</title>
+    <status>Approved
+    <generatedAt>2025-10-10</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>/Users/monosense/repository/research/itsm/docs/stories/story-2.4.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>ITSM Agent</asA>
+    <iWant>tickets to be automatically assigned to the appropriate team or agent based on configurable routing rules</iWant>
+    <soThat>incidents and service requests reach the right resolver quickly without manual triage, reducing First Response Time and improving SLA compliance</soThat>
+    <tasks>
+      <task id="T1">Database Schema and Seed Data (AC: 9, 10) - 2 hours
+        - Create Flyway migration V13__create_teams_table.sql
+        - Create Flyway migration V14__add_team_id_to_routing_rules.sql
+        - Insert seed data for default teams (Network, Software, Hardware, General Support)
+        - Test migrations with ./gradlew flywayMigrate</task>
+      <task id="T2">Team Domain Entity (AC: 8, 14) - 2 hours
+        - Create Team.java entity in internal/domain/ package
+        - Add JPA annotations, UUIDv7 generator, lifecycle methods
+        - Create TeamTest with 3 unit tests
+        - Add Team to RoutingRule entity as @ManyToOne relationship</task>
+      <task id="T3">Team Repository (AC: 7) - 1 hour
+        - Create TeamRepository interface in internal/repository/ package
+        - Define query method: findByEnabledTrue()
+        - Repository verified through integration tests (Testcontainers)</task>
+      <task id="T4">TicketCardRepository Round-Robin Query (AC: 11) - 2 hours
+        - Add findAgentWithFewestTickets(UUID teamId) method to TicketCardRepository
+        - Implement custom @Query with GROUP BY and ORDER BY COUNT
+        - Unit test with mock data (3 agents with different ticket counts)
+        - Integration test with Testcontainers verifying correct agent selected</task>
+      <task id="T5">RoutingEngine Service Implementation (AC: 1-5) - 6 hours
+        - Create RoutingEngine service in internal/service/ package
+        - Implement applyRules(Ticket ticket) method
+        - Implement matches(RoutingRule rule, Ticket ticket) with switch for condition types
+        - Implement assignByRule(RoutingRule rule, Ticket ticket) with team vs agent logic
+        - Implement selectAgentRoundRobin(Team team) calling TicketCardRepository
+        - Add Javadoc with examples and edge case notes
+        - Create RoutingEngineTest with 6 unit tests</task>
+      <task id="T6">TicketService Integration (AC: 6) - 3 hours
+        - Inject RoutingEngine into TicketService
+        - Modify createTicket() to call routingEngine.applyRules(ticket) after SLA creation
+        - Add try-catch for routing exceptions (log warning, continue)
+        - Verify TicketCreatedEvent includes assigneeId if auto-assigned
+        - Update TicketServiceTest to verify routing integration</task>
+      <task id="T7">Integration Tests (AC: 12) - 6 hours
+        - Create RoutingEngineIntegrationTest with Testcontainers PostgreSQL
+        - Implement IT-ROUTING-1 to IT-ROUTING-8 (8 test scenarios)
+        - Seed test data: teams, agents, routing rules
+        - Verify ticket assignment after creation
+        - Test edge cases: no matching rule, disabled rules, round-robin</task>
+      <task id="T8">Documentation and Review (AC: all) - 2 hours
+        - Create ADR: "ADR-012: Routing Engine and Auto-Assignment Strategy"
+        - Update docs/architecture/data-model.md with teams table schema
+        - Update Epic 2 Tech Spec completion status (Story 2.4 → In Progress)
+        - Code review: verify all ACs met, test coverage >80%</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="AC-1">Create RoutingEngine service at backend/src/main/java/io/monosense/synergyflow/itsm/internal/service/RoutingEngine.java:
+      - @Service annotation with package-private visibility
+      - Method: void applyRules(Ticket ticket) - Evaluates routing rules and auto-assigns ticket
+      - Method: boolean matches(RoutingRule rule, Ticket ticket) - Checks if rule matches ticket criteria
+      - Method: void assignByRule(RoutingRule rule, Ticket ticket) - Assigns ticket to target team or agent
+      - Method: UUID selectAgentRoundRobin(Team team) - Selects agent with fewest assigned tickets in team
+      - Inject dependencies: RoutingRuleRepository, TicketService, TeamRepository, TicketCardRepository</ac>
+    <ac id="AC-2">Implement condition type matching:
+      - CATEGORY: Matches if rule.getConditionValue().equals(ticket.getCategory())
+      - PRIORITY: Matches if rule.getConditionValue().equals(ticket.getPriority().name())
+      - SUBCATEGORY: Matches if rule.getConditionValue().equals(ticket.getSubcategory())
+      - ROUND_ROBIN: Always matches (used as fallback rule)</ac>
+    <ac id="AC-3">Rules evaluated in priority order:
+      - Fetch enabled routing rules ordered by priority ASC: RoutingRuleRepository.findEnabledRulesByPriority()
+      - Iterate through rules in order
+      - First matching rule wins - assign ticket and exit
+      - If no rules match, leave ticket unassigned</ac>
+    <ac id="AC-4">Support team-based assignment:
+      - If rule.getTargetTeamId() != null, select agent within team using round-robin
+      - Round-robin strategy: TicketCardRepository.findAgentWithFewestTickets(teamId) returns agent with lowest workload
+      - Call TicketService.assignTicket(ticketId, agentId, "Auto-assigned by routing rule: " + rule.getRuleName())</ac>
+    <ac id="AC-5">Support direct agent assignment:
+      - If rule.getTargetAgentId() != null, assign directly to specific agent
+      - Call TicketService.assignTicket(ticketId, rule.getTargetAgentId(), "Auto-assigned by routing rule: " + rule.getRuleName())
+      - Skip round-robin for direct agent rules</ac>
+    <ac id="AC-6">Integrate with TicketService.createTicket():
+      - After ticket persistence and SLA creation, call routingEngine.applyRules(ticket)
+      - Auto-assignment happens before TicketCreatedEvent is published (event includes assigneeId if auto-assigned)
+      - If routing engine throws exception, log warning and continue (ticket remains unassigned, event still published)</ac>
+    <ac id="AC-7">Create TeamRepository at backend/src/main/java/io/monosense/synergyflow/itsm/internal/repository/TeamRepository.java:
+      - Extends JpaRepository&lt;Team, UUID&gt;
+      - Package-private visibility (internal repository)
+      - Query method: List&lt;Team&gt; findByEnabledTrue() (for future UI)</ac>
+    <ac id="AC-8">Create Team entity at backend/src/main/java/io/monosense/synergyflow/itsm/internal/domain/Team.java:
+      - UUIDv7 primary key with @UuidGenerator(style = Style.VERSION_7)
+      - Fields: id (UUID), name (String, not null, unique), description (String), enabled (boolean, default true), createdAt (Instant), updatedAt (Instant)
+      - @Table(name = "teams") with package-private visibility
+      - @PrePersist and @PreUpdate lifecycle methods for timestamps</ac>
+    <ac id="AC-9">Create Flyway migration V13__create_teams_table.sql:
+      - Table teams with columns: id (UUID PK), name (VARCHAR(100) NOT NULL UNIQUE), description (TEXT), enabled (BOOLEAN DEFAULT TRUE), created_at (TIMESTAMP WITH TIME ZONE NOT NULL), updated_at (TIMESTAMP WITH TIME ZONE NOT NULL)
+      - Index on name for uniqueness check: CREATE UNIQUE INDEX idx_teams_name ON teams(name);
+      - Seed data: Insert default teams (Network Team, Software Team, Hardware Team, General Support)</ac>
+    <ac id="AC-10">Add teamId field to RoutingRule entity:
+      - Create Flyway migration V14__add_team_id_to_routing_rules.sql
+      - Add column: team_id (UUID, nullable, FK to teams table)
+      - Foreign key: FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE SET NULL
+      - Nullable because rules can target specific agent instead of team</ac>
+    <ac id="AC-11">Add TicketCardRepository.findAgentWithFewestTickets(UUID teamId) method:
+      - Custom query: @Query("SELECT t.assigneeId FROM TicketCard t WHERE t.teamId = :teamId AND t.status NOT IN ('RESOLVED', 'CLOSED') GROUP BY t.assigneeId ORDER BY COUNT(t.id) ASC LIMIT 1")
+      - Returns UUID of agent with fewest open tickets in team
+      - Used for round-robin load balancing</ac>
+    <ac id="AC-12">Create RoutingEngineIntegrationTest.java:
+      - IT-ROUTING-1: Auto-assign by category - Create incident with category="Network Issue" → verify auto-assigned to Network Team agent
+      - IT-ROUTING-2: Auto-assign by priority - Create CRITICAL incident → verify auto-assigned to Senior Agent
+      - IT-ROUTING-3: First rule wins - Create ticket matching multiple rules → verify assigned by first matching rule (lowest priority number)
+      - IT-ROUTING-4: No matching rule - Create ticket with no matching rules → verify ticket remains unassigned
+      - IT-ROUTING-5: Round-robin load balancing - Create 3 tickets matching same team rule → verify distributed across 3 agents
+      - IT-ROUTING-6: Direct agent assignment - Create ticket with rule targeting specific agent → verify assigned to that agent (no round-robin)
+      - IT-ROUTING-7: Disabled rule skipped - Create ticket matching disabled rule → verify rule skipped, next rule applied
+      - IT-ROUTING-8: Round-robin fallback - Create ticket with ROUND_ROBIN rule → verify assigned to agent with fewest tickets</ac>
+    <ac id="AC-13">Create RoutingEngineTest.java:
+      - UT-ROUTING-1: CATEGORY match - Verify matches(categoryRule, ticket) returns true if categories match
+      - UT-ROUTING-2: PRIORITY match - Verify matches(priorityRule, ticket) returns true if priorities match
+      - UT-ROUTING-3: SUBCATEGORY match - Verify matches(subcategoryRule, ticket) returns true if subcategories match
+      - UT-ROUTING-4: ROUND_ROBIN always matches - Verify matches(roundRobinRule, ticket) always returns true
+      - UT-ROUTING-5: No match - Verify matches(categoryRule, ticketWithDifferentCategory) returns false
+      - UT-ROUTING-6: Round-robin selection - Mock TicketCardRepository, verify selectAgentRoundRobin() calls findAgentWithFewestTickets()</ac>
+    <ac id="AC-14">Create TeamTest.java:
+      - UT-TEAM-1: Entity creation - Verify Team entity created with UUIDv7, timestamps set
+      - UT-TEAM-2: PrePersist lifecycle - Verify createdAt and updatedAt set on persist
+      - UT-TEAM-3: PreUpdate lifecycle - Verify updatedAt updated on entity modification</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/epics/epic-2-itsm-tech-spec.md</path>
+        <title>Epic 2 ITSM Tech Spec</title>
+        <section>Story 2.4 Overview (lines 1427-1431)</section>
+        <snippet>Story 2.4 defines routing engine implementation with auto-assignment based on category, priority, round-robin within teams</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics/epic-2-itsm-tech-spec.md</path>
+        <title>Epic 2 ITSM Tech Spec</title>
+        <section>RoutingEngine Implementation (lines 435-496)</section>
+        <snippet>RoutingEngine.java service implementation with applyRules(), matches(), assignByRule(), selectAgentRoundRobin() methods. Evaluates rules in priority order, supports CATEGORY/PRIORITY/SUBCATEGORY/ROUND_ROBIN condition types</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics/epic-2-itsm-tech-spec.md</path>
+        <title>Epic 2 ITSM Tech Spec</title>
+        <section>TicketService Integration (lines 281-314)</section>
+        <snippet>TicketService.createTicket() calls routingEngine.applyRules(ticket) after SLA creation and before TicketCreatedEvent publication</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture/adr/ADR-009-integration-tests-requirements-testcontainers.md</path>
+        <title>ADR 009: Integration Test Requirements (Testcontainers)</title>
+        <section>Decision and Implementation</section>
+        <snippet>All integration tests MUST use Testcontainers for PostgreSQL, Redis. @DynamicPropertySource configuration with container endpoints. Container reuse enabled locally via ~/.testcontainers.properties</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture/module-boundaries.md</path>
+        <title>Module Boundaries</title>
+        <section>Module Dependency Matrix</section>
+        <snippet>ITSM module dependencies: security, eventing, sla, sse, audit. Cross-module calls via @NamedInterface SPI packages. internal/ packages not accessible from other modules</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/story-2.2-REVISED.md</path>
+        <title>Story 2.2 REVISED (Approved)</title>
+        <section>TicketService Implementation</section>
+        <snippet>TicketService is the entry point for ticket creation, implements business logic for validation, SLA creation, event publication. Package-private visibility in internal.service package</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/story-2.3.md</path>
+        <title>Story 2.3 (Completed)</title>
+        <section>SLA Tracking Implementation</section>
+        <snippet>SLA tracking with priority-based deadlines, TimerService for scheduling, SlaTracker entity with response/resolution deadlines. Integration with TicketService for auto-creation on ticket creation</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>backend/src/main/java/io/monosense/synergyflow/itsm/internal/domain/RoutingRule.java</path>
+        <kind>entity</kind>
+        <symbol>RoutingRule</symbol>
+        <lines>1-233</lines>
+        <reason>Existing routing rule entity with UUIDv7, condition types (CATEGORY/PRIORITY/SUBCATEGORY/ROUND_ROBIN), target team/agent fields. Story 2.4 adds teamId FK via migration V14</reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/main/java/io/monosense/synergyflow/itsm/internal/repository/RoutingRuleRepository.java</path>
+        <kind>repository</kind>
+        <symbol>RoutingRuleRepository.findByEnabledTrueOrderByPriorityAsc()</symbol>
+        <lines>41-42</lines>
+        <reason>Fetches enabled routing rules in priority order (ASC). Used by RoutingEngine.applyRules() to evaluate rules in precedence order</reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/main/java/io/monosense/synergyflow/itsm/internal/domain/ConditionType.java</path>
+        <kind>enum</kind>
+        <symbol>ConditionType</symbol>
+        <lines>20-50</lines>
+        <reason>Enum defining routing condition types: CATEGORY, PRIORITY, SUBCATEGORY, ROUND_ROBIN. Used in RoutingEngine.matches() switch logic</reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/main/java/io/monosense/synergyflow/itsm/internal/TicketService.java</path>
+        <kind>service</kind>
+        <symbol>TicketService.createTicket()</symbol>
+        <lines>132-204</lines>
+        <reason>Entry point for ticket creation. Story 2.4 AC-6: inject RoutingEngine, call routingEngine.applyRules(ticket) after SLA creation (line 178) and before event publication (line 193)</reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/main/java/io/monosense/synergyflow/itsm/internal/TicketService.java</path>
+        <kind>service</kind>
+        <symbol>TicketService.assignTicket()</symbol>
+        <lines>253-267</lines>
+        <reason>Ticket assignment method. Called by RoutingEngine.assignByRule() for auto-assignment with reason "Auto-assigned by routing rule: &lt;ruleName&gt;"</reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/main/java/io/monosense/synergyflow/eventing/readmodel/TicketCardRepository.java</path>
+        <kind>repository</kind>
+        <symbol>TicketCardRepository</symbol>
+        <lines>8-11</lines>
+        <reason>Read model repository for ticket cards. Story 2.4 AC-11: add findAgentWithFewestTickets(UUID teamId) custom query for round-robin load balancing</reason>
+      </artifact>
+      <artifact>
+        <path>backend/src/main/java/io/monosense/synergyflow/itsm/internal/domain/Ticket.java</path>
+        <kind>entity</kind>
+        <symbol>Ticket</symbol>
+        <lines>1-100</lines>
+        <reason>Base ticket entity with fields: id, ticketType, title, description, status, priority, category, subcategory, requesterId, assigneeId. Used for routing condition matching</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <gradle>
+        <dependency>
+          <group>org.springframework.boot</group>
+          <artifact>spring-boot-starter-data-jpa</artifact>
+          <version>managed</version>
+        </dependency>
+        <dependency>
+          <group>org.hibernate.orm</group>
+          <artifact>hibernate-core</artifact>
+          <version>7.0.0.Beta1</version>
+          <note>Required for UUIDv7 generator (@UuidGenerator with Style.VERSION_7)</note>
+        </dependency>
+        <dependency>
+          <group>org.postgresql</group>
+          <artifact>postgresql</artifact>
+          <version>42.7.4</version>
+          <scope>runtime</scope>
+        </dependency>
+        <dependency>
+          <group>org.flywaydb</group>
+          <artifact>flyway-core</artifact>
+          <version>managed</version>
+        </dependency>
+        <dependency>
+          <group>org.flywaydb</group>
+          <artifact>flyway-database-postgresql</artifact>
+          <version>managed</version>
+        </dependency>
+        <dependency>
+          <group>org.testcontainers</group>
+          <artifact>postgresql</artifact>
+          <version>1.20.4</version>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <group>org.testcontainers</group>
+          <artifact>junit-jupiter</artifact>
+          <version>1.20.4</version>
+          <scope>test</scope>
+        </dependency>
+      </gradle>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint id="C1">Package-private visibility: All new classes (RoutingEngine, Team, TeamRepository) must have package-private visibility (no public modifier) in internal.* packages</constraint>
+    <constraint id="C2">UUIDv7 primary keys: All entities must use @UuidGenerator(style = Style.VERSION_7) for time-ordered identifiers</constraint>
+    <constraint id="C3">Lifecycle timestamps: All entities must implement @PrePersist and @PreUpdate callbacks to manage createdAt/updatedAt timestamps</constraint>
+    <constraint id="C4">Testcontainers mandatory: All integration tests MUST use Testcontainers for PostgreSQL (no H2/in-memory databases) per ADR-009</constraint>
+    <constraint id="C5">Module boundaries: RoutingEngine is internal ITSM implementation, NOT exposed via SPI. Other modules cannot access routing logic directly</constraint>
+    <constraint id="C6">First rule wins: Routing rules evaluated in priority order (ASC), first matching rule assigns ticket and exits evaluation loop</constraint>
+    <constraint id="C7">Round-robin fairness: selectAgentRoundRobin() must use TicketCardRepository.findAgentWithFewestTickets() to distribute load evenly across team agents</constraint>
+    <constraint id="C8">Exception handling: If RoutingEngine.applyRules() throws exception, log warning and continue (ticket remains unassigned, event still published) per AC-6</constraint>
+    <constraint id="C9">Event ordering: Auto-assignment must occur AFTER SLA creation and BEFORE TicketCreatedEvent publication (event includes assigneeId if auto-assigned)</constraint>
+    <constraint id="C10">Testing standards: >80% code coverage required for RoutingEngine and Team entities. All AC test cases (UT-ROUTING-1 to UT-ROUTING-6, IT-ROUTING-1 to IT-ROUTING-8) must pass</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>RoutingRuleRepository.findByEnabledTrueOrderByPriorityAsc()</name>
+      <kind>repository-query</kind>
+      <signature>List&lt;RoutingRule&gt; findByEnabledTrueOrderByPriorityAsc()</signature>
+      <path>backend/src/main/java/io/monosense/synergyflow/itsm/internal/repository/RoutingRuleRepository.java:41</path>
+      <usage>Called by RoutingEngine.applyRules() to fetch enabled routing rules in priority order for evaluation</usage>
+    </interface>
+    <interface>
+      <name>TicketService.assignTicket()</name>
+      <kind>service-method</kind>
+      <signature>Ticket assignTicket(UUID ticketId, UUID assigneeId, UUID currentUserId)</signature>
+      <path>backend/src/main/java/io/monosense/synergyflow/itsm/internal/TicketService.java:254</path>
+      <usage>Called by RoutingEngine.assignByRule() to auto-assign ticket. Pass currentUserId as system/routing engine identifier, assigneeId from round-robin or direct rule</usage>
+    </interface>
+    <interface>
+      <name>TicketCardRepository.findAgentWithFewestTickets()</name>
+      <kind>repository-query</kind>
+      <signature>UUID findAgentWithFewestTickets(UUID teamId)</signature>
+      <path>backend/src/main/java/io/monosense/synergyflow/eventing/readmodel/TicketCardRepository.java (TO BE ADDED)</path>
+      <usage>Custom query for round-robin load balancing. Returns agent UUID with fewest open tickets in team. Query: SELECT t.assigneeId FROM TicketCard t WHERE t.teamId = :teamId AND t.status NOT IN ('RESOLVED', 'CLOSED') GROUP BY t.assigneeId ORDER BY COUNT(t.id) ASC LIMIT 1</usage>
+    </interface>
+    <interface>
+      <name>SlaCalculator.calculateDueAt()</name>
+      <kind>service-method</kind>
+      <signature>Instant calculateDueAt(Priority priority, Instant ticketCreatedAt)</signature>
+      <path>backend/src/main/java/io/monosense/synergyflow/itsm/internal/service/SlaCalculator.java</path>
+      <usage>Already used by TicketService.createTicket() for SLA tracking. Not modified in Story 2.4</usage>
+    </interface>
+    <interface>
+      <name>EventPublisher.publish()</name>
+      <kind>service-method</kind>
+      <signature>void publish(UUID aggregateId, String aggregateType, String eventType, Long version, Instant occurredAt, ObjectNode payload)</signature>
+      <path>backend/src/main/java/io/monosense/synergyflow/eventing/api/EventPublisher.java</path>
+      <usage>Already used by TicketService for TicketCreatedEvent. Not modified in Story 2.4</usage>
+    </interface>
+  </interfaces>
+  <tests>
+    <standards>Integration tests MUST use Testcontainers (PostgreSQL 16) per ADR-009. Configure containers via @DynamicPropertySource. Container reuse enabled locally (~/.testcontainers.properties: testcontainers.reuse.enable=true). Unit tests use Mockito for repository/service mocking. Test naming: UT-* (unit), IT-* (integration). Coverage target: >80% for RoutingEngine, Team entities. All tests extend base test classes for consistent setup. Use @SpringBootTest for integration tests, @ExtendWith(MockitoExtension.class) for unit tests.</standards>
+    <locations>
+      <location>backend/src/test/java/io/monosense/synergyflow/itsm/internal/service/RoutingEngineTest.java (unit tests)</location>
+      <location>backend/src/test/java/io/monosense/synergyflow/itsm/internal/service/RoutingEngineIntegrationTest.java (integration tests)</location>
+      <location>backend/src/test/java/io/monosense/synergyflow/itsm/internal/domain/TeamTest.java (unit tests)</location>
+      <location>backend/src/test/resources/db/testdata/ (test SQL seed data for teams, agents, routing rules)</location>
+    </locations>
+    <ideas>
+      <test ac="AC-1" id="UT-ROUTING-1">Unit test: CATEGORY condition matching - create categoryRule with conditionValue="Network", ticket with category="Network", assert matches() returns true</test>
+      <test ac="AC-2" id="UT-ROUTING-2">Unit test: PRIORITY condition matching - create priorityRule with conditionValue="CRITICAL", ticket with priority=CRITICAL, assert matches() returns true</test>
+      <test ac="AC-2" id="UT-ROUTING-3">Unit test: SUBCATEGORY condition matching - create subcategoryRule with conditionValue="VPN", ticket with subcategory="VPN", assert matches() returns true</test>
+      <test ac="AC-2" id="UT-ROUTING-4">Unit test: ROUND_ROBIN always matches - create roundRobinRule, any ticket, assert matches() returns true</test>
+      <test ac="AC-2" id="UT-ROUTING-5">Unit test: No match - create categoryRule with conditionValue="Network", ticket with category="Software", assert matches() returns false</test>
+      <test ac="AC-3,AC-4" id="UT-ROUTING-6">Unit test: Round-robin selection - mock TicketCardRepository.findAgentWithFewestTickets(teamId) to return agentId, verify selectAgentRoundRobin() calls repository and returns correct agent</test>
+      <test ac="AC-3,AC-4" id="IT-ROUTING-1">Integration test: Auto-assign by category - seed Network Team + 1 agent, seed routing rule (category="Network Issue" → Network Team), create incident with category="Network Issue", verify ticket.assigneeId == Network Team agent</test>
+      <test ac="AC-3,AC-5" id="IT-ROUTING-2">Integration test: Auto-assign by priority - seed Senior Agent, seed routing rule (priority="CRITICAL" → Senior Agent), create CRITICAL incident, verify ticket.assigneeId == Senior Agent</test>
+      <test ac="AC-3" id="IT-ROUTING-3">Integration test: First rule wins - seed 2 rules (rule1: category="Network" priority=1, rule2: priority="CRITICAL" priority=2), create ticket matching both, verify assigned by rule1 (lower priority number)</test>
+      <test ac="AC-3" id="IT-ROUTING-4">Integration test: No matching rule - seed rule for category="Network", create ticket with category="Software", verify ticket.assigneeId == null (unassigned)</test>
+      <test ac="AC-4" id="IT-ROUTING-5">Integration test: Round-robin load balancing - seed General Support Team + 3 agents, seed ROUND_ROBIN rule → General Support, create 3 tickets, verify distributed across 3 agents (each has 1 ticket)</test>
+      <test ac="AC-5" id="IT-ROUTING-6">Integration test: Direct agent assignment - seed routing rule (targetAgentId=specificAgentId, no teamId), create matching ticket, verify ticket.assigneeId == specificAgentId (no round-robin)</test>
+      <test ac="AC-3" id="IT-ROUTING-7">Integration test: Disabled rule skipped - seed 2 rules (rule1: enabled=false priority=1, rule2: enabled=true priority=2), create ticket matching both, verify assigned by rule2 (rule1 skipped)</test>
+      <test ac="AC-4" id="IT-ROUTING-8">Integration test: Round-robin fallback - seed ROUND_ROBIN rule (priority=999), create ticket with no category/priority match, verify assigned to agent with fewest tickets via fallback rule</test>
+      <test ac="AC-8" id="UT-TEAM-1">Unit test: Team entity creation - create Team("Network Team", "desc", true), verify id is UUIDv7, createdAt/updatedAt set</test>
+      <test ac="AC-8" id="UT-TEAM-2">Unit test: Team @PrePersist lifecycle - create Team, call onCreate(), verify createdAt == updatedAt == now()</test>
+      <test ac="AC-8" id="UT-TEAM-3">Unit test: Team @PreUpdate lifecycle - create Team, update name, call onUpdate(), verify updatedAt > createdAt</test>
+    </ideas>
+  </tests>
+</story-context>

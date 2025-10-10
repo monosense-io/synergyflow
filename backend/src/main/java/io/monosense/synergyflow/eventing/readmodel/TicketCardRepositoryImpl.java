@@ -119,5 +119,29 @@ class TicketCardRepositoryImpl implements TicketCardRepositoryCustom {
                 .executeUpdate();
         return affected > 0;
     }
-}
 
+    @Override
+    public java.util.Optional<UUID> findAgentWithFewestTickets(UUID teamId) {
+        Object result = entityManager.createNativeQuery("""
+                SELECT m.user_id AS agent_id
+                FROM team_members m
+                LEFT JOIN tickets t
+                  ON t.assignee_id = m.user_id
+                 AND t.status NOT IN ('RESOLVED','CLOSED')
+                WHERE m.team_id = :teamId
+                GROUP BY m.user_id
+                ORDER BY COUNT(t.id) ASC
+                LIMIT 1
+                """)
+            .setParameter("teamId", teamId)
+            .getSingleResult();
+
+        if (result == null) {
+            return java.util.Optional.empty();
+        }
+        if (result instanceof UUID uuid) {
+            return java.util.Optional.of(uuid);
+        }
+        return java.util.Optional.of(java.util.UUID.fromString(result.toString()));
+    }
+}

@@ -27,7 +27,7 @@ class TicketReadModelHandlerTest {
     void setUp() {
         repository = mock(TicketCardRepository.class);
         TicketCardMapper mapper = Mappers.getMapper(TicketCardMapper.class);
-        handler = new TicketReadModelHandler(repository, mapper);
+        handler = new TicketReadModelHandler(repository, mapper, new UserLookup(mock(org.springframework.jdbc.core.JdbcTemplate.class)));
     }
 
     @Test
@@ -40,6 +40,7 @@ class TicketReadModelHandlerTest {
                 "OPEN",
                 "HIGH",
                 UUID.randomUUID(),
+                null,
                 null,
                null,
                 Instant.parse("2025-10-07T10:15:30Z"),
@@ -73,6 +74,7 @@ class TicketReadModelHandlerTest {
                 "OPEN",
                 "HIGH",
                 UUID.randomUUID(),
+                null,
                 "Requester",
                 "requester@example.com",
                 Instant.now(),

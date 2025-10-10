@@ -59,14 +59,14 @@ class DatabaseSchemaIntegrationTest {
             "SELECT COUNT(*) FROM " + testSchema + ".flyway_schema_history WHERE success = true AND version IS NOT NULL",
             Integer.class
         );
-        assertThat(migrationCount).isEqualTo(12);
+        assertThat(migrationCount).isEqualTo(17);
 
         // Verify migration versions in order
         List<String> versions = jdbcTemplate.queryForList(
             "SELECT version FROM " + testSchema + ".flyway_schema_history WHERE success = true AND version IS NOT NULL ORDER BY installed_rank",
             String.class
         );
-        assertThat(versions).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12");
+        assertThat(versions).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17");
     }
 
     @Test
@@ -272,7 +272,7 @@ class DatabaseSchemaIntegrationTest {
             Integer.class,
             testSchema
         );
-        assertThat(tableCount).isEqualTo(23);
+        assertThat(tableCount).isEqualTo(24);
     }
 
     @Test
@@ -283,7 +283,7 @@ class DatabaseSchemaIntegrationTest {
             "SELECT version, description, checksum, success FROM " + testSchema + ".flyway_schema_history WHERE version IS NOT NULL ORDER BY installed_rank"
         );
 
-        assertThat(migrations).hasSize(12); // Includes V11 (sla_tracking), V12 (nullable ticket priority)
+        assertThat(migrations).hasSize(17); // + V15 (team_members), V16 (seed), V17 (routing_rules composite index)
 
         // Verify all migrations succeeded
         for (Map<String, Object> migration : migrations) {
@@ -311,5 +311,10 @@ class DatabaseSchemaIntegrationTest {
         // Story 2.3 additions
         assertThat(migrations.get(10).get("description")).isEqualTo("create sla tracking table");
         assertThat(migrations.get(11).get("description")).isEqualTo("make ticket priority nullable");
+        assertThat(migrations.get(12).get("description")).isEqualTo("create teams table");
+        assertThat(migrations.get(13).get("description")).isEqualTo("routing rules team column already present");
+        assertThat(migrations.get(14).get("description")).isEqualTo("create team members table");
+        assertThat(migrations.get(15).get("description")).isEqualTo("seed team memberships");
+        assertThat(migrations.get(16).get("description")).isEqualTo("add routing rules composite index");
     }
 }

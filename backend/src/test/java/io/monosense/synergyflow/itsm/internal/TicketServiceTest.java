@@ -15,6 +15,7 @@ import io.monosense.synergyflow.itsm.internal.repository.SlaTrackingRepository;
 import io.monosense.synergyflow.itsm.internal.repository.TicketCommentRepository;
 import io.monosense.synergyflow.itsm.internal.repository.TicketRepository;
 import io.monosense.synergyflow.itsm.internal.service.SlaCalculator;
+import io.monosense.synergyflow.itsm.internal.service.RoutingEngine;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -83,6 +84,9 @@ class TicketServiceTest {
 
     private TicketService ticketService;
 
+    @Mock
+    private RoutingEngine routingEngine;
+
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper();
@@ -97,8 +101,61 @@ class TicketServiceTest {
                 eventPublisher,
                 stateTransitionValidator,
                 meterRegistry,
-                objectMapper
+                objectMapper,
+                routingEngine
         );
+    }
+
+    @Test
+    @DisplayName("createTicket() continues when routing fails and increments routing.failures")
+    void createTicket_continues_whenRoutingFails_andIncrementsMetric() {
+        // Given
+        UUID requesterId = UUID.randomUUID();
+        CreateTicketCommand command = new CreateTicketCommand(
+                "Network issue",
+                "Link down",
+                TicketType.INCIDENT,
+                Priority.HIGH,
+                "Network",
+                requesterId
+        );
+
+        Incident savedIncident = spy(new Incident(
+                command.title(),
+                command.description(),
+                TicketStatus.NEW,
+                command.priority(),
+                command.category(),
+                command.requesterId(),
+                null,
+                null
+        ));
+        when(savedIncident.getId()).thenReturn(UUID.randomUUID());
+        when(savedIncident.getVersion()).thenReturn(1L);
+        when(savedIncident.getCreatedAt()).thenReturn(java.time.Instant.now());
+        when(savedIncident.getUpdatedAt()).thenReturn(java.time.Instant.now());
+        when(ticketRepository.save(any(Incident.class))).thenReturn(savedIncident);
+
+        // Simulate routing failure
+        doThrow(new RuntimeException("boom")).when(routingEngine).applyRules(any(Ticket.class));
+
+        // When
+        Ticket result = ticketService.createTicket(command, requesterId);
+
+        // Then - ticket is created and event published despite routing failure
+        assertThat(result).isNotNull();
+        verify(eventPublisher).publish(
+                eq(savedIncident.getId()),
+                eq("TICKET"),
+                eq("TicketCreated"),
+                eq(1L),
+                any(java.time.Instant.class),
+                any(ObjectNode.class)
+        );
+
+        // Metric incremented for routing failure
+        verify(meterRegistry, atLeastOnce()).counter("routing.failures");
+        verify(counter, atLeastOnce()).increment();
     }
 
     @Test
@@ -146,6 +203,7 @@ class TicketServiceTest {
         assertThat(result.getPriority()).isEqualTo(Priority.CRITICAL);
 
         verify(ticketRepository).save(any(Incident.class));
+        verify(routingEngine).applyRules(any(Ticket.class));
         verify(counter).increment(); // Metrics tracking
         verify(eventPublisher).publish(
                 eq(savedIncident.getId()),
@@ -201,6 +259,7 @@ class TicketServiceTest {
         assertThat(result.getStatus()).isEqualTo(TicketStatus.NEW);
 
         verify(ticketRepository).save(any(ServiceRequest.class));
+        verify(routingEngine).applyRules(any(Ticket.class));
         verify(eventPublisher).publish(
                 any(UUID.class),
                 eq("TICKET"),

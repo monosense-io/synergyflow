@@ -2827,12 +2827,7 @@ spec:
   sourceRef:
     kind: GitRepository
     name: synergyflow
-# Full config with health checks: see appendix-10
-```
-  - apiVersion: postgresql.cnpg.io/v1
-    kind: Cluster
-    name: synergyflow-db
-    namespace: synergyflow
+# Full config with health checks: see appendix-10-deployment-kubernetes.md
 ```
 
 **Deployment Process**:

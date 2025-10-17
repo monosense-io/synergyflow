@@ -19,14 +19,17 @@
 8. [Event Schemas](#8-event-schemas)
 9. [Security Architecture](#9-security-architecture)
 10. [Deployment Architecture](#10-deployment-architecture)
-11. [Workflow Orchestration](#11-workflow-orchestration)
-12. [Integration Patterns](#12-integration-patterns)
-13. [Scalability and Performance](#13-scalability-and-performance)
-14. [Disaster Recovery](#14-disaster-recovery)
-15. [Observability](#15-observability)
-16. [Architectural Decisions](#16-architectural-decisions)
-17. [Resource Sizing](#17-resource-sizing)
-18. [Testing Strategy](#18-testing-strategy)
+11. **[Requirements Traceability](./11-requirements-traceability.md)** - ✅ NEW: FR/NFR coverage, epic alignment, readiness (92% score)
+
+*The following sections are deferred to Phase 2 documentation:*
+12. Workflow Orchestration
+13. Integration Patterns
+14. Scalability and Performance
+15. Disaster Recovery
+16. Observability
+17. Architectural Decisions
+18. Resource Sizing
+19. Testing Strategy
 
 ---
 

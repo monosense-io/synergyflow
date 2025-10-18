@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/output" v="1.0">
+  <metadata>
+    <epicId>00</epicId>
+    <storyId>2</storyId>
+    <title>Single‑Entry Time Tray (FR‑2)</title>
+    <status>ContextReadyDraft</status>
+    <generatedAt>2025-10-18</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/story-00.2.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>support agent</asA>
+    <iWant>to log time once from a global Time Tray and have it mirrored to related Incident and Task worklogs</iWant>
+    <soThat>I avoid duplicate entry and get accurate rollups across linked entities</soThat>
+    <tasks>
+      <task ac="1,4">Frontend: Time Tray toggle/panel, rhf+Zod validation, optimistic commit with retry/backoff, toasts</task>
+      <task ac="1,2,4">Backend: POST /api/v1/time-entries (single/bulk), persist time_entry + audit, publish TimeEntryCreated</task>
+      <task ac="2,3,4">Consumers: IncidentWorklogConsumer, TaskWorklogConsumer with idempotency and aggregates</task>
+      <task ac="3,5">Observability: mirroring latency metrics, freshness badges display</task>
+      <task ac="3,5">Performance/E2E: Playwright and k6 to verify p95 ≤200 ms for two mirrors</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <item id="1">Global Time Tray is accessible from the top navigation and opens over current context; UI uses optimistic commit with retry/backoff on failure.</item>
+    <item id="2">A single time entry mirrors to at least two linked entities (Incident and Task) and persists an immutable audit trail including user and timestamp.</item>
+    <item id="3">Display aggregate time per entity (incident, task, project) updates in near‑real‑time after mirroring completes.</item>
+    <item id="4">Bulk time entry supports selecting multiple targets in one action; all mirrored writes succeed or are individually retried with idempotency.</item>
+    <item id="5">Performance: p95 mirror latency ≤200 ms for two destinations under nominal load; freshness badges indicate status until mirrors complete.</item>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/PRD.md" lines="166-190" note="FR‑2 spec"><snippet>Global worklog entry UI accessible from top navigation bar … Immutable audit trail for all time entries with user/timestamp.</snippet></doc>
+      <doc path="docs/epics.md" lines="1109-1121" note="Epic‑00 Story 00.2"><snippet>Global Time Tray … mirrored writes succeed for ≥2 linked entities … p95 mirror latency ≤200 ms.</snippet></doc>
+      <doc path="docs/solution-architecture.md" lines="360-420" note="UX & architecture hints"><snippet>Optimistic updates; error boundaries; journeys include Time Tray and saga‑like flows.</snippet></doc>
+      <doc path="docs/architecture/architecture.md" lines="2967-2973" note="Critical paths"><snippet>Critical Paths Only: Single‑Entry Time Tray, Link‑on‑Action …</snippet></doc>
+      <doc path="docs/architecture/appendix-19-testing-strategy.md" lines="520-604" note="Playwright E2E"><snippet>Playwright test validating Time Tray mirroring to incident and task with freshness badges.</snippet></doc>
+    </docs>
+    <code>
+      <file path="apps/backend/src/main/java/io/monosense/synergyflow/time/api/TimeEntryController.java" kind="controller" lines="N/A" reason="REST endpoint for creating time entries (single/bulk)"></file>
+      <file path="apps/backend/src/main/java/io/monosense/synergyflow/time/application/TimeEntryService.java" kind="service" lines="N/A" reason="Business logic and outbox publication"></file>
+      <file path="apps/backend/src/main/java/io/monosense/synergyflow/time/application/consumers/IncidentWorklogConsumer.java" kind="consumer" lines="N/A" reason="Mirror to incident worklog with idempotency"></file>
+      <file path="apps/backend/src/main/java/io/monosense/synergyflow/time/application/consumers/TaskWorklogConsumer.java" kind="consumer" lines="N/A" reason="Mirror to task worklog with idempotency"></file>
+      <file path="apps/frontend/src/features/time/tray/TimeTray.tsx" kind="component" lines="N/A" reason="UI for Time Tray"></file>
+      <file path="apps/frontend/src/features/time/tray/__tests__/time-tray.spec.ts" kind="e2e" lines="N/A" reason="End‑to‑end validation of mirroring"></file>
+    </code>
+    <dependencies>
+      <backend>
+        <item name="Spring Boot" version="3.5.6" />
+        <item name="Spring Modulith" version="1.4.x" />
+        <item name="PostgreSQL" version="16.8" />
+      </backend>
+      <frontend>
+        <item name="Next.js" version="15" />
+        <item name="TypeScript" />
+        <item name="TanStack Query" />
+      </frontend>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <item>Emit TimeEntryCreated event and persist to outbox; mirroring via idempotent consumers.</item>
+    <item>Propagate correlationId and causationId; include in logs and traces.</item>
+    <item>Return RFC7807 for validation errors with `fields[]` details.</item>
+  </constraints>
+
+  <interfaces>
+    <api name="Create Time Entry" kind="REST" signature="POST /api/v1/time-entries" />
+  </interfaces>
+
+  <tests>
+    <standards>JUnit 5, Spring Modulith Test, Testcontainers (PostgreSQL), Playwright (frontend E2E).</standards>
+    <locations>
+      <item>apps/backend/src/test/java/…</item>
+      <item>apps/frontend/e2e/…</item>
+    </locations>
+    <ideas>
+      <idea ac="2">Mirroring updates incident and task worklogs; duplicate deliveries do not duplicate effects.</idea>
+      <idea ac="3">Aggregate time reflects newly mirrored entries; freshness badge transitions to green.</idea>
+      <idea ac="5">k6 scenario to assert p95 ≤200 ms for two mirrors under nominal load.</idea>
+    </ideas>
+  </tests>
+</story-context>

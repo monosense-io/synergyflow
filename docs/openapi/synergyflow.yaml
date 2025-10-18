@@ -1,0 +1,416 @@
+openapi: 3.0.3
+info:
+  title: SynergyFlow API
+  description: API for managing incidents, tasks, and time entries in SynergyFlow
+  version: 0.1.0
+  contact:
+    name: SynergyFlow Team
+    email: api@synergyflow.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.synergyflow.com/v1
+    description: Production server
+  - url: https://staging-api.synergyflow.com/v1
+    description: Staging server
+  - url: http://localhost:8080/api/v1
+    description: Development server
+
+security:
+  - OAuth2: [time:write, time:read]
+
+paths:
+  /time-entries:
+    post:
+      tags:
+        - Time Entries
+      summary: Create a single time entry
+      description: |
+        Creates a new time entry and initiates mirroring to the specified target entities.
+        The operation returns a tracking ID that can be used to monitor the mirroring progress.
+
+        The API uses optimistic UI updates - the time entry is immediately saved and
+        the mirroring happens asynchronously via event-driven consumers.
+      operationId: createTimeEntry
+      security:
+        - OAuth2: [time:write]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTimeEntryRequest'
+            examples:
+              incidentTimeEntry:
+                summary: Time entry for an incident
+                value:
+                  durationMinutes: 30
+                  description: "Investigated root cause of database connection issues"
+                  occurredAt: "2025-10-18T14:30:00Z"
+                  targetEntities:
+                    - type: INCIDENT
+                      entityId: "inc-123"
+                      entityTitle: "Database Connection Issues"
+              taskTimeEntry:
+                summary: Time entry for a task
+                value:
+                  durationMinutes: 45
+                  description: "Fixed bug in authentication service"
+                  targetEntities:
+                    - type: TASK
+                      entityId: "task-456"
+                      entityTitle: "Fix auth service JWT validation"
+              bulkTargetTimeEntry:
+                summary: Time entry linked to both incident and task
+                value:
+                  durationMinutes: 60
+                  description: "Deployed hotfix and resolved customer issue"
+                  targetEntities:
+                    - type: INCIDENT
+                      entityId: "inc-789"
+                      entityTitle: "Customer Login Issues"
+                    - type: TASK
+                      entityId: "task-101"
+                      entityTitle: "Deploy authentication hotfix"
+      responses:
+        '202':
+          description: Time entry created successfully and mirroring initiated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimeEntryResponse'
+              examples:
+                successfulCreation:
+                  summary: Successful time entry creation
+                  value:
+                    trackingId: "track-abc123-def456"
+                    message: "Time entry created and mirroring initiated"
+                    timeEntryIds: ["entry-xyz789"]
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /time-entries/bulk:
+    post:
+      tags:
+        - Time Entries
+      summary: Create multiple time entries in bulk
+      description: |
+        Creates multiple time entries in a single transaction. Each entry will be
+        mirrored to its specified target entities independently. Returns tracking IDs
+        for all created entries.
+      operationId: createBulkTimeEntries
+      security:
+        - OAuth2: [time:write]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBulkTimeEntryRequest'
+            examples:
+              bulkCreation:
+                summary: Create multiple time entries
+                value:
+                  entries:
+                    - durationMinutes: 30
+                      description: "Morning standup and planning"
+                      targetEntities:
+                        - type: PROJECT
+                          entityId: "proj-001"
+                          entityTitle: "Sprint 23"
+                    - durationMinutes: 120
+                      description: "Fixed critical production bug"
+                      targetEntities:
+                        - type: INCIDENT
+                          entityId: "inc-456"
+                          entityTitle: "Production Outage"
+                        - type: TASK
+                          entityId: "task-789"
+                          entityTitle: "Fix production bug"
+      responses:
+        '202':
+          description: Bulk time entries created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkTimeEntryResponse'
+              examples:
+                successfulBulkCreation:
+                  summary: Successful bulk creation
+                  value:
+                    message: "Bulk time entries created and mirroring initiated"
+                    trackingIds: ["track-123", "track-456", "track-789"]
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  securitySchemes:
+    OAuth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://auth.synergyflow.com/oauth/authorize
+          tokenUrl: https://auth.synergyflow.com/oauth/token
+          scopes:
+            time:read: Read time entries
+            time:write: Create and modify time entries
+
+  schemas:
+    CreateTimeEntryRequest:
+      type: object
+      required:
+        - durationMinutes
+        - description
+        - targetEntities
+      properties:
+        durationMinutes:
+          type: integer
+          minimum: 1
+          maximum: 480
+          description: Duration of work in minutes (1-480 minutes)
+          example: 30
+        description:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Description of the work performed
+          example: "Investigated database connection issues and implemented temporary fix"
+        occurredAt:
+          type: string
+          format: date-time
+          description: When the work occurred (defaults to current time if not specified)
+          example: "2025-10-18T14:30:00Z"
+        targetEntities:
+          type: array
+          minItems: 1
+          maxItems: 10
+          description: List of entities to mirror this time entry to
+          items:
+            $ref: '#/components/schemas/TargetEntity'
+
+    CreateBulkTimeEntryRequest:
+      type: object
+      required:
+        - entries
+      properties:
+        entries:
+          type: array
+          minItems: 1
+          maxItems: 100
+          description: List of time entries to create
+          items:
+            $ref: '#/components/schemas/CreateTimeEntryRequest'
+
+    TargetEntity:
+      type: object
+      required:
+        - type
+        - entityId
+      properties:
+        type:
+          type: string
+          enum: [INCIDENT, TASK, PROJECT]
+          description: Type of the target entity
+          example: INCIDENT
+        entityId:
+          type: string
+          description: ID of the target entity
+          example: "inc-123"
+        entityTitle:
+          type: string
+          description: Optional title of the target entity
+          example: "Database Connection Issues"
+
+    TimeEntryResponse:
+      type: object
+      properties:
+        trackingId:
+          type: string
+          description: Tracking ID for monitoring mirroring progress
+          example: "track-abc123-def456"
+        message:
+          type: string
+          description: Response message
+          example: "Time entry created and mirroring initiated"
+        timeEntryIds:
+          type: array
+          items:
+            type: string
+          description: List of created time entry IDs
+          example: ["entry-xyz789"]
+
+    BulkTimeEntryResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Response message
+          example: "Bulk time entries created and mirroring initiated"
+        trackingIds:
+          type: array
+          items:
+            type: string
+          description: List of tracking IDs for monitoring progress
+          example: ["track-123", "track-456", "track-789"]
+
+    ProblemDetails:
+      type: object
+      properties:
+        type:
+          type: string
+          format: uri
+          description: URI reference to the problem type
+          example: "https://synergyflow.com/problems/validation-error"
+        title:
+          type: string
+          description: Short, human-readable summary of the problem
+          example: "Validation Error"
+        status:
+          type: integer
+          format: int32
+          description: HTTP status code
+          example: 400
+        detail:
+          type: string
+          description: Human-readable explanation of the problem
+          example: "Request validation failed. Please check the provided data."
+        instance:
+          type: string
+          format: uri
+          description: URI reference to the specific occurrence of the problem
+          example: "/api/v1/time-entries"
+        timestamp:
+          type: string
+          format: date-time
+          description: Timestamp when the error occurred
+          example: "2025-10-18T15:30:00Z"
+        correlationId:
+          type: string
+          description: Correlation ID for tracking the request
+          example: "corr-abc123-def456"
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationErrorField'
+          description: List of validation field errors (for validation errors)
+
+    ValidationErrorField:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Name of the field with validation error
+          example: "durationMinutes"
+        message:
+          type: string
+          description: Validation error message
+          example: "Duration must be at least 1 minute"
+        code:
+          type: string
+          description: Error code
+          example: "VALIDATION_ERROR"
+
+  responses:
+    BadRequest:
+      description: Bad request - validation failed
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          examples:
+            validationError:
+              summary: Validation error
+              value:
+                type: "https://synergyflow.com/problems/validation-error"
+                title: "Validation Error"
+                status: 400
+                detail: "Request validation failed. Please check the provided data."
+                instance: "/api/v1/time-entries"
+                timestamp: "2025-10-18T15:30:00Z"
+                correlationId: "corr-abc123-def456"
+                fields:
+                  - name: "durationMinutes"
+                    message: "Duration must be at least 1 minute"
+                    code: "VALIDATION_ERROR"
+
+    Unauthorized:
+      description: Unauthorized - authentication required
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          example:
+            type: "https://synergyflow.com/problems/unauthorized"
+            title: "Unauthorized"
+            status: 401
+            detail: "Authentication is required to access this resource."
+            instance: "/api/v1/time-entries"
+            timestamp: "2025-10-18T15:30:00Z"
+            correlationId: "corr-abc123-def456"
+
+    Forbidden:
+      description: Forbidden - insufficient permissions
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          example:
+            type: "https://synergyflow.com/problems/forbidden"
+            title: "Forbidden"
+            status: 403
+            detail: "You don't have permission to perform this action."
+            instance: "/api/v1/time-entries"
+            timestamp: "2025-10-18T15:30:00Z"
+            correlationId: "corr-abc123-def456"
+
+    TooManyRequests:
+      description: Too many requests - rate limit exceeded
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          example:
+            type: "https://synergyflow.com/problems/too-many-requests"
+            title: "Too Many Requests"
+            status: 429
+            detail: "Rate limit exceeded. Please try again later."
+            instance: "/api/v1/time-entries"
+            timestamp: "2025-10-18T15:30:00Z"
+            correlationId: "corr-abc123-def456"
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          example:
+            type: "https://synergyflow.com/problems/internal-server-error"
+            title: "Internal Server Error"
+            status: 500
+            detail: "An unexpected error occurred while processing your request."
+            instance: "/api/v1/time-entries"
+            timestamp: "2025-10-18T15:30:00Z"
+            correlationId: "corr-abc123-def456"
+
+tags:
+  - name: Time Entries
+    description: Time entry management operations

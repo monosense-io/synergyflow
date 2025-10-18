@@ -1,0 +1,149 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>00</epicId>
+    <storyId>00.1</storyId>
+    <title>Event System Implementation (Transactional Outbox)</title>
+    <status>Draft</status>
+    <generatedAt>2025-10-18</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/story-00.1.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>backend developer</asA>
+    <iWant>a reliable in-process event system with durable publication and correlation/causation tracking</iWant>
+    <soThat>modules communicate consistently and downstream consumers can process events idempotently with full observability</soThat>
+    <tasks>
+- Define event base types and correlation/causation ID utilities (AC: #1, #2)
+  - Add Java record base and helpers for IDs
+  - Ensure MDC and OpenTelemetry contexts include IDs
+- Implement transactional outbox persistence (AC: #1)
+  - Create Flyway migration for event_publication table (indexes, status fields)
+  - Configure outbox publisher and retry/backoff strategy
+- Refactor at least one module (Incident) to publish a domain event (AC: #1)
+  - Publish IncidentCreated with full metadata
+  - Verify event written to outbox with correct payload and IDs
+- Build idempotent consumer example and test harness (AC: #3)
+  - Implement consumer with idempotency key check
+  - Add integration tests to simulate duplicate deliveries
+- Observability and dashboards (AC: #2, #3)
+  - Emit metrics for event lag, error rate, retries
+  - Add Grafana panels for outbox lag and consumer errors</tasks>
+  </story>
+
+  <acceptanceCriteria>
+1. All domain events are published as Java records via Spring Modulith ApplicationEvents and persisted in `event_publication` (transactional outbox) with retry/status fields.
+2. Correlation and causation IDs propagate across module boundaries and outbound API calls; logs and traces include these IDs.
+3. Event consumers are idempotent and integration tests verify no duplicate side-effects under retry scenarios.</acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/PRD.md" title="Product Requirements Document" section="FR-1: Event System Implementation">
+        All events use Java record types with Spring Modulith ApplicationEvents. Events stored in event_publication table (transactional outbox pattern). Event metadata included for audit trail (correlation IDs, causation IDs, timestamps). Canonical IDs propagate across module boundaries. Type-safe events with compile-time validation.
+      </doc>
+      <doc path="docs/epics.md" title="Epic Breakdown" section="Epic 00 / Story 00.1">
+        Event System Implementation with transactional outbox. Prerequisites: None (foundation story). Events persisted in event_publication with retry/status fields. Correlation and causation IDs propagate across modules and outbound API calls. Consumers are idempotent.
+      </doc>
+      <doc path="docs/architecture/architecture.md" title="Architecture Document" section="Section 5: Event-Driven Architecture">
+        Spring Modulith ApplicationEvents with transactional outbox pattern. CQRS with write (command) and read (query) sides. Event flow: persist aggregate → publish event → store in event_publication table (atomic). Async delivery via EventPublicationRegistry with retry. At-least-once delivery semantics. Typical lag: 50-100ms p95.
+      </doc>
+      <doc path="docs/architecture/architecture.md" title="Architecture Document" section="Section 6: Database Architecture">
+        PostgreSQL 16.8 with module-per-schema pattern. event_publication schema with tables: event_publication (id, event_type, serialized_event, publication_date, completion_date, listener_id), processed_events (idempotency_key, processed_at). Indexes on completion_date (WHERE NULL) and publication_date.
+      </doc>
+      <doc path="docs/solution-architecture.md" title="Solution Architecture" section="Architecture Pattern (Step 3)">
+        Architecture: Spring Modulith 1.4.2; in‑process ApplicationEvents; transactional outbox 'event_publication'; migrations via Flyway; PgBouncer pooling.
+      </doc>
+      <doc path="docs/architecture/appendix-19-testing-strategy.md" title="Appendix 19: Testing Strategy" section="Spring Modulith tests">
+        Correlation ID asserted; outbox persistence verified; consumer test awaits projection creation.
+      </doc>
+      <doc path="docs/architecture/appendix-04-component-data-access.md" title="Appendix 04: Component Data Access" section="Integration with Spring Modulith">
+        Service saves entity then publishes ApplicationEvent; atomic publication guarantees with Modulith.
+      </doc>
+      <doc path="docs/architecture/CONNECTION-SCALING-STRATEGY.md" title="Database Connection Scaling Strategy" section="Executive Summary">
+        Shared PostgreSQL + PgBouncer (transaction mode); pool sizing guidance for 250→1000 users.
+      </doc>
+      <doc path="docs/postgresql-shared-cluster-analysis.md" title="PostgreSQL Shared Cluster Analysis" section="Recommendation">
+        Adopt shared cluster via dedicated PgBouncer; consistent with platform pattern.
+      </doc>
+      <doc path="docs/architecture-decisions.md" title="Architecture Decisions (ADR-006)" section="Integration — Transactional Outbox">
+        Adopt transactional outbox 'event_publication'; reliable delivery with idempotent consumers.
+      </doc>
+      <doc path="docs/IMPLEMENTATION-READY.md" title="Implementation Readiness" section="Event-Driven & Testing">
+        Event publication via Modulith + outbox; testing strategy with Spring Modulith Test.
+      </doc>
+    </docs>
+    <code>
+      <file path="apps/backend/src/main/java/io/monosense/synergyflow/common/events/EventBase.java" reason="Base Java record with correlationId and causationId" lineHint="1-80 (planned)" />
+      <file path="apps/backend/src/main/java/io/monosense/synergyflow/incident/application/IncidentController.java" reason="Publishes IncidentCreatedEvent via ApplicationEventPublisher" lineHint="45-110 (planned)" />
+      <file path="apps/backend/src/main/java/io/monosense/synergyflow/incident/domain/IncidentServiceImpl.java" reason="Saves Incident and emits IncidentCreatedEvent" lineHint="90-140 (planned)" />
+      <file path="apps/backend/src/main/java/io/monosense/synergyflow/events/outbox/EventPublicationRepository.java" reason="Transactional outbox persistence and status updates" lineHint="1-150 (planned)" />
+      <file path="apps/backend/src/main/resources/db/migration/V011__event_publication.sql" reason="Flyway migration for event_publication table and indexes" lineHint="1-120 (planned)" />
+      <file path="apps/backend/src/test/java/io/monosense/synergyflow/incident/IncidentEventOutboxIT.java" reason="Verifies event persisted to outbox and retried" lineHint="1-180 (planned)" />
+      <file path="apps/backend/src/test/java/io/monosense/synergyflow/tracing/CorrelationPropagationIT.java" reason="Asserts correlation/causation IDs propagate through logs and traces" lineHint="1-140 (planned)" />
+    </code>
+    <dependencies>
+      <backend>
+        <dependency name="Spring Boot" version="3.5+" />
+        <dependency name="Spring Modulith" version="1.4.2+" reason="Event publication registry with transactional outbox" />
+        <dependency name="PostgreSQL Driver" version="42.x" />
+        <dependency name="HikariCP" version="bundled" reason="Connection pooling" />
+        <dependency name="Flyway" version="latest" reason="Database migrations" />
+        <dependency name="OpenTelemetry" version="latest" reason="Correlation ID propagation" />
+      </backend>
+      <infrastructure>
+        <dependency name="PostgreSQL" version="16.8" reason="Shared cluster via CloudNative-PG" />
+        <dependency name="PgBouncer Pooler" version="latest" reason="Transaction-mode connection pooling" />
+      </infrastructure>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="architecture">All domain events MUST be Java records published via Spring Modulith ApplicationEvents</constraint>
+    <constraint type="architecture">Events MUST be stored atomically with aggregate in event_publication table (transactional outbox pattern)</constraint>
+    <constraint type="architecture">Event consumers MUST be idempotent (use processed_events table with idempotency_key)</constraint>
+    <constraint type="architecture">Correlation and causation IDs MUST propagate via MDC and OpenTelemetry contexts</constraint>
+    <constraint type="performance">Event processing lag p95 target: &lt;100ms (Spring Modulith in-memory event bus)</constraint>
+    <constraint type="database">Use Flyway migrations for event_publication and processed_events table creation</constraint>
+    <constraint type="testing">Integration tests MUST verify: outbox persistence, retry on failure, idempotent consumers under duplicate delivery</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="ApplicationEventPublisher" kind="Spring Bean" signature="void publishEvent(Object event)">
+      Spring Framework interface for publishing domain events. Events are intercepted by Spring Modulith and stored in event_publication table within the same transaction.
+    </interface>
+    <interface name="@ApplicationModuleListener" kind="Spring Annotation" signature="@ApplicationModuleListener void on(EventType event)">
+      Spring Modulith annotation for event consumers. Methods annotated with this receive events asynchronously after publication. Consumers run in separate transactions with automatic retry on failure.
+    </interface>
+    <interface name="event_publication table" kind="Database Table" path="event_publication schema">
+      Transactional outbox table: (id UUID, event_type VARCHAR(512), serialized_event TEXT, publication_date TIMESTAMP, completion_date TIMESTAMP, listener_id VARCHAR(512)). Indexed on completion_date (partial WHERE NULL) for efficient polling.
+    </interface>
+    <interface name="processed_events table" kind="Database Table" path="event_publication schema">
+      Idempotency tracking: (idempotency_key VARCHAR(255) PRIMARY KEY, processed_at TIMESTAMP). Consumer checks existence before processing to prevent duplicate side-effects.
+    </interface>
+    <interface name="IncidentCreatedEvent" kind="Java Record" signature="record IncidentCreatedEvent(String incidentId, String title, Priority priority, ...)">
+      Example domain event structure. All events MUST include correlationId and causationId fields for tracing. Events are serialized as JSON in serialized_event column.
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Spring Modulith scenario testing for event publication and consumption. Integration tests use Testcontainers for PostgreSQL. Unit tests for event record creation and serialization. Contract tests via Spring Cloud Contract for event schema validation (see docs/architecture/appendix-19-testing-strategy.md Section 19.3-19.4).
+    </standards>
+    <locations>
+      - Backend integration tests: apps/backend/src/test/java (not created yet)
+      - Event schema tests: apps/backend/src/test/java/contracts (not created yet)
+      - Spring Modulith scenario tests: apps/backend/src/test/java/modulith (not created yet)
+    </locations>
+    <ideas>
+      <test id="AC1" criteria="Event persistence in event_publication table">
+        Scenario: Publish IncidentCreatedEvent during incident creation. Assert: (1) Event row exists in event_publication with correct event_type, (2) serialized_event contains incident data as JSON, (3) completion_date is NULL initially, (4) Event and Incident both persisted in same transaction (rollback test).
+      </test>
+      <test id="AC2" criteria="Correlation/causation ID propagation">
+        Scenario: Incident creation with correlation ID in JWT. Assert: (1) IncidentCreatedEvent contains correlationId from request, (2) MDC populated with correlation ID during event consumption, (3) OpenTelemetry trace includes correlation ID span tag, (4) Logs include correlation ID field.
+      </test>
+      <test id="AC3" criteria="Idempotent event consumers">
+        Scenario: Simulate duplicate IncidentCreatedEvent delivery by publishing same event twice. Assert: (1) First consumption creates projection, (2) Second consumption skips due to processed_events check, (3) No duplicate rows in projection table, (4) Integration test using Spring Modulith scenario testing with event replay.
+      </test>
+    </ideas>
+  </tests>
+</story-context>

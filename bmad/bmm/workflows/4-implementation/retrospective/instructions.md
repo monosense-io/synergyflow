@@ -2,10 +2,11 @@
 
 <critical>The workflow execution engine is governed by: {project-root}/bmad/core/tasks/workflow.xml</critical>
 <critical>You MUST have already loaded and processed: {project-root}/bmad/bmm/workflows/4-implementation/retrospective/workflow.yaml</critical>
+<critical>Communicate all responses in {communication_language}</critical>
 
 <critical>
 FACILITATION NOTES:
-- Bob (Scrum Master) facilitates this retrospective
+- Scrum Master facilitates this retrospective
 - Psychological safety is paramount - NO BLAME
 - Focus on systems, processes, and learning
 - Everyone contributes with specific examples preferred
@@ -15,45 +16,60 @@ FACILITATION NOTES:
 
 <workflow>
 
-<step n="1" goal="Epic Context Discovery">
+<step n="1" goal="Check and load workflow status file">
+<action>Search {output_folder}/ for files matching pattern: bmm-workflow-status.md</action>
+<action>Find the most recent file (by date in filename: bmm-workflow-status.md)</action>
+
+<check if="exists">
+  <action>Load the status file</action>
+  <action>Set status_file_found = true</action>
+  <action>Store status_file_path for later updates</action>
+</check>
+
+<check if="not exists">
+  <ask>**No workflow status file found.**
+
+This workflow conducts epic retrospective (optional Phase 4 workflow).
+
+Options:
+
+1. Run workflow-status first to create the status file (recommended for progress tracking)
+2. Continue in standalone mode (no progress tracking)
+3. Exit
+
+What would you like to do?</ask>
+<action>If user chooses option 1 → HALT with message: "Please run workflow-status first, then return to retrospective"</action>
+<action>If user chooses option 2 → Set standalone_mode = true and continue</action>
+<action>If user chooses option 3 → HALT</action>
+</check>
+</step>
+
+<step n="2" goal="Epic Context Discovery">
 <action>Identify the completed epic</action>
 
 <ask>Which epic has just been completed? (Enter epic number, e.g., "003" or auto-detect from highest completed story)</ask>
 
-<check>If auto-detecting:</check>
-<action>Check {output_folder}/stories/ for highest numbered completed story</action>
-<action>Extract epic number from story file (e.g., "Epic: 003" section)</action>
+  <check if="auto-detecting">
+    <action>Check {output_folder}/stories/ for highest numbered completed story</action>
+    <action>Extract epic number from story file (e.g., "Epic: 003" section)</action>
+  </check>
 
 <action>Load the completed epic from: {output_folder}/prd/epic-{{epic_number}}.md</action>
-<action>Extract epic details:</action>
+<action>Extract epic details:
 
 - Epic title and goals
 - Success criteria
 - Planned stories and story points
 - Estimated sprint duration
 - Business objectives
+  </action>
 
 <action>Find all stories for this epic in {output_folder}/stories/</action>
-<action>For each story, extract:</action>
+<action>For each story, extract: - Story number and title - Completion status - Story points (if tracked) - Actual completion date - Dev Agent Record notes - TEA Results and testing outcomes - PO Notes and acceptance - Blockers encountered and resolution - Technical debt incurred
+</action>
 
-- Story number and title
-- Completion status
-- Story points (if tracked)
-- Actual completion date
-- Dev Agent Record notes
-- TEA Results and testing outcomes
-- PO Notes and acceptance
-- Blockers encountered and resolution
-- Technical debt incurred
-
-<action>Calculate epic metrics:</action>
-
-- Completed stories vs. total planned
-- Actual story points delivered vs. planned
-- Actual sprints taken vs. estimated
-- Velocity (points per sprint)
-- Blocker count and resolution time
-- Technical debt items logged
+<action>Calculate epic metrics: - Completed stories vs. total planned - Actual story points delivered vs. planned - Actual sprints taken vs. estimated - Velocity (points per sprint) - Blocker count - Technical debt items logged
+</action>
 
 <action>Review epic goals and compare actual outcomes vs. planned</action>
 <action>Note any scope changes or descoped items</action>
@@ -65,43 +81,48 @@ FACILITATION NOTES:
 <action>Identify the next epic in sequence</action>
 <action>Load next epic from: {output_folder}/prd/epic-{{next_epic_number}}.md</action>
 
-<action>Analyze next epic for:</action>
+<action if="next epic exists">
+Analyze next epic for:
+  - Epic title and objectives
+  - Planned stories and complexity
+  - Dependencies on completed epic work
+  - New technical requirements or capabilities needed
+  - Potential risks or unknowns
+</action>
 
-- Epic title and objectives
-- Planned stories and complexity
-- Dependencies on completed epic work
-- New technical requirements or capabilities needed
-- Potential risks or unknowns
-
-<action>Identify dependencies on completed work:</action>
+<action>Identify dependencies on completed work:
 
 - What components from Epic {{completed_number}} does Epic {{next_number}} rely on?
 - Are all prerequisites complete and stable?
 - Any incomplete work that creates blocking dependencies?
+  </action>
 
-<action>Note potential gaps or preparation needed:</action>
+<action>Note potential gaps or preparation needed:
 
 - Technical setup required (infrastructure, tools, libraries)
 - Knowledge gaps to fill (research, training, spikes)
 - Refactoring needed before starting next epic
 - Documentation or specifications to create
+  </action>
 
-<action>Check for technical prerequisites:</action>
+<action>Check for technical prerequisites:
 
 - APIs or integrations that must be ready
 - Data migrations or schema changes needed
 - Testing infrastructure requirements
 - Deployment or environment setup
-  </step>
+  </action>
+
+</step>
 
 <step n="3" goal="Initialize Retrospective with Context">
-<action>Bob (Scrum Master) opens the retrospective with context</action>
-<action>Present formatted retrospective header:</action>
+<action>Scrum Master opens the retrospective with context</action>
+<action>Present formatted retrospective header:
 
 ```
 🔄 TEAM RETROSPECTIVE - Epic {{epic_number}}: {{epic_title}}
 
-Bob (Scrum Master) facilitating
+Scrum Master facilitating
 
 ═══════════════════════════════════════════════════════════
 
@@ -147,13 +168,14 @@ Focus Areas:
 2. Preparing for Epic {{next_number}} success
 ```
 
-<action>Load agent configurations from: {project-root}/bmad/\_cfg/agent-party.xml</action>
-<action>Identify agents who participated in the completed epic based on story records</action>
-<action>Ensure key roles present: Sarah (PO), Bob (SM), James (Dev), Murat (TEA), Winston (Architect), Mary (Analyst)</action>
+</action>
+
+<action>Load agent configurations from {agent-manifest}</action>
+<action>Ensure key roles present from the {agent_manifest}: Product Owner, Scrum Master (facilitating the retro), Devs, Testing or QA, Architect, Analyst</action>
 </step>
 
 <step n="4" goal="Epic Review Discussion">
-<action>Bob facilitates Part 1: Reviewing the completed epic</action>
+<action>Scrum Master facilitates Part 1: Reviewing the completed epic</action>
 <action>Each agent shares in their unique voice, referencing actual story data</action>
 <action>Maintain psychological safety - focus on learning, not blame</action>
 
@@ -184,21 +206,16 @@ Focus Areas:
 - Skills or knowledge gained
 - Process improvements to implement
 
-<action>Agent personality guidance:</action>
-
-- **Sarah (PO)**: Business value delivery, stakeholder management, requirements clarity
-- **Bob (SM)**: Process effectiveness, team dynamics, blocker removal, velocity trends
-- **James (Dev)**: Technical execution, code quality, development experience, tooling
-- **Murat (TEA)**: Quality outcomes, testing effectiveness, defect prevention, coverage
-- **Winston (Architect)**: Architectural decisions, technical strategy, long-term sustainability
-- **Mary (Analyst)**: Requirements accuracy, specification quality, edge case handling
+<action>Agent personality guidance:
+Each agent loaded from {agent_manifest} will interact with their role and personality and communication style best represented and simulated during discussions
+</action>
 
 <action>Encourage specific examples from story records, metrics, and real outcomes</action>
-<action>Bob synthesizes common themes as discussion progresses</action>
+<action>Scrum Master synthesizes common themes as discussion progresses</action>
 </step>
 
 <step n="5" goal="Next Epic Preparation Discussion">
-<action>Bob facilitates Part 2: Preparing for the next epic</action>
+<action>Scrum Master facilitates Part 2: Preparing for the next epic</action>
 <action>Each agent addresses preparation needs from their domain</action>
 
 <action>For each agent, present forward-looking analysis:</action>
@@ -232,12 +249,12 @@ Focus Areas:
 </step>
 
 <step n="6" goal="Synthesize Action Items">
-<action>Bob identifies patterns across all agent feedback</action>
+<action>Scrum Master identifies patterns across all agent feedback</action>
 <action>Synthesizes common themes into team agreements</action>
 <action>Creates specific, achievable action items with clear ownership</action>
 <action>Develops preparation sprint tasks if significant setup needed</action>
 
-<action>Present comprehensive action plan:</action>
+<action>Present comprehensive action plan:
 
 ```
 ═══════════════════════════════════════════════════════════
@@ -295,49 +312,56 @@ Risk Mitigation:
 - {{risk}}: {{mitigation_strategy}}
 ```
 
+</action>
+
 <action>Ensure every action item has clear owner and timeline</action>
 <action>Prioritize preparation tasks by dependencies and criticality</action>
 <action>Identify which tasks can run in parallel vs. sequential</action>
 </step>
 
 <step n="7" goal="Critical User Verification">
-<action>Bob leads final verification checks before concluding retrospective</action>
+<action>Scrum Master leads final verification checks before concluding retrospective</action>
 <action>User must confirm readiness before next epic begins</action>
 
 <ask>Let's verify Epic {{completed_number}} is truly complete. Please confirm each item:</ask>
 
 **Testing Verification:**
 <ask>Has full regression testing been completed for Epic {{completed_number}}? (yes/no/partial)</ask>
-<check>If no or partial:</check>
-<action>Add to Critical Path: Complete regression testing before Epic {{next_number}}</action>
+
+<action if="no or partial">Add to Critical Path: Complete regression testing before Epic {{next_number}}</action>
 
 **Deployment Status:**
+
 <ask>Has Epic {{completed_number}} been deployed to production? (yes/no/scheduled)</ask>
-<check>If no:</check>
-<action>Add to Critical Path: Deploy Epic {{completed_number}} - scheduled for {{date}}</action>
+<action if="no deployment to prod">Add to Critical Path: Deploy Epic {{completed_number}} - scheduled for {{date}}</action>
 
 **Business Validation:**
 <ask>Have stakeholders reviewed and accepted Epic {{completed_number}} deliverables? (yes/no/pending)</ask>
-<check>If no or pending:</check>
-<action>Add to Critical Path: Obtain stakeholder acceptance before Epic {{next_number}}</action>
+
+<action if="no or pending deliverables">Add to Critical Path: Obtain stakeholder acceptance before Epic {{next_number}}</action>
 
 **Technical Health:**
 <ask>Is the codebase in a stable, maintainable state after Epic {{completed_number}}? (yes/no/concerns)</ask>
-<check>If no or concerns:</check>
-<action>Document concerns: {{user_input}}</action>
-<action>Add to Preparation Sprint: Address stability concerns</action>
+
+<check if="not stable or maintainable or concerns about codebase">
+  <action>Document concerns: {{user_input}}</action>
+  <action>Add to Preparation Sprint: Address stability concerns</action>
+</check>
 
 **Blocker Resolution:**
 <ask>Are there any unresolved blockers from Epic {{completed_number}} that will impact Epic {{next_number}}? (yes/no)</ask>
-<check>If yes:</check>
-<action>Document blockers: {{user_input}}</action>
-<action>Add to Critical Path with highest priority</action>
 
-<action>Bob summarizes verification results and any critical items added</action>
+<check if="yes unresolved blockers exist">
+  <action>Document blockers: {{user_input}}</action>
+  <action>Add to Critical Path with highest priority</action>
+</check>
+
+<action>Summarize the verification results and any critical items added</action>
+
 </step>
 
 <step n="8" goal="Retrospective Closure">
-<action>Bob closes the retrospective with summary and next steps</action>
+<action>Scrum Master closes the retrospective with summary and next steps</action>
 
 <action>Present closure summary:</action>
 
@@ -365,7 +389,7 @@ Critical Path Items: {{critical_count}}
 4. Begin Epic {{next_number}} planning when preparation complete
 
 ═══════════════════════════════════════════════════════════
-Bob: "Great work team! We learned a lot from Epic {{completed_number}}.
+Scrum Master: "Great work team! We learned a lot from Epic {{completed_number}}.
 Let's use these insights to make Epic {{next_number}} even better.
 See you at sprint planning once prep work is done!"
 ```
@@ -375,10 +399,76 @@ See you at sprint planning once prep work is done!"
 <action>Remind user to schedule prep sprint if needed</action>
 </step>
 
+<step n="9" goal="Update status file on completion">
+<action>Search {output_folder}/ for files matching pattern: bmm-workflow-status.md</action>
+<action>Find the most recent file (by date in filename)</action>
+
+<check if="status file exists">
+  <action>Load the status file</action>
+
+<template-output file="{{status_file_path}}">current_step</template-output>
+<action>Set to: "retrospective (Epic {{completed_number}})"</action>
+
+<template-output file="{{status_file_path}}">current_workflow</template-output>
+<action>Set to: "retrospective (Epic {{completed_number}}) - Complete"</action>
+
+<template-output file="{{status_file_path}}">progress_percentage</template-output>
+<action>Increment by: 5% (optional epic boundary workflow)</action>
+
+<template-output file="{{status_file_path}}">decisions_log</template-output>
+<action>Add entry:</action>
+
+```
+- **{{date}}**: Completed retrospective for Epic {{completed_number}}. Action items: {{action_count}}. Preparation tasks: {{prep_task_count}}. Critical path items: {{critical_count}}. Next: Execute preparation sprint before beginning Epic {{next_number}}.
+```
+
+<output>**✅ Retrospective Complete**
+
+**Epic Review:**
+
+- Epic {{completed_number}}: {{epic_title}} reviewed
+- Action Items: {{action_count}}
+- Preparation Tasks: {{prep_task_count}}
+- Critical Path Items: {{critical_count}}
+
+**Status file updated:**
+
+- Current step: retrospective (Epic {{completed_number}}) ✓
+- Progress: {{new_progress_percentage}}%
+
+**Next Steps:**
+
+1. Review retrospective summary: {output_folder}/retrospectives/epic-{{completed_number}}-retro-{{date}}.md
+2. Execute preparation sprint (Est: {{prep_days}} days)
+3. Complete critical path items before Epic {{next_number}}
+4. Begin Epic {{next_number}} planning when preparation complete
+
+Check status anytime with: `workflow-status`
+</output>
+</check>
+
+<check if="status file not found">
+  <output>**✅ Retrospective Complete, {user_name}!**
+
+**Epic Review:**
+
+- Epic {{completed_number}}: {{epic_title}} reviewed
+- Retrospective saved: {output_folder}/retrospectives/epic-{{completed_number}}-retro-{{date}}.md
+
+Note: Running in standalone mode (no status file).
+
+**Next Steps:**
+
+1. Execute preparation sprint
+2. Begin Epic {{next_number}} planning
+   </output>
+   </check>
+   </step>
+
 </workflow>
 
 <facilitation-guidelines>
-<guideline>Bob maintains psychological safety throughout - no blame or judgment</guideline>
+<guideline>Scrum Master maintains psychological safety throughout - no blame or judgment</guideline>
 <guideline>Focus on systems and processes, not individual performance</guideline>
 <guideline>Encourage specific examples over general statements</guideline>
 <guideline>Balance celebration of wins with honest assessment of challenges</guideline>

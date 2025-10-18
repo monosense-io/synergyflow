@@ -89,12 +89,11 @@ Consider:
 
 If you have specific options, list them. Otherwise, I'll research current leading solutions based on your requirements.</ask>
 
-<check>If user provides options:</check>
-<template-output>user_provided_options</template-output>
+<template-output if="user provides options">user_provided_options</template-output>
 
-<check>If discovering options:</check>
-<action>Conduct web research to identify current leading solutions</action>
-<action>Search for:
+<check if="discovering options">
+  <action>Conduct web research to identify current leading solutions</action>
+  <action>Search for:
 
 - "[technical_category] best tools 2025"
 - "[technical_category] comparison [use_case]"
@@ -102,10 +101,12 @@ If you have specific options, list them. Otherwise, I'll research current leadin
 - "State of [technical_category] 2025"
   </action>
 
-<elicit-required/>
+  <invoke-task halt="true">{project-root}/bmad/core/tasks/adv-elicit.xml</invoke-task>
 
 <action>Present discovered options (typically 3-5 main candidates)</action>
 <template-output>technology_options</template-output>
+
+</check>
 
 </step>
 
@@ -172,8 +173,8 @@ Research and document:
 - Training costs
 - Total cost of ownership estimate
 
-<elicit-required/>
-<template-output>tech_profile_{{option_number}}</template-output>
+<invoke-task halt="true">{project-root}/bmad/core/tasks/adv-elicit.xml</invoke-task>
+<template-output>tech*profile*{{option_number}}</template-output>
 
 </step>
 
@@ -283,7 +284,7 @@ For top 2-3 candidates:
 
 <ask>Are you researching architecture patterns (microservices, event-driven, etc.)?</ask>
 
-<check>If yes:</check>
+<check if="yes">
 
 Research and document:
 
@@ -308,6 +309,7 @@ Research and document:
 - Operational overhead
 
 <template-output>architecture_pattern_analysis</template-output>
+</check>
 
 </step>
 
@@ -342,7 +344,7 @@ Research and document:
 - Contingency options if primary choice doesn't work
 - Exit strategy considerations
 
-<elicit-required/>
+<invoke-task halt="true">{project-root}/bmad/core/tasks/adv-elicit.xml</invoke-task>
 
 <template-output>recommendations</template-output>
 
@@ -433,10 +435,72 @@ Create ADR format documentation:
 
 Select option (1-5):</ask>
 
-<check>If option 4:</check>
-<action>LOAD: {installed_path}/instructions-deep-prompt.md</action>
-<action>Pre-populate with technical research context</action>
+<check if="option 4">
+  <action>LOAD: {installed_path}/instructions-deep-prompt.md</action>
+  <action>Pre-populate with technical research context</action>
+</check>
 
 </step>
+
+<step n="FINAL" goal="Update status file on completion">
+<action>Search {output_folder}/ for files matching pattern: bmm-workflow-status.md</action>
+<action>Find the most recent file (by date in filename)</action>
+
+<check if="status file exists">
+  <action>Load the status file</action>
+
+<template-output file="{{status_file_path}}">current_step</template-output>
+<action>Set to: "research (technical)"</action>
+
+<template-output file="{{status_file_path}}">current_workflow</template-output>
+<action>Set to: "research (technical) - Complete"</action>
+
+<template-output file="{{status_file_path}}">progress_percentage</template-output>
+<action>Increment by: 5% (optional Phase 1 workflow)</action>
+
+<template-output file="{{status_file_path}}">decisions_log</template-output>
+<action>Add entry:</action>
+
+```
+- **{{date}}**: Completed research workflow (technical mode). Technical research report generated and saved. Next: Review findings and consider plan-project workflow.
+```
+
+<output>**✅ Technical Research Complete**
+
+**Research Report:**
+
+- Technical research report generated and saved
+
+**Status file updated:**
+
+- Current step: research (technical) ✓
+- Progress: {{new_progress_percentage}}%
+
+**Next Steps:**
+
+1. Review technical research findings
+2. Share with architecture team
+3. Run `plan-project` to incorporate findings into PRD
+
+Check status anytime with: `workflow-status`
+</output>
+</check>
+
+<check if="status file not found">
+  <output>**✅ Technical Research Complete**
+
+**Research Report:**
+
+- Technical research report generated and saved
+
+Note: Running in standalone mode (no status file).
+
+**Next Steps:**
+
+1. Review technical research findings
+2. Run plan-project workflow
+   </output>
+   </check>
+   </step>
 
 </workflow>

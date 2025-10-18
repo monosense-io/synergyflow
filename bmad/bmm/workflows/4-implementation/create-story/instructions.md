@@ -1,8 +1,9 @@
 # Create Story - Workflow Instructions (Spec-compliant, non-interactive by default)
 
-```xml
+````xml
 <critical>The workflow execution engine is governed by: {project_root}/bmad/core/tasks/workflow.xml</critical>
 <critical>You MUST have already loaded and processed: {installed_path}/workflow.yaml</critical>
+<critical>Communicate all responses in {communication_language}</critical>
 <critical>This workflow creates or updates the next user story from epics/PRD and architecture context, saving to the configured stories directory and optionally invoking Story Context.</critical>
 <critical>Default execution mode: #yolo (minimal prompts). Only elicit if absolutely required and {{non_interactive}} == false.</critical>
 
@@ -12,7 +13,7 @@
     <action>Resolve variables from config_source: story_dir (dev_story_location), output_folder, user_name, communication_language. If story_dir missing and {{non_interactive}} == false → ASK user to provide a stories directory and update variable. If {{non_interactive}} == true and missing, HALT with a clear message.</action>
     <action>Create {{story_dir}} if it does not exist</action>
     <action>Resolve installed component paths from workflow.yaml: template, instructions, validation</action>
-    <action>Resolve recommended inputs if present: epics_file, prd_file, hla_file</action>
+    <action>Resolve recommended inputs if present: epics_file, prd_file, solution-architecture_file</action>
   </step>
 
   <step n="2" goal="Discover and load source documents">
@@ -21,10 +22,53 @@
       1) tech_spec_file (epic-scoped)
       2) epics_file (acceptance criteria and breakdown)
       3) prd_file (business requirements and constraints)
-      4) hla_file (architecture constraints)
+      4) solution-architecture_file (architecture constraints)
       5) Architecture docs under docs/ and output_folder/: tech-stack.md, unified-project-structure.md, coding-standards.md, testing-strategy.md, backend-architecture.md, frontend-architecture.md, data-models.md, database-schema.md, rest-api-spec.md, external-apis.md (include if present)
     </action>
     <action>READ COMPLETE FILES for all items found in the prioritized set. Store content and paths for citation.</action>
+  </step>
+
+  <step n="2.5" goal="Check status file TODO section for story to draft">
+    <action>Read {output_folder}/bmm-workflow-status.md (if exists)</action>
+    <action>Navigate to "### Implementation Progress (Phase 4 Only)" section</action>
+    <action>Find "#### TODO (Needs Drafting)" section</action>
+
+    <check if="TODO section has a story">
+      <action>Extract story information from TODO section:</action>
+      - todo_story_id: The story ID to draft (e.g., "1.1", "auth-feature-1", "login-fix")
+      - todo_story_title: The story title (for validation)
+      - todo_story_file: The exact story file path to create
+
+      <critical>This is the PRIMARY source for determining which story to draft</critical>
+      <critical>DO NOT search or guess - the status file tells you exactly which story to create</critical>
+
+      <action>Parse story numbering from todo_story_id:</action>
+
+      <check if='todo_story_id matches "N.M" format (e.g., "1.1", "2.3")'>
+        <action>Set {{epic_num}} = N, {{story_num}} = M</action>
+        <action>Set {{story_file}} = "story-{{epic_num}}.{{story_num}}.md"</action>
+      </check>
+
+      <check if='todo_story_id matches "slug-N" format (e.g., "auth-feature-1", "icon-reliability-2")'>
+        <action>Set {{epic_slug}} = slug part, {{story_num}} = N</action>
+        <action>Set {{story_file}} = "story-{{epic_slug}}-{{story_num}}.md"</action>
+      </check>
+
+      <check if='todo_story_id matches "slug" format (e.g., "login-fix", "icon-migration")'>
+        <action>Set {{story_slug}} = full slug</action>
+        <action>Set {{story_file}} = "story-{{story_slug}}.md"</action>
+      </check>
+
+      <action>Validate that {{story_file}} matches {{todo_story_file}} from status file</action>
+      <action>If mismatch, HALT with error: "Story file mismatch. Status file says: {{todo_story_file}}, derived: {{story_file}}"</action>
+
+      <action>Skip old story discovery logic in Step 3 - we know exactly what to draft</action>
+    </check>
+
+    <check if="TODO section is empty OR status file not found">
+      <action>Fall back to old story discovery logic in Step 3</action>
+      <action>Note: This is the legacy behavior for projects not using the new status file system</action>
+    </check>
   </step>
 
   <step n="3" goal="Determine target story (do not prompt in #yolo)">
@@ -42,7 +86,7 @@
 
   <step n="4" goal="Extract requirements and derive story statement">
     <action>From tech_spec_file (preferred) or epics_file: extract epic {{epic_num}} title/summary, acceptance criteria for the next story, and any component references. If not present, fall back to PRD sections mapping to this epic/story.</action>
-    <action>From hla and architecture docs: extract constraints, patterns, component boundaries, and testing guidance relevant to the extracted ACs. ONLY capture information that directly informs implementation of this story.</action>
+    <action>From solution-architecture and architecture docs: extract constraints, patterns, component boundaries, and testing guidance relevant to the extracted ACs. ONLY capture information that directly informs implementation of this story.</action>
     <action>Derive a clear user story statement (role, action, benefit) grounded strictly in the above sources. If ambiguous and {{non_interactive}} == false → ASK user to clarify. If {{non_interactive}} == true → generate the best grounded statement WITHOUT inventing domain facts.</action>
     <template-output file="{default_output_file}">requirements_context_summary</template-output>
   </step>
@@ -77,5 +121,63 @@
     <action>Report created/updated story path</action>
   </step>
 
+  <step n="9" goal="Update status file on completion">
+    <action>Search {output_folder}/ for files matching pattern: bmm-workflow-status.md</action>
+    <action>Find the most recent file (by date in filename)</action>
+
+    <check if="status file exists">
+      <action>Load the status file</action>
+
+      <template-output file="{{status_file_path}}">current_step</template-output>
+      <action>Set to: "create-story (Story {{story_id}})"</action>
+
+      <template-output file="{{status_file_path}}">current_workflow</template-output>
+      <action>Set to: "create-story (Story {{story_id}}) - Complete"</action>
+
+      <template-output file="{{status_file_path}}">progress_percentage</template-output>
+      <action>Calculate per-story weight: remaining_40_percent / total_stories / 5</action>
+      <action>Increment by: {{per_story_weight}} * 2 (create-story weight is ~2% per story)</action>
+
+      <template-output file="{{status_file_path}}">decisions_log</template-output>
+      <action>Add entry:</action>
+      ```
+      - **{{date}}**: Completed create-story for Story {{story_id}} ({{story_title}}). Story file: {{story_file}}. Status: Draft (needs review via story-ready). Next: Review and approve story.
+      ```
+
+      <output>**✅ Story Created Successfully, {user_name}!**
+
+**Story Details:**
+- Story ID: {{story_id}}
+- File: {{story_file}}
+- Status: Draft (needs review)
+
+**Status file updated:**
+- Current step: create-story (Story {{story_id}}) ✓
+- Progress: {{new_progress_percentage}}%
+
+**Next Steps:**
+1. Review the drafted story in {{story_file}}
+2. When satisfied, run `story-ready` to approve for development
+3. Or edit the story file and re-run `create-story` to update
+
+Check status anytime with: `workflow-status`
+      </output>
+    </check>
+
+    <check if="status file not found">
+      <output>**✅ Story Created Successfully, {user_name}!**
+
+**Story Details:**
+- Story ID: {{story_id}}
+- File: {{story_file}}
+- Status: Draft
+
+Note: Running in standalone mode (no status file).
+
+To track progress across workflows, run `workflow-status` first.
+      </output>
+    </check>
+  </step>
+
 </workflow>
-```
+````

@@ -1,0 +1,16 @@
+spring:
+  application:
+    name: synergyflow-backend
+  modulith:
+    events:
+      jdbc:
+        # For dev/test, initialize the schema automatically
+        schema-initialization:
+          enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+

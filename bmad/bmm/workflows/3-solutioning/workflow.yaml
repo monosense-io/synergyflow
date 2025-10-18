@@ -7,6 +7,7 @@ author: "BMad Builder"
 config_source: "{project-root}/bmad/bmm/config.yaml"
 output_folder: "{config_source}:output_folder"
 user_name: "{config_source}:user_name"
+communication_language: "{config_source}:communication_language"
 date: system-generated
 
 # Input requirements
@@ -16,8 +17,8 @@ inputs:
     default: "{output_folder}/PRD.md"
     required: true
   - name: project_workflow_analysis_path
-    description: "Path to project-workflow-analysis.md from plan-project workflow"
-    default: "{output_folder}/project-workflow-analysis.md"
+    description: "Path to bmm-workflow-status.md from plan-project workflow"
+    default: "{output_folder}/bmm-workflow-status.md"
     required: true
   - name: project_level
     description: "Project level (0-4) from analysis file"

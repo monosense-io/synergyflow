@@ -61,6 +61,18 @@ Appendices contain full code implementations for reference and deployment. They'
   - GitOps deployment with Flux CD
   - Resource sizing and capacity planning
 
+**🧪 Section 19 - Testing Strategy**
+- [appendix-19-testing-strategy.md](./appendix-19-testing-strategy.md)
+  - Backend unit testing examples (JUnit 5 + Mockito)
+  - Frontend unit testing examples (Vitest + React Testing Library)
+  - Spring Modulith integration testing patterns
+  - Contract testing examples (Spring Cloud Contract)
+  - End-to-end testing examples (Playwright)
+  - Performance testing scripts (K6 load tests)
+  - Security testing configurations (OWASP, Trivy)
+  - CI/CD test pipeline (GitHub Actions)
+  - Test data management patterns
+
 ### Companion Documents (In Development)
 
 **📊 cohesion-check-report.md** - Requirements coverage validation (coming)

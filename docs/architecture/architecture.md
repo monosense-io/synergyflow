@@ -2841,4 +2841,308 @@ spec:
 
 ---
 
+## 19. Testing Strategy
+
+### 19.1 Testing Philosophy and Pyramid
+
+**Testing Philosophy:**
+- **Shift-Left Testing**: Catch defects early in development cycle (unit → integration → E2E)
+- **Test-Driven Development (TDD)**: Encouraged for domain logic and event handlers
+- **Contract-Driven Testing**: Event schemas validated via Spring Cloud Contract
+- **Behavior-Driven Development (BDD)**: E2E tests mirror user journeys from PRD
+- **Continuous Testing**: All tests run in CI/CD pipeline on every commit
+
+**Testing Pyramid (Target Distribution):**
+```
+           /\
+          /  \          10% - E2E Tests (Playwright)
+         /____\
+        /      \        20% - Integration Tests (Spring Modulith Test)
+       /________\
+      /          \      70% - Unit Tests (JUnit 5, Vitest)
+     /____________\
+```
+
+**Coverage Targets (NFR-5):**
+- **Overall:** ≥80% code coverage
+- **Business Logic:** ≥90% coverage (domain services, event handlers)
+- **API Controllers:** ≥85% coverage (REST endpoints)
+- **Event Consumers:** 100% coverage (critical for eventual consistency)
+- **Frontend Components:** ≥70% coverage (UI components, hooks)
+
+### 19.2 Unit Testing Strategy
+
+#### Backend Unit Testing (JUnit 5 + Mockito)
+
+**Frameworks:**
+- **JUnit 5 (5.10.2)**: Modern assertions, parameterized tests, lifecycle hooks
+- **Mockito (5.11.0)**: Mocking dependencies, behavior verification
+- **AssertJ**: Fluent assertions for readability
+
+**Testing Patterns:**
+
+See [appendix-19-testing-strategy.md](./appendix-19-testing-strategy.md#a191-backend-unit-testing-examples) for complete examples.
+
+**Test Organization:**
+- `src/test/java/{module}/domain` - Domain service tests
+- `src/test/java/{module}/application` - Controller tests with @WebMvcTest
+- Test method naming: `methodName_condition_expectedBehavior()`
+
+**Mocking Strategy:**
+- Mock external dependencies (databases, HTTP clients, OPA)
+- Never mock domain entities or value objects
+- Use `@SpringBootTest` sparingly (slow), prefer isolated tests
+
+#### Frontend Unit Testing (Vitest + React Testing Library)
+
+**Frameworks:**
+- **Vitest (1.5.0)**: Fast execution, ESM native, Jest-compatible API
+- **React Testing Library**: User-centric component testing
+- **MSW (Mock Service Worker)**: API mocking for integration tests
+
+**Testing Patterns:**
+
+See [appendix-19-testing-strategy.md](./appendix-19-testing-strategy.md#a192-frontend-unit-testing-examples) for complete examples.
+
+**Coverage Focus:**
+- Custom hooks (useTimeEntry, useFreshnessBadge)
+- Complex state management logic
+- Form validation and submission
+- Error handling and retry logic
+
+### 19.3 Integration Testing Strategy
+
+#### Spring Modulith Scenario Testing
+
+**Framework:** Spring Modulith Test (1.4.2) - Module isolation, event verification
+
+**Testing Patterns:**
+
+See [appendix-19-testing-strategy.md](./appendix-19-testing-strategy.md#a193-integration-testing-examples) for event publication and consumer testing examples.
+
+**Test Scope:**
+- **Module Boundaries**: Verify no direct method calls between modules
+- **Event Propagation**: All events delivered to consumers within 200ms (p95)
+- **Projection Lag**: Freshness badges accurate (test with @DirtiesContext sparingly)
+- **Idempotency**: Event consumers handle duplicate events gracefully
+- **Retry Logic**: Failed event processing retries with exponential backoff
+
+**Database Integration:**
+- **Testcontainers**: PostgreSQL container for realistic database tests
+- **Flyway Migrations**: Run actual migrations in tests
+- **Test Data Builders**: Reusable builders for domain entities
+
+### 19.4 Contract Testing Strategy
+
+#### Spring Cloud Contract for Event Schemas
+
+**Framework:** Spring Cloud Contract (4.1.0) - Producer-driven contracts
+
+**Purpose:**
+- Prevent breaking changes to event schemas
+- Ensure event producers and consumers agree on contracts
+- Enable independent module deployment
+
+**Contract Definition (Groovy DSL):**
+
+See [appendix-19-testing-strategy.md](./appendix-19-testing-strategy.md#a194-contract-testing-examples) for complete contract definitions and generated tests.
+
+**Test Generation:**
+- Producers: Generate tests ensuring events match contracts
+- Consumers: Generate stubs for contract verification
+- CI/CD: Contract tests block merge if broken
+
+**Migration Strategy:**
+- Use semantic versioning for event schemas
+- Maintain backward compatibility for 2 versions
+- Deprecate old schemas with 6-month notice
+
+### 19.5 End-to-End (E2E) Testing Strategy
+
+#### Playwright for Critical User Journeys
+
+**Framework:** Playwright (1.43.0) - Cross-browser, auto-wait, trace viewer
+
+**Test Scope:**
+- **Critical Paths Only** (10% of pyramid): Single-Entry Time Tray, Link-on-Action, Incident SLA tracking, Policy decision receipts
+- **User Journeys**: Map directly to PRD User Journeys section
+- **Browser Coverage**: Chromium (primary), Firefox, WebKit (smoke tests)
+
+**Testing Pattern:**
+
+See [appendix-19-testing-strategy.md](./appendix-19-testing-strategy.md#a195-end-to-end-testing-examples) for complete E2E test examples including Time Tray and Link-on-Action workflows.
+
+**Test Data Management:**
+- **Database Seeding**: Seed test data via Flyway V999 migrations
+- **Test Isolation**: Each test runs in transaction, rolled back after test
+- **Fixtures**: Reusable test data builders (incidents, users, tasks)
+
+**E2E Test Execution:**
+- **Local:** Run against Docker Compose stack (fast feedback)
+- **CI/CD:** Run against staging environment (full integration)
+- **Frequency:** On every PR merge to main branch
+
+### 19.6 Performance Testing Strategy
+
+#### Load Testing for 1,000 Users
+
+**Tools:**
+- **K6 (0.48.0)**: Modern load testing, JavaScript DSL
+- **Grafana Dashboard**: Real-time metrics visualization
+
+**Test Scenarios:**
+
+**Scenario 1: Normal Load (250 concurrent users)**
+
+See [appendix-19-testing-strategy.md](./appendix-19-testing-strategy.md#a196-performance-testing-examples) for complete K6 load test scripts.
+
+**Scenario 2: Stress Test (1,000 concurrent users)**
+- Validate architecture scales to 4x MVP target
+- Measure event processing lag under load (target <200ms p95)
+- Identify bottlenecks (database connections, OPA sidecar, DragonflyDB cache)
+
+**Scenario 3: Spike Test (500 → 1,000 → 500 users in 5 minutes)**
+- Validate autoscaling (HPA triggers at 70% CPU)
+- Verify graceful degradation (freshness badges show lag, no errors)
+
+**Performance Benchmarks (from NFR-1):**
+- API response time: p95 <200ms, p99 <500ms
+- Event processing lag: <100ms (p95 <200ms)
+- Policy evaluation: <100ms p95
+- Database queries: <1s for complex queries
+
+**Load Testing Frequency:**
+- **Weekly:** Run Scenario 1 (250 users) on staging
+- **Monthly:** Run Scenario 2 (1,000 users) stress test
+- **Pre-Release:** Full suite (normal + stress + spike)
+
+### 19.7 Security Testing Strategy
+
+#### OWASP Top 10 Coverage
+
+**Testing Approach:**
+1. **Automated Scanning (CI/CD):**
+   - **OWASP Dependency-Check**: Scan dependencies for CVEs (daily)
+   - **Trivy**: Container image scanning (on every build)
+   - **SonarQube**: Static code analysis for security vulnerabilities
+
+2. **Manual Penetration Testing (Quarterly):**
+   - **Authentication/Authorization**: JWT tampering, privilege escalation
+   - **Injection Attacks**: SQL injection, OPA policy injection
+   - **API Security**: Rate limiting bypass, CORS misconfiguration
+   - **Session Management**: JWT expiration, refresh token handling
+
+**Compliance Testing:**
+- **Data Residency**: Verify Indonesia deployment constraints
+- **Audit Trail**: Validate tamper-proof logging (HMAC signatures)
+- **Policy Governance**: Shadow mode testing before production rollout
+
+### 19.8 Test Coverage Goals and Reporting
+
+**Coverage Targets (NFR-5):**
+
+| Layer | Target | Measurement |
+|-------|--------|-------------|
+| **Overall** | ≥80% | JaCoCo + Vitest coverage combined |
+| **Domain Logic** | ≥90% | Core business services, event handlers |
+| **API Controllers** | ≥85% | REST endpoints, request/response validation |
+| **Event Consumers** | 100% | Critical for eventual consistency |
+| **Frontend Components** | ≥70% | UI components, custom hooks |
+
+**Coverage Enforcement:**
+- **CI/CD Quality Gates**: PR blocked if coverage drops below threshold
+- **SonarQube**: Track coverage trends over time
+- **Exemptions**: Generated code (Mappers, DTOs), boilerplate excluded
+
+**Coverage Reporting:**
+- **Backend**: JaCoCo XML reports → SonarQube
+- **Frontend**: Vitest coverage → Codecov
+- **Dashboard**: Grafana dashboard showing coverage per module
+
+### 19.9 CI/CD Integration
+
+**Test Execution Pipeline:**
+
+See [appendix-19-testing-strategy.md](./appendix-19-testing-strategy.md#a198-cicd-test-pipeline-examples) for complete GitHub Actions CI/CD pipeline configuration.
+
+**Test Execution Frequency:**
+- **On Every Commit**: Unit tests, linting, static analysis
+- **On PR**: Unit + integration + contract tests
+- **On Merge to Main**: Full suite (unit + integration + contract + E2E)
+- **Nightly**: Performance tests, security scans, E2E regression suite
+
+### 19.10 Test Data Management
+
+**Test Data Strategies:**
+
+**1. In-Memory Test Data (Unit Tests):**
+- Test Data Builders pattern (Lombok @Builder)
+- Factory classes for complex domain objects
+- Randomized data via Faker library
+
+**2. Database Fixtures (Integration Tests):**
+- Flyway V999__test_data.sql migrations
+- DBUnit for dataset management
+- Test data reset via @DirtiesContext (use sparingly)
+
+**3. E2E Test Data (Playwright):**
+- Seed data via API endpoints (faster than DB seeding)
+- Test user accounts (agent, manager, admin)
+- Cleanup after each test run
+
+**Data Privacy:**
+- **No Production Data**: Never use production data in tests
+- **Synthetic Data**: Generate realistic but fake data (Faker, Mockaroo)
+- **PII Scrubbing**: If production data used, anonymize all PII
+
+### 19.11 Testing Best Practices
+
+**Code Organization:**
+- Mirror production code structure in test directories
+- Group tests by feature/module, not by test type
+- Use descriptive test names (BDD-style: `given_when_then`)
+
+**Test Maintainability:**
+- **DRY Principle**: Extract common setup to @BeforeEach
+- **Test Utilities**: Reusable assertions, matchers, builders
+- **Page Object Model (POM)**: For Playwright E2E tests
+
+**Flaky Test Management:**
+- **Quarantine Flaky Tests**: Separate suite, don't block CI/CD
+- **Root Cause Analysis**: Fix flakiness before re-enabling
+- **Retry Policy**: Max 2 retries for E2E tests (network flakiness)
+
+**Test Documentation:**
+- **README per test suite**: Explain purpose, setup, execution
+- **Tagging**: Categorize tests (@Smoke, @Integration, @Slow)
+- **Living Documentation**: Generate test reports with Allure
+
+### 19.12 Testing Roadmap
+
+**MVP (Week 1-10):**
+- ✅ Unit test scaffolding (JUnit 5, Vitest)
+- ✅ Spring Modulith Test setup
+- ✅ Contract tests for core events (IncidentCreated, TaskCreated)
+- ✅ E2E tests for critical paths (Time Tray, Link-on-Action)
+- Target: 75% coverage (ramping to 80%)
+
+**Phase 2 (Month 6-12):**
+- Performance testing infrastructure (K6, Grafana)
+- Security testing automation (OWASP scans, penetration tests)
+- Chaos engineering (Chaos Mesh)
+- Visual regression testing (Percy, Chromatic)
+- Target: 80%+ coverage maintained
+
+**Long-Term (Year 2+):**
+- AI-powered test generation (GitHub Copilot, Tabnine)
+- Mutation testing (PIT, Stryker)
+- Test impact analysis (run only affected tests)
+- Continuous load testing (production traffic replay)
+
+---
+
+_End of Testing Strategy Section._
+
+---
+
 _End of Part 5. Continue to remaining sections..._

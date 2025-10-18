@@ -1,8 +1,9 @@
 # Senior Developer Review - Workflow Instructions
 
-```xml
+````xml
 <critical>The workflow execution engine is governed by: {project_root}/bmad/core/tasks/workflow.xml</critical>
 <critical>You MUST have already loaded and processed: {installed_path}/workflow.yaml</critical>
+<critical>Communicate all responses in {communication_language}</critical>
 <critical>This workflow performs a Senior Developer Review on a story flagged Ready for Review, appends structured review notes, and can update the story status based on the outcome.</critical>
 <critical>Default execution mode: #yolo (non-interactive). Only ask if {{non_interactive}} == false. If auto-discovery of the target story fails, HALT with a clear message to provide 'story_path' or 'story_dir'.</critical>
 <critical>Only modify the story file in these areas: Status (optional per settings), Dev Agent Record (Completion Notes), File List (if corrections are needed), Change Log, and the appended "Senior Developer Review (AI)" section at the end of the document.</critical>
@@ -10,21 +11,48 @@
 
 <workflow>
 
-  <step n="1" goal="Locate story and verify review status">
+  <step n="1" goal="Check and load workflow status file">
+    <action>Search {output_folder}/ for files matching pattern: bmm-workflow-status.md</action>
+    <action>Find the most recent file (by date in filename: bmm-workflow-status.md)</action>
+
+    <check if="exists">
+      <action>Load the status file</action>
+      <action>Set status_file_found = true</action>
+      <action>Store status_file_path for later updates</action>
+    </check>
+
+    <check if="not exists">
+      <ask>**No workflow status file found.**
+
+This workflow performs Senior Developer Review on a story (optional Phase 4 workflow).
+
+Options:
+1. Run workflow-status first to create the status file (recommended for progress tracking)
+2. Continue in standalone mode (no progress tracking)
+3. Exit
+
+What would you like to do?</ask>
+      <action>If user chooses option 1 → HALT with message: "Please run workflow-status first, then return to review-story"</action>
+      <action>If user chooses option 2 → Set standalone_mode = true and continue</action>
+      <action>If user chooses option 3 → HALT</action>
+    </check>
+  </step>
+
+  <step n="2" goal="Locate story and verify review status">
     <action>If {{story_path}} was provided → use it. Else auto-discover from {{story_dir}} by listing files matching pattern: "story-*.md" (recursive), sort by last modified (newest first), present top {{story_selection_limit}}.</action>
     <ask optional="true" if="{{non_interactive}} == false">Select a story (1-{{story_selection_limit}}) or enter a path:</ask>
     <action>Resolve {{story_path}} and read the COMPLETE file.</action>
     <action>Extract {{epic_num}} and {{story_num}} from filename (e.g., story-2.3.*.md) and story metadata if available.</action>
     <action>Parse sections: Status, Story, Acceptance Criteria, Tasks/Subtasks (and completion states), Dev Notes, Dev Agent Record (Context Reference, Completion Notes, File List), Change Log.</action>
-    <check>If Status is not one of {{allow_status_values}} → HALT with message: "Story status must be 'Ready for Review' to proceed" (accept 'Review' as equivalent).</check>
-    <check>If story cannot be read → HALT.</check>
+    <action if="Status is not one of {{allow_status_values}}">HALT with message: "Story status must be 'Ready for Review' to proceed" (accept 'Review' as equivalent).</action>
+    <action if="story cannot be read">HALT.</action>
   </step>
 
   <step n="2" goal="Resolve context and specification inputs">
     <action>Locate Story Context: Under Dev Agent Record → Context Reference, read referenced path(s). If missing and {{auto_discover_context}}: search {{output_folder}} for files named "story-context-{{epic_num}}.{{story_num}}*.xml"; pick the most recent.</action>
-    <check>If no context found → Continue but record a WARNING in review notes: "No Story Context found".</check>
+    <action if="no context found">Continue but record a WARNING in review notes: "No Story Context found".</action>
     <action>Locate Epic Tech Spec: If {{auto_discover_tech_spec}}, search {{tech_spec_search_dir}} with glob {{tech_spec_glob_template}} (resolve {{epic_num}}); else use provided input.</action>
-    <check>If no tech spec found → Continue but record a WARNING in review notes: "No Tech Spec found for epic {{epic_num}}".</check>
+    <action if="no tech spec found">Continue but record a WARNING in review notes: "No Tech Spec found for epic {{epic_num}}".</action>
     <action>Load architecture/standards docs: For each file name in {{arch_docs_file_names}} within {{arch_docs_search_dirs}}, read if exists. Collect any testing, coding standards, security, and architectural patterns.</action>
   </step>
 
@@ -40,12 +68,12 @@
     <action>From Dev Agent Record → File List, compile list of changed/added files. If File List is missing or clearly incomplete, search repo for recent changes relevant to the story scope (heuristics: filenames matching components/services/routes/tests inferred from ACs/tasks).</action>
     <action>Cross-check epic tech-spec requirements and architecture constraints against the implementation intent in files.</action>
     <action>For each acceptance criterion, verify there is evidence of implementation and corresponding tests (unit/integration/E2E as applicable). Note any gaps explicitly.</action>
-    <check>If critical architecture constraints are violated (e.g., layering, dependency rules) → flag as High severity finding.</check>
+    <action if="critical architecture constraints are violated (e.g., layering, dependency rules)">flag as High Severity finding.</action>
   </step>
 
   <step n="5" goal="Perform code quality and risk review">
     <action>For each changed file, skim for common issues appropriate to the stack: error handling, input validation, logging, dependency injection, thread-safety/async correctness, resource cleanup, performance anti-patterns.</action>
-    <action>Perform security review: injection risks, authZ/authN handling, secret management, unsafe defaults, unvalidated redirects, CORS misconfig, dependency vulnerabilities (based on manifests).</action>
+    <action>Perform security review: injection risks, authZ/authN handling, secret management, unsafe defaults, un-validated redirects, CORS misconfigured, dependency vulnerabilities (based on manifests).</action>
     <action>Check tests quality: assertions are meaningful, edge cases covered, deterministic behavior, proper fixtures, no flakiness patterns.</action>
     <action>Capture concrete, actionable suggestions with severity (High/Med/Low) and rationale. When possible, suggest specific code-level changes (filenames + line ranges) without rewriting large sections.</action>
   </step>
@@ -102,15 +130,15 @@
     <action>Resolve {{story_path}} and read the COMPLETE file.</action>
     <action>Extract {{epic_num}} and {{story_num}} from filename (e.g., story-2.3.*.md) and story metadata if available.</action>
     <action>Parse sections: Status, Story, Acceptance Criteria, Tasks/Subtasks (and completion states), Dev Notes, Dev Agent Record (Context Reference, Completion Notes, File List), Change Log.</action>
-    <check>If Status is not one of {{allow_status_values}} → HALT with message: "Story status must be 'Ready for Review' to proceed" (accept 'Review' as equivalent).</check>
-    <check>If story cannot be read → HALT.</check>
+    <action if="Status is not one of {{allow_status_values}}">HALT with message: "Story status must be 'Ready for Review' to proceed" (accept 'Review' as equivalent).</action>
+    <action if="story cannot be read">HALT.</action>
   </step>
 
   <step n="2" goal="Resolve context and specification inputs">
     <action>Locate Story Context: Under Dev Agent Record → Context Reference, read referenced path(s). If missing and {{auto_discover_context}}: search {{output_folder}} for files named "story-context-{{epic_num}}.{{story_num}}*.xml"; pick the most recent.</action>
-    <check>If no context found → Continue but record a WARNING in review notes: "No Story Context found".</check>
+    <action if="no context found">Continue but record a WARNING in review notes: "No Story Context found".</action>
     <action>Locate Epic Tech Spec: If {{auto_discover_tech_spec}}, search {{tech_spec_search_dir}} with glob {{tech_spec_glob_template}} (resolve {{epic_num}}); else use provided input.</action>
-    <check>If no tech spec found → Continue but record a WARNING in review notes: "No Tech Spec found for epic {{epic_num}}".</check>
+    <action if="no tech spec found">Continue but record a WARNING in review notes: "No Tech Spec found for epic {{epic_num}}".</action>
     <action>Load architecture/standards docs: For each file name in {{arch_docs_file_names}} within {{arch_docs_search_dirs}}, read if exists. Collect any testing, coding standards, security, and architectural patterns.</action>
   </step>
 
@@ -126,7 +154,7 @@
     <action>From Dev Agent Record → File List, compile list of changed/added files. If File List is missing or clearly incomplete, search repo for recent changes relevant to the story scope (heuristics: filenames matching components/services/routes/tests inferred from ACs/tasks).</action>
     <action>Cross-check epic tech-spec requirements and architecture constraints against the implementation intent in files.</action>
     <action>For each acceptance criterion, verify there is evidence of implementation and corresponding tests (unit/integration/E2E as applicable). Note any gaps explicitly.</action>
-    <check>If critical architecture constraints are violated (e.g., layering, dependency rules) → flag as High severity finding.</check>
+    <action if="critical architecture constraints are violated (e.g., layering, dependency rules)">flag as High severity finding.</action>
   </step>
 
   <step n="5" goal="Perform code quality and risk review">
@@ -172,5 +200,64 @@
     <action>Report workflow completion.</action>
   </step>
 
+  <step n="10" goal="Update status file on completion">
+    <action>Search {output_folder}/ for files matching pattern: bmm-workflow-status.md</action>
+    <action>Find the most recent file (by date in filename)</action>
+
+    <check if="status file exists">
+      <action>Load the status file</action>
+
+      <template-output file="{{status_file_path}}">current_step</template-output>
+      <action>Set to: "review-story (Story {{epic_num}}.{{story_num}})"</action>
+
+      <template-output file="{{status_file_path}}">current_workflow</template-output>
+      <action>Set to: "review-story (Story {{epic_num}}.{{story_num}}) - Complete"</action>
+
+      <template-output file="{{status_file_path}}">progress_percentage</template-output>
+      <action>Calculate per-story weight: remaining_40_percent / total_stories / 5</action>
+      <action>Increment by: {{per_story_weight}} * 2 (review-story ~2% per story)</action>
+
+      <template-output file="{{status_file_path}}">decisions_log</template-output>
+      <action>Add entry:</action>
+      ```
+      - **{{date}}**: Completed review-story for Story {{epic_num}}.{{story_num}}. Review outcome: {{outcome}}. Action items: {{action_item_count}}. Next: Address review feedback if needed, then continue with story-approved when ready.
+      ```
+
+      <output>**✅ Story Review Complete, {user_name}!**
+
+**Story Details:**
+- Story: {{epic_num}}.{{story_num}}
+- Review Outcome: {{outcome}}
+- Action Items: {{action_item_count}}
+
+**Status file updated:**
+- Current step: review-story (Story {{epic_num}}.{{story_num}}) ✓
+- Progress: {{new_progress_percentage}}%
+
+**Next Steps:**
+1. Review the Senior Developer Review notes appended to story
+2. Address any action items or changes requested
+3. When ready, run `story-approved` to mark story complete
+
+Check status anytime with: `workflow-status`
+      </output>
+    </check>
+
+    <check if="status file not found">
+      <output>**✅ Story Review Complete, {user_name}!**
+
+**Story Details:**
+- Story: {{epic_num}}.{{story_num}}
+- Review Outcome: {{outcome}}
+
+Note: Running in standalone mode (no status file).
+
+**Next Steps:**
+1. Review the Senior Developer Review notes
+2. Address any action items
+      </output>
+    </check>
+  </step>
+
 </workflow>
-```
+````

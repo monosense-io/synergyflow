@@ -11,8 +11,8 @@ date: system-generated
 
 # Inputs expected (ask user if missing)
 recommended_inputs:
-  - prd: "{project-root}/docs/prd.md"
-  - architecture: "{project-root}/docs/architecture.md"
+  - prd: "{project-root}/docs/PRD.md"
+  - architecture: "{project-root}/docs/solution-architecture.md"
   - frontend_spec: "{project-root}/docs/front-end-spec.md"
   - brownfield_notes: "{project-root}/docs/brownfield-notes.md"
 
@@ -24,27 +24,6 @@ validation: "{installed_path}/checklist.md"
 
 # Output configuration
 default_output_file: "{project-root}/docs/tech-spec-epic-{{epic_id}}.md"
-
-# Required tools
-required_tools:
-  - list_files
-  - file_info
-  - read_file
-  - write_file
-  - search_repo
-  - glob
-  - parse_markdown
-
-tags:
-  - tech-spec
-  - architecture
-  - planning
-  - bmad-v6
-
-execution_hints:
-  interactive: false
-  autonomous: true
-  iterative: true
 
 # Variables
 variables:

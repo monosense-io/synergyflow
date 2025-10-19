@@ -1,0 +1,794 @@
+asyncapi: 3.0.0
+info:
+  title: SynergyFlow Event Contracts
+  version: 1.0.0
+  description: |
+    Event contracts for SynergyFlow's event-driven architecture using Spring Modulith with transactional outbox pattern.
+
+    ## Event Architecture
+    - **Event Store**: Transactional outbox table (`event_publication`) for durable at-least-once delivery
+    - **Event Bus**: Spring Modulith ApplicationEventPublisher (in-JVM, no Kafka)
+    - **Delivery Guarantee**: At-least-once (consumers must be idempotent)
+    - **Retry Policy**: Exponential backoff with max 5 retries
+    - **Dead Letter Queue**: Failed events after 5 retries moved to `event_dlq` table
+
+    ## Event Naming Convention
+    - **Pattern**: `{Aggregate}{PastTenseAction}Event`
+    - **Examples**: `IncidentCreatedEvent`, `ChangeApprovedEvent`, `TaskCompletedEvent`
+
+    ## Event Metadata (all events include)
+    - `eventId`: UUID - Unique event identifier
+    - `aggregateId`: UUID - ID of aggregate that published event
+    - `correlationId`: UUID - Request correlation ID
+    - `causationId`: UUID (optional) - ID of event that caused this event
+    - `timestamp`: ISO-8601 - Event publication timestamp
+    - `version`: Integer - Event schema version (for evolution)
+
+    ## Consumer Idempotency
+    All consumers MUST implement idempotency using the `processed_events` table to track event processing.
+
+  contact:
+    name: SynergyFlow Architecture Team
+    email: architecture@synergyflow.example.com
+
+channels:
+  incident/created:
+    address: io.monosense.synergyflow.incident.IncidentCreatedEvent
+    messages:
+      IncidentCreatedEvent:
+        $ref: '#/components/messages/IncidentCreatedEvent'
+    description: Published when a new incident is created
+
+  incident/assigned:
+    address: io.monosense.synergyflow.incident.IncidentAssignedEvent
+    messages:
+      IncidentAssignedEvent:
+        $ref: '#/components/messages/IncidentAssignedEvent'
+    description: Published when an incident is assigned to an agent
+
+  incident/resolved:
+    address: io.monosense.synergyflow.incident.IncidentResolvedEvent
+    messages:
+      IncidentResolvedEvent:
+        $ref: '#/components/messages/IncidentResolvedEvent'
+    description: Published when an incident is resolved
+
+  incident/sla-approaching:
+    address: io.monosense.synergyflow.incident.IncidentSLAApproachingEvent
+    messages:
+      IncidentSLAApproachingEvent:
+        $ref: '#/components/messages/IncidentSLAApproachingEvent'
+    description: Published when incident SLA deadline is approaching (80% threshold)
+
+  incident/sla-breached:
+    address: io.monosense.synergyflow.incident.IncidentSLABreachedEvent
+    messages:
+      IncidentSLABreachedEvent:
+        $ref: '#/components/messages/IncidentSLABreachedEvent'
+    description: Published when incident SLA deadline is breached
+
+  change/requested:
+    address: io.monosense.synergyflow.change.ChangeRequestedEvent
+    messages:
+      ChangeRequestedEvent:
+        $ref: '#/components/messages/ChangeRequestedEvent'
+    description: Published when a change request is created
+
+  change/approved:
+    address: io.monosense.synergyflow.change.ChangeApprovedEvent
+    messages:
+      ChangeApprovedEvent:
+        $ref: '#/components/messages/ChangeApprovedEvent'
+    description: Published when a change request is approved
+
+  change/rejected:
+    address: io.monosense.synergyflow.change.ChangeRejectedEvent
+    messages:
+      ChangeRejectedEvent:
+        $ref: '#/components/messages/ChangeRejectedEvent'
+    description: Published when a change request is rejected
+
+  change/deployed:
+    address: io.monosense.synergyflow.change.ChangeDeployedEvent
+    messages:
+      ChangeDeployedEvent:
+        $ref: '#/components/messages/ChangeDeployedEvent'
+    description: Published when a change is deployed (successfully or failed)
+
+  task/created:
+    address: io.monosense.synergyflow.task.TaskCreatedEvent
+    messages:
+      TaskCreatedEvent:
+        $ref: '#/components/messages/TaskCreatedEvent'
+    description: Published when a new task is created
+
+  task/status-changed:
+    address: io.monosense.synergyflow.task.TaskStatusChangedEvent
+    messages:
+      TaskStatusChangedEvent:
+        $ref: '#/components/messages/TaskStatusChangedEvent'
+    description: Published when task status changes (TODO → IN_PROGRESS → DONE)
+
+  task/completed:
+    address: io.monosense.synergyflow.task.TaskCompletedEvent
+    messages:
+      TaskCompletedEvent:
+        $ref: '#/components/messages/TaskCompletedEvent'
+    description: Published when a task is marked as DONE
+
+  worklog/created:
+    address: io.monosense.synergyflow.worklog.WorklogCreatedEvent
+    messages:
+      WorklogCreatedEvent:
+        $ref: '#/components/messages/WorklogCreatedEvent'
+    description: Published when time is logged (Single-Entry Time Tray)
+
+operations:
+  # Incident Operations
+  publishIncidentCreated:
+    action: send
+    channel:
+      $ref: '#/channels/incident~1created'
+    summary: Publish incident created event
+    description: Published by IncidentService when createIncident() completes
+
+  subscribeIncidentCreated:
+    action: receive
+    channel:
+      $ref: '#/channels/incident~1created'
+    summary: Subscribe to incident created events
+    description: |
+      Consumed by:
+      - NotificationService (send notification to assignee)
+      - SLATimerService (schedule SLA deadline timer)
+      - AnalyticsService (update incident metrics)
+
+  publishIncidentAssigned:
+    action: send
+    channel:
+      $ref: '#/channels/incident~1assigned'
+    summary: Publish incident assigned event
+
+  subscribeIncidentAssigned:
+    action: receive
+    channel:
+      $ref: '#/channels/incident~1assigned'
+    summary: Subscribe to incident assigned events
+    description: |
+      Consumed by:
+      - NotificationService (notify assigned agent)
+      - AnalyticsService (update assignment metrics)
+
+  publishIncidentResolved:
+    action: send
+    channel:
+      $ref: '#/channels/incident~1resolved'
+    summary: Publish incident resolved event
+
+  subscribeIncidentResolved:
+    action: receive
+    channel:
+      $ref: '#/channels/incident~1resolved'
+    summary: Subscribe to incident resolved events
+    description: |
+      Consumed by:
+      - SLATimerService (cancel SLA deadline timer)
+      - NotificationService (notify requester of resolution)
+      - KnowledgeService (suggest creating knowledge article)
+      - AnalyticsService (update resolution metrics)
+
+  publishIncidentSLAApproaching:
+    action: send
+    channel:
+      $ref: '#/channels/incident~1sla-approaching'
+    summary: Publish SLA approaching event
+
+  subscribeIncidentSLAApproaching:
+    action: receive
+    channel:
+      $ref: '#/channels/incident~1sla-approaching'
+    summary: Subscribe to SLA approaching events
+    description: |
+      Consumed by:
+      - NotificationService (escalation notification)
+      - WorkflowService (trigger escalation workflow)
+
+  publishIncidentSLABreached:
+    action: send
+    channel:
+      $ref: '#/channels/incident~1sla-breached'
+    summary: Publish SLA breached event
+
+  subscribeIncidentSLABreached:
+    action: receive
+    channel:
+      $ref: '#/channels/incident~1sla-breached'
+    summary: Subscribe to SLA breached events
+    description: |
+      Consumed by:
+      - NotificationService (urgent escalation to manager)
+      - AuditService (log SLA breach for compliance)
+
+  # Change Operations
+  publishChangeRequested:
+    action: send
+    channel:
+      $ref: '#/channels/change~1requested'
+    summary: Publish change requested event
+
+  subscribeChangeRequested:
+    action: receive
+    channel:
+      $ref: '#/channels/change~1requested'
+    summary: Subscribe to change requested events
+    description: |
+      Consumed by:
+      - PolicyService (evaluate approval requirements via OPA)
+      - NotificationService (notify approvers if manual approval needed)
+
+  publishChangeApproved:
+    action: send
+    channel:
+      $ref: '#/channels/change~1approved'
+    summary: Publish change approved event
+
+  subscribeChangeApproved:
+    action: receive
+    channel:
+      $ref: '#/channels/change~1approved'
+    summary: Subscribe to change approved events
+    description: |
+      Consumed by:
+      - NotificationService (notify requester)
+      - WorkflowService (auto-schedule deployment if configured)
+
+  publishChangeDeployed:
+    action: send
+    channel:
+      $ref: '#/channels/change~1deployed'
+    summary: Publish change deployed event
+
+  subscribeChangeDeployed:
+    action: receive
+    channel:
+      $ref: '#/channels/change~1deployed'
+    summary: Subscribe to change deployed events
+    description: |
+      Consumed by:
+      - IncidentService (auto-link incidents if deployment failed)
+      - NotificationService (notify stakeholders)
+      - AnalyticsService (update deployment metrics)
+
+  # Task Operations
+  publishTaskCreated:
+    action: send
+    channel:
+      $ref: '#/channels/task~1created'
+    summary: Publish task created event
+
+  subscribeTaskCreated:
+    action: receive
+    channel:
+      $ref: '#/channels/task~1created'
+    summary: Subscribe to task created events
+    description: |
+      Consumed by:
+      - NotificationService (notify assignee if assigned)
+      - AnalyticsService (update task metrics)
+
+  publishTaskCompleted:
+    action: send
+    channel:
+      $ref: '#/channels/task~1completed'
+    summary: Publish task completed event
+
+  subscribeTaskCompleted:
+    action: receive
+    channel:
+      $ref: '#/channels/task~1completed'
+    summary: Subscribe to task completed events
+    description: |
+      Consumed by:
+      - SprintService (update sprint burndown)
+      - AnalyticsService (update velocity metrics)
+
+  # Worklog Operations
+  publishWorklogCreated:
+    action: send
+    channel:
+      $ref: '#/channels/worklog~1created'
+    summary: Publish worklog created event
+
+  subscribeWorklogCreated:
+    action: receive
+    channel:
+      $ref: '#/channels/worklog~1created'
+    summary: Subscribe to worklog created events
+    description: |
+      Consumed by:
+      - IncidentService (mirror to incident if incidentId present)
+      - TaskService (mirror to task if taskId present)
+      - ReportingService (update time tracking reports)
+
+components:
+  messages:
+    IncidentCreatedEvent:
+      name: IncidentCreatedEvent
+      title: Incident Created Event
+      summary: Published when a new incident is created
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/IncidentCreatedEventPayload'
+      examples:
+        - name: HighPriorityIncident
+          summary: High priority incident created
+          payload:
+            eventId: "550e8400-e29b-41d4-a716-446655440000"
+            aggregateId: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+            incidentId: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+            priority: "HIGH"
+            severity: "S2"
+            slaDeadline: "2025-10-18T18:30:00Z"
+            createdBy: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+            correlationId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+            timestamp: "2025-10-18T10:30:00Z"
+            version: 1
+
+    IncidentAssignedEvent:
+      name: IncidentAssignedEvent
+      title: Incident Assigned Event
+      summary: Published when an incident is assigned to an agent
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/IncidentAssignedEventPayload'
+
+    IncidentResolvedEvent:
+      name: IncidentResolvedEvent
+      title: Incident Resolved Event
+      summary: Published when an incident is resolved
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/IncidentResolvedEventPayload'
+
+    IncidentSLAApproachingEvent:
+      name: IncidentSLAApproachingEvent
+      title: Incident SLA Approaching Event
+      summary: Published when incident SLA is approaching (80% of time elapsed)
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/IncidentSLAApproachingEventPayload'
+
+    IncidentSLABreachedEvent:
+      name: IncidentSLABreachedEvent
+      title: Incident SLA Breached Event
+      summary: Published when incident SLA deadline is breached
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/IncidentSLABreachedEventPayload'
+
+    ChangeRequestedEvent:
+      name: ChangeRequestedEvent
+      title: Change Requested Event
+      summary: Published when a change request is created
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/ChangeRequestedEventPayload'
+
+    ChangeApprovedEvent:
+      name: ChangeApprovedEvent
+      title: Change Approved Event
+      summary: Published when a change is approved
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/ChangeApprovedEventPayload'
+
+    ChangeRejectedEvent:
+      name: ChangeRejectedEvent
+      title: Change Rejected Event
+      summary: Published when a change is rejected
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/ChangeRejectedEventPayload'
+
+    ChangeDeployedEvent:
+      name: ChangeDeployedEvent
+      title: Change Deployed Event
+      summary: Published when a change is deployed
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/ChangeDeployedEventPayload'
+
+    TaskCreatedEvent:
+      name: TaskCreatedEvent
+      title: Task Created Event
+      summary: Published when a new task is created
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/TaskCreatedEventPayload'
+
+    TaskStatusChangedEvent:
+      name: TaskStatusChangedEvent
+      title: Task Status Changed Event
+      summary: Published when task status changes
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/TaskStatusChangedEventPayload'
+
+    TaskCompletedEvent:
+      name: TaskCompletedEvent
+      title: Task Completed Event
+      summary: Published when a task is completed
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/TaskCompletedEventPayload'
+
+    WorklogCreatedEvent:
+      name: WorklogCreatedEvent
+      title: Worklog Created Event
+      summary: Published when time is logged (Single-Entry Time Tray)
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/WorklogCreatedEventPayload'
+
+  schemas:
+    # Base Event Metadata (inherited by all events)
+    EventMetadata:
+      type: object
+      required:
+        - eventId
+        - aggregateId
+        - correlationId
+        - timestamp
+        - version
+      properties:
+        eventId:
+          type: string
+          format: uuid
+          description: Unique event identifier
+        aggregateId:
+          type: string
+          format: uuid
+          description: ID of aggregate that published event
+        correlationId:
+          type: string
+          format: uuid
+          description: Request correlation ID for tracing
+        causationId:
+          type: string
+          format: uuid
+          description: ID of event that caused this event (for event chains)
+        timestamp:
+          type: string
+          format: date-time
+          description: Event publication timestamp (ISO-8601)
+        version:
+          type: integer
+          description: Event schema version (for evolution)
+          default: 1
+
+    # Incident Events
+    IncidentCreatedEventPayload:
+      allOf:
+        - $ref: '#/components/schemas/EventMetadata'
+        - type: object
+          required:
+            - incidentId
+            - priority
+            - severity
+            - slaDeadline
+            - createdBy
+          properties:
+            incidentId:
+              type: string
+              format: uuid
+              description: Incident ID (same as aggregateId)
+            priority:
+              type: string
+              enum: [LOW, MEDIUM, HIGH, CRITICAL]
+            severity:
+              type: string
+              enum: [S1, S2, S3, S4]
+            slaDeadline:
+              type: string
+              format: date-time
+            createdBy:
+              type: string
+              format: uuid
+              description: User ID who created incident
+
+    IncidentAssignedEventPayload:
+      allOf:
+        - $ref: '#/components/schemas/EventMetadata'
+        - type: object
+          required:
+            - incidentId
+            - assignedTo
+            - assignedBy
+          properties:
+            incidentId:
+              type: string
+              format: uuid
+            assignedTo:
+              type: string
+              format: uuid
+              description: Agent user ID
+            assignedBy:
+              type: string
+              format: uuid
+              description: User ID who assigned incident
+
+    IncidentResolvedEventPayload:
+      allOf:
+        - $ref: '#/components/schemas/EventMetadata'
+        - type: object
+          required:
+            - incidentId
+            - resolution
+            - resolvedBy
+            - resolvedAt
+            - slaBreached
+          properties:
+            incidentId:
+              type: string
+              format: uuid
+            resolution:
+              type: string
+              description: Resolution notes
+            resolvedBy:
+              type: string
+              format: uuid
+              description: User ID who resolved incident
+            resolvedAt:
+              type: string
+              format: date-time
+            slaBreached:
+              type: boolean
+              description: Whether SLA was breached
+
+    IncidentSLAApproachingEventPayload:
+      allOf:
+        - $ref: '#/components/schemas/EventMetadata'
+        - type: object
+          required:
+            - incidentId
+            - slaDeadline
+            - minutesRemaining
+          properties:
+            incidentId:
+              type: string
+              format: uuid
+            slaDeadline:
+              type: string
+              format: date-time
+            minutesRemaining:
+              type: integer
+              description: Minutes until SLA breach
+
+    IncidentSLABreachedEventPayload:
+      allOf:
+        - $ref: '#/components/schemas/EventMetadata'
+        - type: object
+          required:
+            - incidentId
+            - slaDeadline
+            - breachedAt
+            - minutesOverdue
+          properties:
+            incidentId:
+              type: string
+              format: uuid
+            slaDeadline:
+              type: string
+              format: date-time
+            breachedAt:
+              type: string
+              format: date-time
+            minutesOverdue:
+              type: integer
+              description: Minutes past SLA deadline
+
+    # Change Events
+    ChangeRequestedEventPayload:
+      allOf:
+        - $ref: '#/components/schemas/EventMetadata'
+        - type: object
+          required:
+            - changeId
+            - riskLevel
+            - requestedBy
+            - impactedServices
+          properties:
+            changeId:
+              type: string
+              format: uuid
+            riskLevel:
+              type: string
+              enum: [LOW, MEDIUM, HIGH, EMERGENCY]
+            requestedBy:
+              type: string
+              format: uuid
+            impactedServices:
+              type: array
+              items:
+                type: string
+
+    ChangeApprovedEventPayload:
+      allOf:
+        - $ref: '#/components/schemas/EventMetadata'
+        - type: object
+          required:
+            - changeId
+            - approvedBy
+            - approvedAt
+            - autoApproved
+          properties:
+            changeId:
+              type: string
+              format: uuid
+            approvedBy:
+              type: string
+              format: uuid
+              description: Approver user ID (or "SYSTEM" for OPA auto-approval)
+            approvedAt:
+              type: string
+              format: date-time
+            autoApproved:
+              type: boolean
+              description: Whether approved automatically by OPA policy
+            decisionReceiptId:
+              type: string
+              format: uuid
+              description: Decision receipt ID for audit trail
+
+    ChangeRejectedEventPayload:
+      allOf:
+        - $ref: '#/components/schemas/EventMetadata'
+        - type: object
+          required:
+            - changeId
+            - rejectedBy
+            - rejectedAt
+            - reason
+          properties:
+            changeId:
+              type: string
+              format: uuid
+            rejectedBy:
+              type: string
+              format: uuid
+            rejectedAt:
+              type: string
+              format: date-time
+            reason:
+              type: string
+              description: Rejection reason
+
+    ChangeDeployedEventPayload:
+      allOf:
+        - $ref: '#/components/schemas/EventMetadata'
+        - type: object
+          required:
+            - changeId
+            - deploymentStatus
+            - deployedAt
+          properties:
+            changeId:
+              type: string
+              format: uuid
+            deploymentStatus:
+              type: string
+              enum: [COMPLETED, FAILED]
+            deployedAt:
+              type: string
+              format: date-time
+            deploymentNotes:
+              type: string
+              description: Deployment notes or error message
+
+    # Task Events
+    TaskCreatedEventPayload:
+      allOf:
+        - $ref: '#/components/schemas/EventMetadata'
+        - type: object
+          required:
+            - taskId
+            - projectId
+            - type
+            - createdBy
+          properties:
+            taskId:
+              type: string
+              format: uuid
+            projectId:
+              type: string
+              format: uuid
+            type:
+              type: string
+              enum: [EPIC, STORY, TASK, SUBTASK]
+            assignedTo:
+              type: string
+              format: uuid
+              nullable: true
+            createdBy:
+              type: string
+              format: uuid
+
+    TaskStatusChangedEventPayload:
+      allOf:
+        - $ref: '#/components/schemas/EventMetadata'
+        - type: object
+          required:
+            - taskId
+            - previousStatus
+            - newStatus
+            - changedBy
+          properties:
+            taskId:
+              type: string
+              format: uuid
+            previousStatus:
+              type: string
+              enum: [TODO, IN_PROGRESS, DONE]
+            newStatus:
+              type: string
+              enum: [TODO, IN_PROGRESS, DONE]
+            changedBy:
+              type: string
+              format: uuid
+
+    TaskCompletedEventPayload:
+      allOf:
+        - $ref: '#/components/schemas/EventMetadata'
+        - type: object
+          required:
+            - taskId
+            - completedBy
+            - completedAt
+            - storyPoints
+          properties:
+            taskId:
+              type: string
+              format: uuid
+            completedBy:
+              type: string
+              format: uuid
+            completedAt:
+              type: string
+              format: date-time
+            storyPoints:
+              type: integer
+              nullable: true
+              description: Story points (for velocity calculation)
+
+    # Worklog Events
+    WorklogCreatedEventPayload:
+      allOf:
+        - $ref: '#/components/schemas/EventMetadata'
+        - type: object
+          required:
+            - worklogId
+            - userId
+            - timeSpent
+          properties:
+            worklogId:
+              type: string
+              format: uuid
+            userId:
+              type: string
+              format: uuid
+            timeSpent:
+              type: integer
+              description: Time spent in minutes
+            incidentId:
+              type: string
+              format: uuid
+              nullable: true
+              description: Linked incident ID (for Single-Entry Time Tray)
+            taskId:
+              type: string
+              format: uuid
+              nullable: true
+              description: Linked task ID (for Single-Entry Time Tray)
+            shouldMirror:
+              type: boolean
+              description: Whether to mirror to both incident and task

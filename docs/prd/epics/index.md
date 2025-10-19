@@ -1,0 +1,27 @@
+# Epics
+
+## Table of Contents
+
+- [Epics](#table-of-contents)
+  - [1. Epic Structure Overview](./01-epic-structure-overview.md)
+  - [2. FOUNDATION PHASE EPICS (Months 1-4)](./02-foundation-phase-epics-months-1-4.md)
+    - [Epic-00: Trust + UX Foundation Pack](./02-foundation-phase-epics-months-1-4.md#epic-00-trust-ux-foundation-pack)
+    - [Epic-01: Incident and Problem Management](./02-foundation-phase-epics-months-1-4.md#epic-01-incident-and-problem-management)
+    - [Epic-02: Change and Release Management](./02-foundation-phase-epics-months-1-4.md#epic-02-change-and-release-management)
+    - [Epic-05: Knowledge Management](./02-foundation-phase-epics-months-1-4.md#epic-05-knowledge-management)
+    - [Epic-16: Platform Foundation (Deployment and Operations)](./02-foundation-phase-epics-months-1-4.md#epic-16-platform-foundation-deployment-and-operations)
+  - [3. CORE FEATURES PHASE EPICS (Months 4-8)](./03-core-features-phase-epics-months-4-8.md)
+    - [Epic-03: Self-Service Portal](./03-core-features-phase-epics-months-4-8.md#epic-03-self-service-portal)
+    - [Epic-04: Service Catalog and Request Fulfillment](./03-core-features-phase-epics-months-4-8.md#epic-04-service-catalog-and-request-fulfillment)
+    - [Epic-06: Multi-Team Support and Intelligent Routing](./03-core-features-phase-epics-months-4-8.md#epic-06-multi-team-support-and-intelligent-routing)
+  - [4. ADVANCED CAPABILITIES PHASE EPICS (Months 8-11)](./04-advanced-capabilities-phase-epics-months-8-11.md)
+    - [Epic-07: IT Asset Management (ITAM)](./04-advanced-capabilities-phase-epics-months-8-11.md#epic-07-it-asset-management-itam)
+    - [Epic-08: CMDB and Impact Assessment](./04-advanced-capabilities-phase-epics-months-8-11.md#epic-08-cmdb-and-impact-assessment)
+    - [Epic-09: Dashboards and Reports](./04-advanced-capabilities-phase-epics-months-8-11.md#epic-09-dashboards-and-reports)
+    - [Epic-10: Analytics and BI Integration](./04-advanced-capabilities-phase-epics-months-8-11.md#epic-10-analytics-and-bi-integration)
+    - [Epic-11: Notifications and Communication](./04-advanced-capabilities-phase-epics-months-8-11.md#epic-11-notifications-and-communication)
+  - [5. OPTIMIZATION & SCALE PHASE EPICS (Months 11-12)](./05-optimization-scale-phase-epics-months-11-12.md)
+    - [Epic-12: Security and Compliance](./05-optimization-scale-phase-epics-months-11-12.md#epic-12-security-and-compliance)
+    - [Epic-13: High Availability and Reliability](./05-optimization-scale-phase-epics-months-11-12.md#epic-13-high-availability-and-reliability)
+    - [Epic-14: Testing and Quality Assurance](./05-optimization-scale-phase-epics-months-11-12.md#epic-14-testing-and-quality-assurance)
+    - [Epic-15: Integration and API Gateway (Advanced)](./05-optimization-scale-phase-epics-months-11-12.md#epic-15-integration-and-api-gateway-advanced)

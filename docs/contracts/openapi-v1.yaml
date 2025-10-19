@@ -1,0 +1,1655 @@
+openapi: 3.1.0
+info:
+  title: SynergyFlow API
+  version: 1.0.0
+  description: |
+    Unified ITSM+PM platform with intelligent workflow automation
+
+    ## Authentication
+    All endpoints require JWT Bearer token authentication obtained from OAuth2 provider (Keycloak).
+
+    ## Error Handling
+    All errors follow RFC 7807 Problem Details format with correlation IDs for tracing.
+
+    ## Versioning
+    API is versioned via URL path (`/api/v1/*`). Breaking changes will increment major version.
+
+    ## Rate Limiting
+    - 1000 requests per minute per user
+    - 429 Too Many Requests returned when exceeded
+
+  contact:
+    name: SynergyFlow API Support
+    email: api-support@synergyflow.example.com
+  license:
+    name: Proprietary
+
+servers:
+  - url: https://synergyflow.example.com/api/v1
+    description: Production server
+  - url: https://staging.synergyflow.example.com/api/v1
+    description: Staging server
+  - url: http://localhost:8080/api/v1
+    description: Local development server
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: Incidents
+    description: Incident management operations
+  - name: Changes
+    description: Change management operations
+  - name: Tasks
+    description: Task/project management operations
+  - name: Worklogs
+    description: Time tracking operations
+  - name: Cross-Module
+    description: Cross-module relationship operations
+  - name: Policy
+    description: Policy and decision receipt operations
+  - name: Audit
+    description: Audit and compliance operations
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT access token obtained from OAuth2 Authorization Code flow with Keycloak.
+        Token expires after 1 hour. Use refresh token to obtain new access token.
+
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      description: Page number (1-indexed)
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+      example: 1
+
+    LimitParam:
+      name: limit
+      in: query
+      description: Number of items per page
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 50
+      example: 50
+
+    SortParam:
+      name: sort
+      in: query
+      description: |
+        Sort specification in format `field,direction` where direction is `asc` or `desc`.
+        Multiple sort fields supported: `priority,desc&sort=createdAt,asc`
+      schema:
+        type: string
+        default: "createdAt,desc"
+      example: "priority,desc"
+
+    IdPathParam:
+      name: id
+      in: path
+      required: true
+      description: Resource UUID
+      schema:
+        type: string
+        format: uuid
+      example: "550e8400-e29b-41d4-a716-446655440000"
+
+  schemas:
+    # Error Schemas
+    ProblemDetails:
+      type: object
+      required:
+        - type
+        - title
+        - status
+        - detail
+        - correlationId
+        - timestamp
+      properties:
+        type:
+          type: string
+          format: uri
+          description: URI identifying the error type
+          example: "https://synergyflow.example.com/errors/validation-error"
+        title:
+          type: string
+          description: Short, human-readable error summary
+          example: "Validation Error"
+        status:
+          type: integer
+          description: HTTP status code
+          example: 400
+        detail:
+          type: string
+          description: Detailed error explanation
+          example: "Priority field is required"
+        instance:
+          type: string
+          format: uri
+          description: URI identifying the specific request
+          example: "/api/v1/incidents"
+        correlationId:
+          type: string
+          format: uuid
+          description: Correlation ID for request tracing
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        timestamp:
+          type: string
+          format: date-time
+          description: Error timestamp (ISO-8601)
+          example: "2025-10-18T10:30:00Z"
+        violations:
+          type: array
+          description: Validation violations (for 400 errors)
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                example: "priority"
+              message:
+                type: string
+                example: "must not be null"
+
+    # Pagination & Metadata
+    PaginationMeta:
+      type: object
+      required:
+        - page
+        - limit
+        - total
+        - hasNext
+      properties:
+        page:
+          type: integer
+          description: Current page number (1-indexed)
+          example: 1
+        limit:
+          type: integer
+          description: Items per page
+          example: 50
+        total:
+          type: integer
+          description: Total number of items
+          example: 250
+        hasNext:
+          type: boolean
+          description: Whether next page exists
+          example: true
+        hasPrevious:
+          type: boolean
+          description: Whether previous page exists
+          example: false
+
+    FreshnessBadge:
+      type: object
+      required:
+        - projectionLag
+        - thresholdColor
+        - message
+      description: |
+        Data freshness indicator for read model projections.
+        Indicates how stale the read model is compared to write model.
+      properties:
+        projectionLag:
+          type: integer
+          description: Projection lag in milliseconds
+          example: 2300
+        thresholdColor:
+          type: string
+          enum: [GREEN, YELLOW, RED]
+          description: |
+            Freshness threshold indicator:
+            - GREEN: <3000ms (real-time)
+            - YELLOW: 3000-10000ms (acceptable lag)
+            - RED: >10000ms (stale data)
+          example: "GREEN"
+        message:
+          type: string
+          description: Human-readable freshness message
+          example: "Data current as of 2.3 seconds ago"
+
+    # Domain Models
+    Incident:
+      type: object
+      required:
+        - id
+        - title
+        - description
+        - priority
+        - severity
+        - status
+        - createdBy
+        - createdAt
+        - updatedAt
+        - slaDeadline
+        - version
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique incident identifier
+          readOnly: true
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        title:
+          type: string
+          minLength: 5
+          maxLength: 200
+          description: Brief incident description
+          example: "Production database connection pool exhausted"
+        description:
+          type: string
+          maxLength: 5000
+          description: Detailed incident description
+          example: "Users unable to login. Database connection pool shows 100% utilization."
+        priority:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, CRITICAL]
+          description: Business priority level
+          example: "HIGH"
+        severity:
+          type: string
+          enum: [S1, S2, S3, S4]
+          description: |
+            Technical severity level:
+            - S1: Service completely down
+            - S2: Major functionality impaired
+            - S3: Minor functionality impaired
+            - S4: Cosmetic issue
+          example: "S2"
+        status:
+          type: string
+          enum: [NEW, ASSIGNED, IN_PROGRESS, RESOLVED, CLOSED]
+          description: Incident lifecycle status
+          example: "ASSIGNED"
+        assignedTo:
+          type: string
+          format: uuid
+          nullable: true
+          description: Assigned agent user ID
+          example: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+        createdBy:
+          type: string
+          format: uuid
+          description: User ID who created incident
+          readOnly: true
+          example: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp (ISO-8601)
+          readOnly: true
+          example: "2025-10-18T10:30:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last update timestamp (ISO-8601)
+          readOnly: true
+          example: "2025-10-18T11:45:00Z"
+        resolvedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Resolution timestamp (ISO-8601)
+          readOnly: true
+          example: "2025-10-18T14:20:00Z"
+        slaDeadline:
+          type: string
+          format: date-time
+          description: SLA breach deadline (ISO-8601)
+          readOnly: true
+          example: "2025-10-18T18:30:00Z"
+        resolution:
+          type: string
+          nullable: true
+          maxLength: 5000
+          description: Resolution notes
+          example: "Increased database connection pool size from 100 to 200"
+        version:
+          type: integer
+          description: Optimistic locking version (increment on each update)
+          readOnly: true
+          example: 3
+
+    CreateIncidentRequest:
+      type: object
+      required:
+        - title
+        - description
+        - priority
+        - severity
+      properties:
+        title:
+          type: string
+          minLength: 5
+          maxLength: 200
+          example: "Production database connection pool exhausted"
+        description:
+          type: string
+          maxLength: 5000
+          example: "Users unable to login. Database connection pool shows 100% utilization."
+        priority:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, CRITICAL]
+          example: "HIGH"
+        severity:
+          type: string
+          enum: [S1, S2, S3, S4]
+          example: "S2"
+
+    UpdateIncidentRequest:
+      type: object
+      required:
+        - version
+      properties:
+        title:
+          type: string
+          minLength: 5
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 5000
+        priority:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, CRITICAL]
+        status:
+          type: string
+          enum: [NEW, ASSIGNED, IN_PROGRESS, RESOLVED, CLOSED]
+        resolution:
+          type: string
+          maxLength: 5000
+        version:
+          type: integer
+          description: Current version (for optimistic locking)
+          example: 3
+
+    Change:
+      type: object
+      required:
+        - id
+        - title
+        - description
+        - riskLevel
+        - status
+        - requestedBy
+        - rollbackPlan
+        - impactedServices
+        - createdAt
+        - updatedAt
+        - version
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        title:
+          type: string
+          minLength: 5
+          maxLength: 200
+          example: "Upgrade PostgreSQL from 15.4 to 15.6"
+        description:
+          type: string
+          maxLength: 5000
+          example: "Security patch upgrade for PostgreSQL cluster"
+        riskLevel:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, EMERGENCY]
+          example: "LOW"
+        status:
+          type: string
+          enum: [REQUESTED, PENDING_APPROVAL, APPROVED, REJECTED, SCHEDULED, IN_PROGRESS, COMPLETED, FAILED, ROLLED_BACK]
+          example: "APPROVED"
+        requestedBy:
+          type: string
+          format: uuid
+          readOnly: true
+        approvedBy:
+          type: string
+          format: uuid
+          nullable: true
+          readOnly: true
+        scheduledAt:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2025-10-20T02:00:00Z"
+        deployedAt:
+          type: string
+          format: date-time
+          nullable: true
+          readOnly: true
+        rollbackPlan:
+          type: string
+          maxLength: 5000
+          example: "Restore from backup snapshot pg-snapshot-2025-10-18"
+        impactedServices:
+          type: array
+          items:
+            type: string
+          example: ["synergyflow-backend", "reporting-service"]
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+        updatedAt:
+          type: string
+          format: date-time
+          readOnly: true
+        version:
+          type: integer
+          readOnly: true
+
+    CreateChangeRequest:
+      type: object
+      required:
+        - title
+        - description
+        - riskLevel
+        - rollbackPlan
+      properties:
+        title:
+          type: string
+          minLength: 5
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 5000
+        riskLevel:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, EMERGENCY]
+        rollbackPlan:
+          type: string
+          maxLength: 5000
+        impactedServices:
+          type: array
+          items:
+            type: string
+          default: []
+
+    Task:
+      type: object
+      required:
+        - id
+        - projectId
+        - title
+        - description
+        - type
+        - status
+        - priority
+        - createdAt
+        - updatedAt
+        - version
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        projectId:
+          type: string
+          format: uuid
+        parentId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Parent task ID (for hierarchical tasks)
+        title:
+          type: string
+          minLength: 5
+          maxLength: 200
+          example: "Implement user authentication with OAuth2"
+        description:
+          type: string
+          maxLength: 5000
+        type:
+          type: string
+          enum: [EPIC, STORY, TASK, SUBTASK]
+          example: "STORY"
+        status:
+          type: string
+          enum: [TODO, IN_PROGRESS, DONE]
+          example: "IN_PROGRESS"
+        priority:
+          type: string
+          enum: [LOW, MEDIUM, HIGH]
+          example: "HIGH"
+        assignedTo:
+          type: string
+          format: uuid
+          nullable: true
+        storyPoints:
+          type: integer
+          nullable: true
+          enum: [1, 2, 3, 5, 8, 13, 21]
+          description: Fibonacci story points
+          example: 5
+        sprintId:
+          type: string
+          format: uuid
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+        updatedAt:
+          type: string
+          format: date-time
+          readOnly: true
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+          readOnly: true
+        version:
+          type: integer
+          readOnly: true
+
+    CreateTaskRequest:
+      type: object
+      required:
+        - projectId
+        - title
+        - description
+        - type
+      properties:
+        projectId:
+          type: string
+          format: uuid
+        parentId:
+          type: string
+          format: uuid
+          nullable: true
+        title:
+          type: string
+          minLength: 5
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 5000
+        type:
+          type: string
+          enum: [EPIC, STORY, TASK, SUBTASK]
+        priority:
+          type: string
+          enum: [LOW, MEDIUM, HIGH]
+          default: "MEDIUM"
+        storyPoints:
+          type: integer
+          nullable: true
+          enum: [1, 2, 3, 5, 8, 13, 21]
+
+    Worklog:
+      type: object
+      required:
+        - id
+        - userId
+        - description
+        - timeSpent
+        - loggedAt
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        userId:
+          type: string
+          format: uuid
+          readOnly: true
+        description:
+          type: string
+          maxLength: 1000
+          example: "Investigated database connection pool issue"
+        timeSpent:
+          type: integer
+          description: Time spent in minutes
+          minimum: 1
+          example: 120
+        loggedAt:
+          type: string
+          format: date-time
+          description: When work was performed (ISO-8601)
+          example: "2025-10-18T14:00:00Z"
+        incidentId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Related incident ID
+        taskId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Related task ID
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+
+    CreateWorklogRequest:
+      type: object
+      required:
+        - description
+        - timeSpent
+      properties:
+        description:
+          type: string
+          maxLength: 1000
+        timeSpent:
+          type: integer
+          description: Time spent in minutes
+          minimum: 1
+        incidentId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Log time to this incident
+        taskId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Log time to this task
+        loggedAt:
+          type: string
+          format: date-time
+          description: When work was performed (defaults to now)
+
+    DecisionReceipt:
+      type: object
+      required:
+        - id
+        - policyName
+        - policyVersion
+        - inputData
+        - decisionOutput
+        - explanation
+        - correlationId
+        - timestamp
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        policyName:
+          type: string
+          description: OPA policy name
+          example: "change_approval_policy"
+        policyVersion:
+          type: string
+          description: Policy version (semver)
+          example: "v1.2.3"
+        inputData:
+          type: object
+          additionalProperties: true
+          description: Input data sent to policy
+          example:
+            change:
+              riskLevel: "HIGH"
+              impactedServices: ["production-api"]
+            user:
+              role: "DEVELOPER"
+        decisionOutput:
+          type: object
+          additionalProperties: true
+          description: Policy decision output
+          example:
+            allow: false
+            required_approvers: ["CAB_MEMBER", "CTO"]
+        explanation:
+          type: string
+          description: Human-readable decision explanation
+          example: "High-risk change impacting production → CAB + CTO approval required"
+        correlationId:
+          type: string
+          format: uuid
+          description: Request correlation ID
+        timestamp:
+          type: string
+          format: date-time
+          readOnly: true
+
+    # Response Wrappers
+    IncidentListResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Incident'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+        freshness:
+          $ref: '#/components/schemas/FreshnessBadge'
+
+    IncidentDetailResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: '#/components/schemas/Incident'
+        freshness:
+          $ref: '#/components/schemas/FreshnessBadge'
+
+  responses:
+    BadRequest:
+      description: Bad request (validation error)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          example:
+            type: "https://synergyflow.example.com/errors/validation-error"
+            title: "Validation Error"
+            status: 400
+            detail: "Priority field is required"
+            instance: "/api/v1/incidents"
+            correlationId: "550e8400-e29b-41d4-a716-446655440000"
+            timestamp: "2025-10-18T10:30:00Z"
+            violations:
+              - field: "priority"
+                message: "must not be null"
+
+    Unauthorized:
+      description: Unauthorized (missing or invalid JWT)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          example:
+            type: "https://synergyflow.example.com/errors/unauthorized"
+            title: "Unauthorized"
+            status: 401
+            detail: "JWT token is missing or invalid"
+            instance: "/api/v1/incidents"
+            correlationId: "550e8400-e29b-41d4-a716-446655440000"
+            timestamp: "2025-10-18T10:30:00Z"
+
+    Forbidden:
+      description: Forbidden (insufficient permissions)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          example:
+            type: "https://synergyflow.example.com/errors/forbidden"
+            title: "Forbidden"
+            status: 403
+            detail: "User lacks CAB_MEMBER role required for approval"
+            instance: "/api/v1/changes/123/approve"
+            correlationId: "550e8400-e29b-41d4-a716-446655440000"
+            timestamp: "2025-10-18T10:30:00Z"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          example:
+            type: "https://synergyflow.example.com/errors/not-found"
+            title: "Not Found"
+            status: 404
+            detail: "Incident with id 550e8400-e29b-41d4-a716-446655440000 not found"
+            instance: "/api/v1/incidents/550e8400-e29b-41d4-a716-446655440000"
+            correlationId: "550e8400-e29b-41d4-a716-446655440000"
+            timestamp: "2025-10-18T10:30:00Z"
+
+    Conflict:
+      description: Conflict (optimistic locking version mismatch)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          example:
+            type: "https://synergyflow.example.com/errors/optimistic-lock"
+            title: "Conflict"
+            status: 409
+            detail: "Incident was modified by another user. Current version is 5, you provided 3."
+            instance: "/api/v1/incidents/550e8400-e29b-41d4-a716-446655440000"
+            correlationId: "550e8400-e29b-41d4-a716-446655440000"
+            timestamp: "2025-10-18T10:30:00Z"
+
+    TooManyRequests:
+      description: Rate limit exceeded
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          example:
+            type: "https://synergyflow.example.com/errors/rate-limit"
+            title: "Too Many Requests"
+            status: 429
+            detail: "Rate limit of 1000 requests/minute exceeded"
+            instance: "/api/v1/incidents"
+            correlationId: "550e8400-e29b-41d4-a716-446655440000"
+            timestamp: "2025-10-18T10:30:00Z"
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          example:
+            type: "https://synergyflow.example.com/errors/internal-error"
+            title: "Internal Server Error"
+            status: 500
+            detail: "An unexpected error occurred. Support has been notified."
+            instance: "/api/v1/incidents"
+            correlationId: "550e8400-e29b-41d4-a716-446655440000"
+            timestamp: "2025-10-18T10:30:00Z"
+
+paths:
+  # Incident Management Endpoints
+  /incidents:
+    get:
+      summary: List incidents
+      description: |
+        Returns paginated list of incidents with optional filtering and sorting.
+        Data may include freshness badge indicating read model staleness.
+      operationId: listIncidents
+      tags: [Incidents]
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/SortParam'
+        - name: status
+          in: query
+          description: Filter by status
+          schema:
+            type: string
+            enum: [NEW, ASSIGNED, IN_PROGRESS, RESOLVED, CLOSED]
+        - name: priority
+          in: query
+          description: Filter by priority
+          schema:
+            type: string
+            enum: [LOW, MEDIUM, HIGH, CRITICAL]
+        - name: assignedTo
+          in: query
+          description: Filter by assigned agent UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Incident list retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncidentListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      summary: Create incident
+      description: Creates a new incident. SLA deadline is calculated automatically based on priority.
+      operationId: createIncident
+      tags: [Incidents]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateIncidentRequest'
+      responses:
+        '201':
+          description: Incident created successfully
+          headers:
+            Location:
+              description: URI of created incident
+              schema:
+                type: string
+                format: uri
+                example: "/api/v1/incidents/550e8400-e29b-41d4-a716-446655440000"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Incident'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /incidents/{id}:
+    get:
+      summary: Get incident details
+      description: Returns detailed incident information with freshness indicator
+      operationId: getIncident
+      tags: [Incidents]
+      parameters:
+        - $ref: '#/components/parameters/IdPathParam'
+      responses:
+        '200':
+          description: Incident retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncidentDetailResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    patch:
+      summary: Update incident
+      description: |
+        Partially updates incident. Requires version field for optimistic locking.
+        Returns 409 Conflict if version mismatch detected.
+      operationId: updateIncident
+      tags: [Incidents]
+      parameters:
+        - $ref: '#/components/parameters/IdPathParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateIncidentRequest'
+      responses:
+        '200':
+          description: Incident updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Incident'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /incidents/{id}/assign:
+    post:
+      summary: Assign incident
+      description: Assigns incident to specific agent
+      operationId: assignIncident
+      tags: [Incidents]
+      parameters:
+        - $ref: '#/components/parameters/IdPathParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - assignedTo
+              properties:
+                assignedTo:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Incident assigned successfully
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /incidents/{id}/resolve:
+    post:
+      summary: Resolve incident
+      description: Marks incident as resolved with resolution notes
+      operationId: resolveIncident
+      tags: [Incidents]
+      parameters:
+        - $ref: '#/components/parameters/IdPathParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - resolution
+              properties:
+                resolution:
+                  type: string
+                  maxLength: 5000
+                  example: "Increased database connection pool size"
+      responses:
+        '200':
+          description: Incident resolved successfully
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /incidents/{id}/worklogs:
+    get:
+      summary: Get incident worklogs
+      description: Returns all worklogs associated with incident
+      operationId: getIncidentWorklogs
+      tags: [Incidents, Worklogs]
+      parameters:
+        - $ref: '#/components/parameters/IdPathParam'
+      responses:
+        '200':
+          description: Worklogs retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Worklog'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      summary: Add worklog to incident
+      description: Creates worklog entry for incident
+      operationId: addIncidentWorklog
+      tags: [Incidents, Worklogs]
+      parameters:
+        - $ref: '#/components/parameters/IdPathParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - description
+                - timeSpent
+              properties:
+                description:
+                  type: string
+                  maxLength: 1000
+                timeSpent:
+                  type: integer
+                  description: Time spent in minutes
+                  minimum: 1
+      responses:
+        '201':
+          description: Worklog created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Worklog'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /incidents/{id}/related:
+    get:
+      summary: Get related entities for incident
+      description: Returns all related changes and tasks linked to incident
+      operationId: getIncidentRelated
+      tags: [Incidents, Cross-Module]
+      parameters:
+        - $ref: '#/components/parameters/IdPathParam'
+      responses:
+        '200':
+          description: Related entities retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  changes:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Change'
+                  tasks:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Task'
+                  freshness:
+                    $ref: '#/components/schemas/FreshnessBadge'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # Change Management Endpoints
+  /changes:
+    get:
+      summary: List changes
+      description: Returns paginated list of change requests
+      operationId: listChanges
+      tags: [Changes]
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/SortParam'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [REQUESTED, PENDING_APPROVAL, APPROVED, REJECTED, SCHEDULED, IN_PROGRESS, COMPLETED, FAILED, ROLLED_BACK]
+        - name: riskLevel
+          in: query
+          schema:
+            type: string
+            enum: [LOW, MEDIUM, HIGH, EMERGENCY]
+      responses:
+        '200':
+          description: Changes retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Change'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      summary: Create change request
+      description: Creates new change request (will trigger OPA approval policy evaluation)
+      operationId: createChange
+      tags: [Changes]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateChangeRequest'
+      responses:
+        '201':
+          description: Change request created successfully
+          headers:
+            Location:
+              description: URI of created change
+              schema:
+                type: string
+                format: uri
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Change'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /changes/{id}:
+    get:
+      summary: Get change details
+      description: Returns detailed change request information
+      operationId: getChange
+      tags: [Changes]
+      parameters:
+        - $ref: '#/components/parameters/IdPathParam'
+      responses:
+        '200':
+          description: Change retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Change'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /changes/{id}/approve:
+    post:
+      summary: Approve change request
+      description: |
+        Approves change request. Requires CAB_MEMBER role (enforced by OPA policy).
+        Generates decision receipt for audit trail.
+      operationId: approveChange
+      tags: [Changes]
+      parameters:
+        - $ref: '#/components/parameters/IdPathParam'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                comments:
+                  type: string
+                  maxLength: 1000
+      responses:
+        '200':
+          description: Change approved successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /changes/{id}/deploy:
+    post:
+      summary: Mark change as deployed
+      description: Updates change deployment status (COMPLETED or FAILED)
+      operationId: deployChange
+      tags: [Changes]
+      parameters:
+        - $ref: '#/components/parameters/IdPathParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - deploymentStatus
+              properties:
+                deploymentStatus:
+                  type: string
+                  enum: [COMPLETED, FAILED]
+                deploymentNotes:
+                  type: string
+                  maxLength: 5000
+      responses:
+        '200':
+          description: Deployment status updated successfully
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /changes/calendar:
+    get:
+      summary: Get change calendar
+      description: Returns changes scheduled within date range (for calendar view)
+      operationId: getChangeCalendar
+      tags: [Changes]
+      parameters:
+        - name: startDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          example: "2025-10-18"
+        - name: endDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          example: "2025-10-25"
+      responses:
+        '200':
+          description: Calendar data retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Change'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # Task/Project Management Endpoints
+  /tasks:
+    get:
+      summary: List tasks
+      description: Returns paginated list of tasks with filtering
+      operationId: listTasks
+      tags: [Tasks]
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/SortParam'
+        - name: projectId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: sprintId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [TODO, IN_PROGRESS, DONE]
+        - name: assignedTo
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Tasks retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Task'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      summary: Create task
+      description: Creates new task/story/epic
+      operationId: createTask
+      tags: [Tasks]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaskRequest'
+      responses:
+        '201':
+          description: Task created successfully
+          headers:
+            Location:
+              description: URI of created task
+              schema:
+                type: string
+                format: uri
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /tasks/{id}:
+    get:
+      summary: Get task details
+      description: Returns detailed task information
+      operationId: getTask
+      tags: [Tasks]
+      parameters:
+        - $ref: '#/components/parameters/IdPathParam'
+      responses:
+        '200':
+          description: Task retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    patch:
+      summary: Update task
+      description: Partially updates task with optimistic locking
+      operationId: updateTask
+      tags: [Tasks]
+      parameters:
+        - $ref: '#/components/parameters/IdPathParam'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - version
+              properties:
+                title:
+                  type: string
+                  minLength: 5
+                  maxLength: 200
+                description:
+                  type: string
+                  maxLength: 5000
+                status:
+                  type: string
+                  enum: [TODO, IN_PROGRESS, DONE]
+                assignedTo:
+                  type: string
+                  format: uuid
+                  nullable: true
+                storyPoints:
+                  type: integer
+                  enum: [1, 2, 3, 5, 8, 13, 21]
+                  nullable: true
+                version:
+                  type: integer
+      responses:
+        '200':
+          description: Task updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # Cross-Module Endpoints
+  /worklogs:
+    post:
+      summary: Single-Entry Time Tray - Log time to incident and/or task
+      description: |
+        Creates worklog that automatically mirrors to both incident and task if both IDs provided.
+        This is the "Single-Entry Time Tray" feature.
+      operationId: createWorklog
+      tags: [Cross-Module, Worklogs]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWorklogRequest'
+      responses:
+        '201':
+          description: Worklog created and mirrored successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  worklog:
+                    $ref: '#/components/schemas/Worklog'
+                  mirroredTo:
+                    type: array
+                    items:
+                      type: string
+                      enum: [INCIDENT, TASK]
+                    example: ["INCIDENT", "TASK"]
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /links:
+    post:
+      summary: Link-on-Action - Create bidirectional link between entities
+      description: |
+        Creates bidirectional link between entities (incident ↔ change, incident ↔ task, etc.).
+        This enables relationship graph traversal.
+      operationId: createLink
+      tags: [Cross-Module]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - sourceType
+                - sourceId
+                - targetType
+                - targetId
+              properties:
+                sourceType:
+                  type: string
+                  enum: [INCIDENT, CHANGE, TASK]
+                sourceId:
+                  type: string
+                  format: uuid
+                targetType:
+                  type: string
+                  enum: [INCIDENT, CHANGE, TASK]
+                targetId:
+                  type: string
+                  format: uuid
+      responses:
+        '201':
+          description: Link created successfully
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /relationships/{entityType}/{entityId}:
+    get:
+      summary: Get relationship graph for entity
+      description: |
+        Returns all related entities (incidents, changes, tasks) for given entity.
+        Enables "context-aware cross-module views".
+      operationId: getRelationships
+      tags: [Cross-Module]
+      parameters:
+        - name: entityType
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [incidents, changes, tasks]
+        - name: entityId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Relationship graph retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  entity:
+                    type: object
+                    description: Source entity
+                  relatedIncidents:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Incident'
+                  relatedChanges:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Change'
+                  relatedTasks:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Task'
+                  freshness:
+                    $ref: '#/components/schemas/FreshnessBadge'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # Policy & Audit Endpoints
+  /decision-receipts/{id}:
+    get:
+      summary: Get decision receipt (explainability)
+      description: |
+        Returns explainable decision receipt for OPA policy evaluation.
+        Supports "audits like a bank" with 100% decision coverage.
+      operationId: getDecisionReceipt
+      tags: [Policy, Audit]
+      parameters:
+        - $ref: '#/components/parameters/IdPathParam'
+      responses:
+        '200':
+          description: Decision receipt retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecisionReceipt'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
